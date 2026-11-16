@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Loading Srinivasa Textiles...</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --color-primary: #6B0824;
+      --color-primary-dark: #4A0316;
+      --color-gold: #C69214;
+      --color-gold-light: #F7E7A9;
+      --color-gold-shimmer: #E0A926;
+      --bg-base: #FAF7F2;
+      --bg-card: #FFFFFF;
+      --text-main: #2A1810;
+      --text-muted: #7A6960;
+      --border-color: rgba(198, 146, 20, 0.25);
+    }
+
+    [data-theme="dark"] {
+      --color-primary: #D4AF37;
+      --color-primary-dark: #1F0208;
+      --color-gold: #E5B83A;
+      --color-gold-light: #FFF2B2;
+      --bg-base: #120307;
+      --bg-card: #1F070E;
+      --text-main: #FFF8E7;
+      --text-muted: #D1BFA8;
+      --border-color: rgba(229, 184, 58, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-base);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text-main);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle luxury silk background aura */
+    .bg-aura {
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(198, 146, 20, 0.12) 0%, rgba(107, 8, 36, 0.08) 50%, transparent 70%);
+      filter: blur(40px);
+      pointer-events: none;
+      animation: auraPulse 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes auraPulse {
+      0% { transform: scale(0.9); opacity: 0.6; }
+      100% { transform: scale(1.15); opacity: 1; }
+    }
+
+    /* Clean Center Loading Card */
+    .loading-card {
+      position: relative;
+      z-index: 2;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.75rem 2.25rem 2.25rem;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 20px 45px rgba(42, 24, 16, 0.08), 0 4px 12px rgba(198, 146, 20, 0.08);
+      animation: cardFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes cardFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Emblem & Spinning Loom Ring */
+    .emblem-wrap {
+      position: relative;
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .spinner-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2.5px solid rgba(198, 146, 20, 0.18);
+      border-top-color: var(--color-gold);
+      border-right-color: var(--color-gold-shimmer);
+      animation: spin 1.1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    }
+
+    .spinner-pulse-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1px dashed rgba(198, 146, 20, 0.35);
+      animation: spinCounter 12s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes spinCounter {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(-360deg); }
+    }
+
+    .emblem-core {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7A0C2E 0%, #4D051B 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFF2B2;
+      box-shadow: 0 4px 16px rgba(122, 12, 46, 0.35);
+    }
+
+    .emblem-core svg {
+      width: 34px;
+      height: 34px;
+      stroke: #FFF2B2;
+    }
+
+    /* Brand Typography */
+    .brand-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.55rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      color: var(--color-primary);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .brand-sub {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      color: var(--color-gold);
+      text-transform: uppercase;
+      margin-bottom: 1.75rem;
+    }
+
+    /* Clean Progress Bar */
+    .progress-container {
+      width: 100%;
+      background: rgba(198, 146, 20, 0.12);
+      height: 6px;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #C69214, #F7E7A9, #C69214);
+      border-radius: 999px;
+      box-shadow: 0 0 10px rgba(198, 146, 20, 0.5);
+      transition: width 0.18s linear;
+    }
+
+    .status-text {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      min-height: 1.3rem;
+      margin-bottom: 1.25rem;
+    }
+
+    /* Silk Mark Certified Badge */
+    .cert-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.85rem;
+      background: rgba(198, 146, 20, 0.08);
+      border: 1px solid rgba(198, 146, 20, 0.25);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-gold);
+      letter-spacing: 0.04em;
+    }
+
+    /* Skip link */
+    .manual-link {
+      display: block;
+      margin-top: 1.25rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-decoration: underline;
+      cursor: pointer;
+      opacity: 0.75;
+      transition: opacity 0.2s;
+    }
+
+    .manual-link:hover {
+      opacity: 1;
+      color: var(--color-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-aura"></div>
+
+  <div class="loading-card" role="status" aria-live="polite">
+    <!-- Spinning Emblem -->
+    <div class="emblem-wrap">
+      <div class="spinner-pulse-ring"></div>
+      <div class="spinner-ring"></div>
+      <div class="emblem-core">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 3v18"></path>
+          <path d="M3 12h18"></path>
+          <path d="m7 7 10 10"></path>
+          <path d="m17 7-10 10"></path>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Title & Heritage -->
+    <h1 class="brand-title">SRINIVASA TEXTILES</h1>
+    <p class="brand-sub">ESTD 1978 • KANCHIPURAM</p>
+
+    <!-- Progress Indicator -->
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Dynamic Status Message -->
+    <p class="status-text" id="statusMessage">Opening Pure Handloom Collections...</p>
+
+    <!-- Silk Mark Guarantee -->
+    <div class="cert-pill">
+      <span>✨</span>
+      <span>100% Silk Mark (SMOI) Certified</span>
+    </div>
+
+    <!-- Fallback Skip Link -->
+    <a href="shop.html" id="fallbackLink" class="manual-link">Click here if not redirected automatically</a>
+  </div>
+
+  <script>
+    (function () {
+      // Respect user's active theme
+      try {
+        var savedTheme = localStorage.getItem("st_active_theme_v4");
+        if (savedTheme === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      } catch (e) {}
+
+      // Parse target destination from URL params
+      var params = new URLSearchParams(window.location.search);
+      var rawTarget = params.get("target") || params.get("to") || "shop.html";
+
+      // Decode and validate destination
+      var destination = "shop.html";
+      try {
+        destination = decodeURIComponent(rawTarget);
+      } catch (e) {
+        destination = rawTarget;
+      }
+
+      // Ensure destination points to shop.html
+      if (!destination.includes("shop.html")) {
+        destination = "shop.html" + (destination.startsWith("?") || destination.startsWith("#") ? destination : "?" + destination);
+      }
+
+      // Update manual fallback link
+      var fallback = document.getElementById("fallbackLink");
+      if (fallback) fallback.href = destination;
+
+      var bar = document.getElementById("progressBar");
+      var status = document.getElementById("statusMessage");
+
+      // Dynamic milestone messages
+      var milestones = [
+        { pct: 25, text: "Selecting Pure Mulberry Silk..." },
+        { pct: 55, text: "Curating Pure Handloom & Zari Weaves..." },
+        { pct: 85, text: "Preparing Showroom Collections..." },
+        { pct: 100, text: "✨ Opening Store..." }
+      ];
+
+      var progress = 0;
+      var interval = setInterval(function () {
+        progress += 4;
+        if (progress > 100) progress = 100;
+
+        if (bar) bar.style.width = progress + "%";
+
+        // Update status text based on progress
+        for (var i = milestones.length - 1; i >= 0; i--) {
+          if (progress >= milestones[i].pct) {
+            if (status) status.textContent = milestones[i].text;
+            break;
+          }
+        }
+
+        if (progress >= 100) {
+          clearInterval(interval);
+          // Smooth redirect using location.replace so back button goes to index.html
+          setTimeout(function () {
+            window.location.replace(destination);
+          }, 180);
+        }
+      }, 35); // Complete full progress in ~900ms (smooth & instant)
+    })();
+  </script>
+</body>
+</html>
+

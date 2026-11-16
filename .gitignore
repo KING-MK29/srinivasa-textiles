@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+env/
+
+# Environment Variables & Secrets (CRITICAL: Do not commit!)
+.env
+backend/.env
+*.env.local
+*.env.*.local
+
+# Backups & Large Archives
+*.zip
+*.tar.gz
+*.rar
+backup_root_duplicates.zip
+
+# Python Cache & Testing
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & Databases
+backend/logs/
+*.log
+*.sqlite3
+backend/database/srinivasa.db
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary scratch files
+scratch/

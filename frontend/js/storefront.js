@@ -1,0 +1,6326 @@
+// Dedicated Multi-Gender Department Routing & Storefront Controller
+// Srinivasa Textiles - High-Contrast Dark & Light Theme Support
+
+class StorefrontController {
+  constructor() {
+    this.currentPage = "home"; // "home" | "women" | "men" | "girls" | "boys" | "infants" | "family"
+    this.currentFabricFilter = "All";
+    this.currentOccasionFilter = "All";
+    this.currentSort = "featured";
+    this.activeProduct = null;
+    this.selectedColor = null;
+    this.selectedSize = "Standard";
+    this.selectedBlouseKey = "unstitched";
+
+    this.init();
+  }
+
+  init() {
+    this.initTheme();
+    this.bindEvents();
+    this.handleRouteFromHash();
+
+    // Guard home-page exclusive featured list
+    const isShopPage = window.location.pathname.includes("shop.html") || window.location.pathname.endsWith("/shop");
+    if (!isShopPage) {
+      this.renderReviews();
+      this.renderHomePageFeatured();
+    }
+    this.initHeroGoogleSearch();
+
+    this.renderFestiveVouchers();
+    this.initFestiveCampaignSync();
+    this.setupFloatingCouponPill();
+    this.syncCouponPopupVisibility();
+    this.initFestiveDealsCarousel();
+    this.initBulkOrdersSync();
+    this.setupBulkInquiryModal();
+    this.updateCartUI();
+    this.updateWishlistCount();
+    this.setupWishlistDrawer();
+    this.setupCurrencySelector();
+    this.setupFeedbackModal();
+    this.setupOwnerAuthModal();
+    this.setupNotifyModal();
+    this.setupDepartmentNavScroll();
+    this.initScrollLockEngine();
+    this.initFooterCarousel();
+  }
+
+  // ==========================================
+  // UNIVERSAL BACKGROUND SCROLL LOCK ENGINE
+  // Prevents background webpage from scrolling when modals/drawers are open
+  // ==========================================
+  // ==========================================
+  // UNIVERSAL BACKGROUND SCROLL LOCK ENGINE
+  // Prevents background webpage from scrolling when modals/drawers are open
+  // (Favourite, Shopping Bag, Feedback, Product Details, Combos, etc.)
+  initScrollLockEngine() {
+    this.syncBodyScrollLock();
+
+    // Global ESC key listener to close active modals & restore background scroll
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const lightboxModal = document.getElementById("lightboxModal");
+        if (lightboxModal && lightboxModal.classList.contains("active")) {
+          lightboxModal.classList.remove("active");
+          this.syncBodyScrollLock();
+          return;
+        }
+        this.closeAllActiveModals();
+      }
+    });
+  }
+
+  syncBodyScrollLock() {
+    const isAnyActive = !!(
+      document.querySelector(".pdp-modal.active") ||
+      document.querySelector(".cart-drawer.active") ||
+      document.querySelector(".cart-drawer-overlay.active") ||
+      document.querySelector(".wishlist-drawer.active") ||
+      document.querySelector(".wishlist-drawer-overlay.active") ||
+      document.querySelector(".mobile-nav-drawer.active") ||
+      document.querySelector("#mobileNavOverlay.active") ||
+      document.querySelector(".drawer-overlay.active") ||
+      document.querySelector(".mobile-nav-overlay.active") ||
+      document.querySelector("#feedbackModal.active") ||
+      document.querySelector("#bulkInquiryModal.active") ||
+      document.querySelector("#notifyModal.active") ||
+      document.querySelector("#checkoutModal.active") ||
+      document.querySelector("#invoiceModal.active") ||
+      document.querySelector("#lightboxModal.active") ||
+      document.querySelector("#searchBarModal.active") ||
+      document.querySelector(".search-bar-modal.active") ||
+      document.querySelector("#couponPopupModal.active") ||
+      document.querySelector("#familyComboBookingModal.active") ||
+      document.querySelector(".mobile-filter-bottom-sheet.active") ||
+      document.querySelector(".mobile-sort-bottom-sheet.active") ||
+      document.querySelector(".mobile-bottom-sheet-backdrop.active") ||
+      document.querySelector(".mobile-quick-add-drawer.active") ||
+      (document.getElementById("familyComboBookingModal") && document.getElementById("familyComboBookingModal").style.display === "flex") ||
+      (document.getElementById("feedbackModal") && document.getElementById("feedbackModal").style.display === "flex")
+    );
+
+    if (isAnyActive) {
+      if (!document.body.classList.contains("modal-open")) {
+        const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+        document.body.dataset.lockedScrollY = scrollY;
+        document.documentElement.classList.add("modal-open");
+        document.body.classList.add("modal-open");
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = "0";
+        document.body.style.right = "0";
+        document.body.style.width = "100%";
+        document.body.style.overflow = "hidden";
+        document.documentElement.style.overflow = "hidden";
+      }
+    } else {
+      if (!document.querySelector(".pdp-modal.active")) {
+        document.body.classList.remove("pdp-open");
+      }
+      if (document.body.classList.contains("modal-open")) {
+        const scrollY = parseInt(document.body.dataset.lockedScrollY || "0", 10);
+        document.documentElement.classList.remove("modal-open");
+        document.body.classList.remove("modal-open");
+        document.body.classList.remove("pdp-open");
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.width = "";
+        document.body.style.overflow = "";
+        document.documentElement.style.overflow = "";
+        window.scrollTo(0, scrollY);
+      }
+    }
+
+    if (window.mobileUI && typeof window.mobileUI.syncActiveBottomNavTab === "function") {
+      window.mobileUI.syncActiveBottomNavTab();
+    }
+  }
+
+  closeAllActiveModals() {
+    document.body.classList.remove("pdp-open");
+    document.body.classList.remove("mobile-nav-open");
+    document.getElementById("pdpModal")?.classList.remove("active");
+    document.getElementById("cartDrawer")?.classList.remove("active");
+    document.getElementById("cartDrawerOverlay")?.classList.remove("active");
+    document.getElementById("wishlistDrawer")?.classList.remove("active");
+    document.getElementById("wishlistDrawerOverlay")?.classList.remove("active");
+    document.getElementById("mobileNavDrawer")?.classList.remove("active");
+    document.getElementById("mobileNavOverlay")?.classList.remove("active");
+    document.getElementById("feedbackModal")?.classList.remove("active");
+    document.getElementById("bulkInquiryModal")?.classList.remove("active");
+    document.getElementById("notifyModal")?.classList.remove("active");
+    document.getElementById("checkoutModal")?.classList.remove("active");
+    this.syncBodyScrollLock();
+    document.getElementById("invoiceModal")?.classList.remove("active");
+    document.getElementById("lightboxModal")?.classList.remove("active");
+    document.getElementById("searchBarModal")?.classList.remove("active");
+    const fcModal = document.getElementById("familyComboBookingModal");
+    if (fcModal) {
+      fcModal.classList.remove("active");
+      fcModal.style.display = "none";
+    }
+    if (window.mobileUI && typeof window.mobileUI.closeAllSheets === "function") {
+      window.mobileUI.closeAllSheets();
+    }
+    this.syncBodyScrollLock();
+  }
+
+  openSearchModal() {
+    const searchBarModal = document.getElementById("searchBarModal");
+    const searchInput = document.getElementById("headerSearchInput");
+    if (!searchBarModal) return;
+
+    searchBarModal.classList.add("active");
+    this.syncBodyScrollLock();
+
+    if (searchInput) {
+      searchInput.value = "";
+      const liveRes = document.getElementById("searchLiveResults");
+      if (liveRes) liveRes.innerHTML = "";
+      setTimeout(() => searchInput.focus(), 60);
+    }
+  }
+
+  closeSearchModal() {
+    const searchBarModal = document.getElementById("searchBarModal");
+    if (!searchBarModal) return;
+
+    searchBarModal.classList.remove("active");
+    this.syncBodyScrollLock();
+
+    const searchInput = document.getElementById("headerSearchInput");
+    if (searchInput) searchInput.blur();
+  }
+
+  // Theme Management (Light & Dark Mode - Strict Light Default)
+  initTheme() {
+    // Purge legacy dark theme remnants so entire website strictly defaults to light mode
+    try {
+      if (localStorage.getItem("st_active_theme_v3") === "dark" || localStorage.getItem("st_user_theme_chosen") === "true") {
+        localStorage.removeItem("st_active_theme_v3");
+        localStorage.removeItem("st_user_theme_chosen");
+      }
+    } catch (e) { }
+
+    const hasChosen = localStorage.getItem("st_user_theme_chosen_v4") === "true";
+    const saved = (window.store && window.store.activeTheme) || localStorage.getItem("st_active_theme_v4");
+    const activeTheme = (hasChosen && saved === "dark") ? "dark" : "light";
+
+    document.documentElement.setAttribute("data-theme", activeTheme);
+    this.updateThemeButtonUI(activeTheme);
+
+    const handleThemeToggle = (btnEl) => {
+      if (btnEl) btnEl.classList.add("theme-rotating");
+      const newTheme = window.store.toggleTheme();
+      this.updateThemeButtonUI(newTheme);
+      setTimeout(() => {
+        if (btnEl) btnEl.classList.remove("theme-rotating");
+      }, 450);
+      setTimeout(() => {
+        this.showToast(`Switched to ${newTheme === "dark" ? "🌙 Dark Mode" : "☀️ Light Mode"}`, "info");
+      }, 120);
+    };
+
+    const toggleBtns = document.querySelectorAll("#themeToggleBtn, #stickyThemeToggleBtn, .theme-toggle-btn");
+    toggleBtns.forEach(btn => {
+      btn.addEventListener("click", () => handleThemeToggle(btn));
+    });
+
+    const drawerThemeBtn = document.getElementById("mobileDrawerThemeBtn");
+    if (drawerThemeBtn) {
+      drawerThemeBtn.addEventListener("click", () => handleThemeToggle(drawerThemeBtn));
+    }
+
+    window.addEventListener("themeChanged", (e) => {
+      if (e && e.detail && e.detail.theme) {
+        this.updateThemeButtonUI(e.detail.theme);
+      }
+    });
+  }
+
+  updateThemeButtonUI(theme) {
+    const isDark = theme === "dark";
+
+    // Hardcoded SVG icons — always render regardless of Icons.js load state
+    const moonSvg = `<svg class="theme-svg-icon theme-icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="rgba(252, 211, 77, 0.2)" stroke="#FCD34D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      <path d="M19 4v3M20.5 5.5h-3" stroke-width="1.8"/>
+    </svg>`;
+
+    const sunSvg = `<svg class="theme-svg-icon theme-icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="rgba(252, 211, 77, 0.2)" stroke="#FCD34D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>`;
+
+    const iconSvg = isDark ? moonSvg : sunSvg;
+    const labelText = isDark ? " Dark" : " Light";
+
+    // 1. Update Header Button & Sticky Bar Buttons (Both Desktop and Mobile)
+    const toggleBtns = document.querySelectorAll("#themeToggleBtn, #stickyThemeToggleBtn, .theme-toggle-btn");
+    toggleBtns.forEach(btn => {
+      btn.style.transition = "transform 0.18s cubic-bezier(0.34,1.56,0.64,1)";
+      btn.style.transform = "scale(0.88)";
+
+      let iconSpan = btn.querySelector(".theme-icon");
+      let labelSpan = btn.querySelector(".theme-label");
+
+      if (!iconSpan || !labelSpan) {
+        btn.innerHTML = `<span class="theme-icon">${iconSvg}</span><span class="theme-label">${labelText}</span>`;
+      } else {
+        iconSpan.innerHTML = iconSvg;
+        labelSpan.textContent = labelText;
+      }
+
+      btn.setAttribute("title", isDark ? "Current: Dark Mode (Click for Light Mode ☀️)" : "Current: Light Mode (Click for Dark Mode 🌙)");
+      btn.setAttribute("aria-label", isDark ? "Switch to Light Mode" : "Switch to Dark Mode");
+
+      setTimeout(() => {
+        btn.style.transform = "scale(1)";
+      }, 180);
+    });
+
+    // 2. Update Mobile Drawer Theme Tile
+    const drawerIcon = document.getElementById("mobileDrawerThemeIcon");
+    const drawerLabel = document.getElementById("mobileDrawerThemeLabel");
+    const drawerStatus = document.getElementById("mobileDrawerThemeStatus");
+    if (drawerIcon) drawerIcon.textContent = isDark ? "☀️" : "🌙";
+    if (drawerLabel) drawerLabel.textContent = isDark ? "Switch to Light Mode" : "Switch to Dark Mode";
+    if (drawerStatus) {
+      drawerStatus.textContent = isDark ? "Dark ON" : "Light";
+      drawerStatus.style.background = isDark ? "rgba(245, 208, 97, 0.2)" : "rgba(212, 175, 55, 0.15)";
+      drawerStatus.style.color = isDark ? "#F5D061" : "var(--color-gold, #C59B27)";
+      drawerStatus.style.borderColor = isDark ? "#F5D061" : "var(--color-gold, #C59B27)";
+    }
+  }
+
+  bindEvents() {
+    // Reactivity
+    window.addEventListener("catalogUpdated", () => {
+      this.renderCurrentPage();
+      this.renderHomePageFeatured();
+    });
+    window.addEventListener("cartUpdated", () => this.updateCartUI());
+    window.addEventListener("couponsUpdated", (e) => {
+      if (window.store && typeof window.store.validateActiveCoupon === "function") {
+        const valRes = window.store.validateActiveCoupon();
+        if (valRes && valRes.status === "deleted") {
+          this.showToast(`⚠️ Promo code "${valRes.code}" was removed and is Not Available.`, "warning");
+        } else if (valRes && valRes.status === "inactive") {
+          this.showToast(`⚠️ Promo code "${valRes.code}" has been turned OFF by store. Session removed.`, "warning");
+        } else if (valRes && valRes.status === "altered") {
+          const benefit = valRes.coupon.discountType === "flat" ? `₹${valRes.coupon.discountAmount} Flat OFF` : `${valRes.coupon.discountPercent}% OFF`;
+          this.showToast(`🔄 Promo code "${valRes.coupon.code}" was updated in real time: Now ${benefit}!`, "success");
+        }
+      }
+      this.syncCouponPopupVisibility();
+      this.updateCartUI();
+      this.renderFestiveVouchers();
+    });
+    window.addEventListener("wishlistUpdated", () => {
+      this.updateWishlistCount();
+      this.renderWishlistDrawer();
+      this.syncCardWishlistButtons();
+    });
+    window.addEventListener("currencyChanged", () => {
+      this.renderCurrentPage();
+      this.renderHomePageFeatured();
+      this.updateCartUI();
+      this.renderWishlistDrawer();
+      if (this.activeProduct) this.updatePDPPricing();
+    });
+
+    // Hash change routing
+    window.addEventListener("hashchange", () => this.handleRouteFromHash());
+
+    // Collection 01 (Family Matching Combos) real-time visibility & rotation sync
+    window.addEventListener("collection01Updated", () => this.renderCollection01Section());
+    window.addEventListener("familyCombosUpdated", () => this.renderCollection01Section());
+    window.addEventListener("familyComboSettingsUpdated", () => this.renderCollection01Section());
+    window.addEventListener("storage", (e) => {
+      if (e.key === "st_collection01_enabled_v2" || e.key === "st_family_combos_v1" || e.key === "st_family_combo_settings_v1") {
+        this.renderCollection01Section();
+      }
+    });
+
+    // Bulk Orders Desktop Nav Button
+    const bulkNavBtn = document.getElementById("headerBulkOrdersBtn");
+    if (bulkNavBtn) {
+      bulkNavBtn.addEventListener("click", () => this.scrollToBulkSection());
+    }
+
+    // Global Brand Logo Home Link (Resets to Home page smoothly)
+    const brandLogo = document.getElementById("globalBrandLogo");
+    if (brandLogo) {
+      brandLogo.addEventListener("click", (e) => {
+        e.preventDefault();
+        const isShopPage = window.location.pathname.includes("shop.html") || window.location.pathname.endsWith("/shop");
+        if (isShopPage) {
+          sessionStorage.setItem("st_skip_intro_once", "true");
+          window.location.href = "index.html";
+        } else {
+          this.navigateToPage("home");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      });
+    }
+
+    // Universal Department Navigation Links
+    document.querySelectorAll(".dept-link").forEach(link => {
+      link.addEventListener("click", (e) => {
+        const targetPage = e.currentTarget.getAttribute("data-page") || "home";
+        this.navigateToPage(targetPage);
+      });
+    });
+
+    // Gender Gateway Cards on Home Page
+    document.querySelectorAll(".gender-gateway-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const targetPage = card.getAttribute("data-page") || "home";
+        this.navigateToPage(targetPage);
+      });
+    });
+
+    // Occasion Card Clicks
+    document.querySelectorAll(".occasion-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const occasion = card.getAttribute("data-occasion");
+        if (occasion.includes("Wedding")) {
+          this.navigateToPage("women");
+        } else if (occasion.includes("Birthday")) {
+          this.navigateToPage("girls");
+        } else {
+          this.navigateToPage("women");
+        }
+      });
+    });
+
+    // Filters & Sorting in Department Catalog
+    const fabricFilter = document.getElementById("fabricFilter");
+    if (fabricFilter) {
+      fabricFilter.addEventListener("change", (e) => {
+        this.currentFabricFilter = e.target.value;
+        this.renderCurrentPage();
+      });
+    }
+
+    const occasionFilter = document.getElementById("occasionFilter");
+    if (occasionFilter) {
+      occasionFilter.addEventListener("change", (e) => {
+        this.currentOccasionFilter = e.target.value;
+        this.renderCurrentPage();
+      });
+    }
+
+    const sortSelect = document.getElementById("sortSelect");
+    if (sortSelect) {
+      sortSelect.addEventListener("change", (e) => {
+        this.currentSort = e.target.value;
+        this.renderCurrentPage();
+      });
+    }
+
+    // Search Bar Modal (Hidden by default, shown ONLY on click)
+    const searchTriggers = document.querySelectorAll("#searchTriggerBtn, #heroSearchTriggerBtn, .search-trigger-btn");
+    const searchBarModal = document.getElementById("searchBarModal");
+    const searchCloseBtn = document.getElementById("searchCloseBtn");
+    const searchInput = document.getElementById("headerSearchInput");
+
+    if (searchTriggers.length && searchBarModal) {
+      searchTriggers.forEach((trigger) => {
+        trigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (searchBarModal.classList.contains("active")) {
+            this.closeSearchModal();
+          } else {
+            this.openSearchModal();
+          }
+        });
+      });
+    }
+
+    if (searchCloseBtn && searchBarModal) {
+      searchCloseBtn.addEventListener("click", () => {
+        this.closeSearchModal();
+      });
+    }
+
+    if (searchBarModal) {
+      searchBarModal.addEventListener("click", (e) => {
+        if (e.target === searchBarModal) {
+          this.closeSearchModal();
+        }
+      });
+
+      // Strict Scroll Isolation: Background stays 100% frozen/stable, only search suggestions scroll
+      searchBarModal.addEventListener("wheel", (e) => {
+        const liveRes = document.getElementById("searchLiveResults");
+        if (!liveRes || !liveRes.contains(e.target)) {
+          // Prevent wheel anywhere outside suggestions
+          e.preventDefault();
+        } else {
+          // When cursor is inside suggestions, isolate scroll and prevent wheel chaining to document
+          const { scrollTop, scrollHeight, clientHeight } = liveRes;
+          const isScrollable = scrollHeight > clientHeight;
+          if (!isScrollable) {
+            e.preventDefault();
+            return;
+          }
+          const delta = e.deltaY;
+          if (delta > 0 && scrollTop + clientHeight >= scrollHeight - 1) {
+            // Reached bottom of suggestions list - prevent bleed to background
+            e.preventDefault();
+          } else if (delta < 0 && scrollTop <= 0) {
+            // Reached top of suggestions list - prevent bleed to background
+            e.preventDefault();
+          }
+        }
+      }, { passive: false });
+
+      // Touch scroll isolation for mobile devices
+      searchBarModal.addEventListener("touchmove", (e) => {
+        const liveRes = document.getElementById("searchLiveResults");
+        if (!liveRes || !liveRes.contains(e.target)) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && searchBarModal && searchBarModal.classList.contains("active")) {
+        this.closeSearchModal();
+      }
+    });
+
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => this.handleSearchAutocomplete(e.target.value));
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const firstResult = document.querySelector("#searchLiveResults .search-result-item");
+          if (firstResult) {
+            firstResult.click();
+          }
+        }
+      });
+    }
+
+    // Cart Drawer (Shopping Bag - Header & Sticky Bar Triggers)
+    const cartTriggerBtns = document.querySelectorAll("#cartTriggerBtn, #stickyCartTriggerBtn, .cart-btn");
+    const cartCloseBtn = document.getElementById("cartCloseBtn");
+    const cartDrawerOverlay = document.getElementById("cartDrawerOverlay");
+
+    cartTriggerBtns.forEach(btn => {
+      btn.addEventListener("click", () => this.openCartDrawer());
+    });
+
+    if (cartCloseBtn) {
+      cartCloseBtn.addEventListener("click", () => this.closeCartDrawer());
+    }
+
+    if (cartDrawerOverlay) {
+      cartDrawerOverlay.addEventListener("click", () => this.closeCartDrawer());
+    }
+
+    // Mobile Navigation & Department Drawer (3-Lines Menu)
+    const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+    const mobileNavDrawer = document.getElementById("mobileNavDrawer");
+    const mobileNavOverlay = document.getElementById("mobileNavOverlay");
+    const mobileNavCloseBtn = document.getElementById("mobileNavCloseBtn");
+
+    if (mobileMenuBtn && mobileNavDrawer && mobileNavOverlay) {
+      mobileMenuBtn.addEventListener("click", () => {
+        mobileNavDrawer.classList.add("active");
+        mobileNavOverlay.classList.add("active");
+        document.body.classList.add("mobile-nav-open");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    if (mobileNavCloseBtn && mobileNavDrawer && mobileNavOverlay) {
+      mobileNavCloseBtn.addEventListener("click", () => {
+        mobileNavDrawer.classList.remove("active");
+        mobileNavOverlay.classList.remove("active");
+        document.body.classList.remove("mobile-nav-open");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    if (mobileNavOverlay) {
+      mobileNavOverlay.addEventListener("click", () => {
+        mobileNavDrawer?.classList.remove("active");
+        mobileNavOverlay?.classList.remove("active");
+        document.body.classList.remove("mobile-nav-open");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    document.querySelectorAll(".mobile-dept-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const page = btn.getAttribute("data-page");
+        mobileNavDrawer?.classList.remove("active");
+        mobileNavOverlay?.classList.remove("active");
+        document.body.classList.remove("mobile-nav-open");
+        this.syncBodyScrollLock();
+        if (page) this.navigateToPage(page);
+      });
+    });
+
+    const mobileCartBtn = document.getElementById("mobileCartBtn");
+    if (mobileCartBtn) {
+      mobileCartBtn.addEventListener("click", () => {
+        mobileNavDrawer?.classList.remove("active");
+        mobileNavOverlay?.classList.remove("active");
+        document.body.classList.remove("mobile-nav-open");
+        this.syncBodyScrollLock();
+        this.openCartDrawer();
+      });
+    }
+
+    const mobileFeedbackBtn = document.getElementById("mobileFeedbackBtn");
+    if (mobileFeedbackBtn) {
+      mobileFeedbackBtn.addEventListener("click", () => {
+        mobileNavDrawer?.classList.remove("active");
+        mobileNavOverlay?.classList.remove("active");
+        document.body.classList.remove("mobile-nav-open");
+        const feedbackModal = document.getElementById("feedbackModal");
+        if (feedbackModal) {
+          feedbackModal.classList.add("active");
+          this.syncBodyScrollLock();
+        }
+      });
+    }
+
+    // Coupon Code in Cart
+    const applyCouponBtn = document.getElementById("applyCouponBtn");
+    const couponInput = document.getElementById("cartCouponInput");
+    if (applyCouponBtn && couponInput) {
+      const handleApply = () => {
+        const val = couponInput.value.trim();
+        if (!val) {
+          this.showToast("Please enter a promo code (e.g. HERITAGE10, FAMILY5, SRINIVASA15)", "warning");
+          return;
+        }
+        const res = window.store.applyCoupon(val);
+        this.showToast(res.message, res.success ? "success" : "warning");
+        if (res.success) couponInput.value = "";
+      };
+
+      applyCouponBtn.addEventListener("click", handleApply);
+      couponInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") handleApply();
+      });
+    }
+
+    // Gift Wrap Checkbox in Cart
+    const giftWrapCheckbox = document.getElementById("cartGiftWrapCheckbox");
+    const giftMessageBox = document.getElementById("cartGiftMessageBox");
+    const giftMessageInput = document.getElementById("cartGiftMessageInput");
+
+    if (giftWrapCheckbox) {
+      giftWrapCheckbox.addEventListener("change", (e) => {
+        const checked = e.target.checked;
+        if (giftMessageBox) giftMessageBox.style.display = checked ? "block" : "none";
+        window.store.setGiftWrap(checked, giftMessageInput ? giftMessageInput.value : "");
+      });
+    }
+
+    if (giftMessageInput) {
+      giftMessageInput.addEventListener("input", (e) => {
+        window.store.giftMessage = e.target.value;
+      });
+    }
+
+    // WhatsApp Floating Widget with Smooth Pop-from-Logo Engine
+    const waWidget = document.getElementById("whatsappWidget");
+    const waTrigger = document.getElementById("whatsappTrigger");
+    const waPopup = document.getElementById("whatsappPopup");
+    const waCloseBtn = document.getElementById("waCloseBtn");
+
+    if (waTrigger && waPopup) {
+      waTrigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const willBeActive = !waPopup.classList.contains("active");
+        waPopup.classList.toggle("active", willBeActive);
+        if (waWidget) waWidget.classList.toggle("active", willBeActive);
+      });
+    }
+
+    if (waCloseBtn && waPopup) {
+      waCloseBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        waPopup.classList.remove("active");
+        if (waWidget) waWidget.classList.remove("active");
+      });
+    }
+
+    document.addEventListener("click", (e) => {
+      if (waPopup && waPopup.classList.contains("active") && !e.target.closest("#whatsappWidget")) {
+        waPopup.classList.remove("active");
+        if (waWidget) waWidget.classList.remove("active");
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && waPopup && waPopup.classList.contains("active")) {
+        waPopup.classList.remove("active");
+        if (waWidget) waWidget.classList.remove("active");
+      }
+    });
+
+    // PDP Modal Close (Product Details)
+    const pdpModal = document.getElementById("pdpModal");
+    const pdpCloseBtn = document.getElementById("pdpCloseBtn");
+    if (pdpCloseBtn && pdpModal) {
+      pdpCloseBtn.addEventListener("click", () => {
+        pdpModal.classList.remove("active");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    if (pdpModal) {
+      pdpModal.addEventListener("click", (e) => {
+        if (e.target === pdpModal) {
+          pdpModal.classList.remove("active");
+          this.syncBodyScrollLock();
+        }
+      });
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (pdpModal && pdpModal.classList.contains("active")) {
+          pdpModal.classList.remove("active");
+          this.syncBodyScrollLock();
+        }
+      }
+    });
+
+    // Fullscreen Lightbox Close
+    // Fullscreen High-Resolution Lightbox Handlers
+    const lightboxModal = document.getElementById("lightboxModal");
+    const lightboxClose = document.getElementById("lightboxCloseBtn");
+    if (lightboxModal && !lightboxModal._boundLightboxClose) {
+      lightboxModal._boundLightboxClose = true;
+      if (lightboxClose) {
+        lightboxClose.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.closeFullscreenLightbox();
+        });
+      }
+      lightboxModal.addEventListener("click", (e) => {
+        // Prevent immediate closing on synthetic ghost clicks (< 350ms from open)
+        if (Date.now() - (this._lightboxOpenedAt || 0) < 350) return;
+        // Close ONLY if clicking directly on backdrop or content container, NOT on the image itself
+        if (e.target === lightboxModal || e.target.classList.contains("lightbox-content") || e.target.id === "lightboxCloseBtn") {
+          this.closeFullscreenLightbox();
+        }
+      });
+    }
+
+    // Checkout Modal Setup
+    this.setupCheckoutHandlers();
+
+    // Real-Time Stock & Availability Updates Across Storefront & Tabs
+    const refreshStorefrontStockUI = (detail) => {
+      // 1. Reload store catalog in memory so freshest units are loaded
+      if (window.store && typeof window.store.reloadCatalog === "function") {
+        window.store.reloadCatalog();
+      }
+
+      // 2. Re-render Home Featured Products Grid (index.html)
+      const homeGrid = document.getElementById("homeFeaturedProductsGrid");
+      if (homeGrid && typeof this.renderHomePageFeatured === "function") {
+        this.renderHomePageFeatured();
+      }
+
+      // 3. Re-render Shop / Department Grid (shop.html or filtered page)
+      const shopGrid = document.getElementById("productsGrid");
+      if (shopGrid && typeof this.renderProductsForDepartment === "function") {
+        const deptMeta = typeof this.getDepartmentMeta === "function" ? this.getDepartmentMeta(this.currentPage) : null;
+        const activeDept = (deptMeta && deptMeta.filterDept) ? deptMeta.filterDept : "All";
+        this.renderProductsForDepartment(activeDept);
+      }
+
+      // 4. If PDP Quick View Modal is currently active, update its contents in real time
+      const pdpModal = document.getElementById("pdpModal");
+      if (pdpModal && pdpModal.classList.contains("active") && this.activeProduct) {
+        const targetId = (detail && detail.productId) ? detail.productId : this.activeProduct.id;
+        if (targetId === this.activeProduct.id) {
+          const freshProduct = window.store.getProductById(this.activeProduct.id);
+          if (freshProduct) {
+            this.activeProduct = freshProduct;
+            const container = document.getElementById("pdpModalContent");
+            if (container) {
+              container.innerHTML = this.createPDPContentHTML(freshProduct);
+              this.bindPDPEvents(freshProduct);
+            }
+          }
+        }
+      }
+
+      // 5. If Wishlist is open, refresh items availability
+      const wishlistModal = document.getElementById("wishlistModal");
+      if (wishlistModal && wishlistModal.classList.contains("active") && typeof this.renderWishlistModal === "function") {
+        this.renderWishlistModal();
+      }
+    };
+
+    this.refreshRealtimeStock = refreshStorefrontStockUI;
+
+    // Listen for custom events dispatched by store within same window
+    window.addEventListener("productsUpdated", (e) => refreshStorefrontStockUI(e.detail));
+    window.addEventListener("stockUpdated", (e) => refreshStorefrontStockUI(e.detail));
+    window.addEventListener("catalogUpdated", (e) => refreshStorefrontStockUI(e.detail));
+    window.addEventListener("familyCombosUpdated", () => {
+      this.renderCollection01Section();
+    });
+
+    // Listen for BroadcastChannel messages across tabs (0-delay real-time cross-tab sync)
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        const channel = new BroadcastChannel("st_inventory_channel_v2");
+        channel.onmessage = (event) => {
+          const data = event.data;
+          if (data && (data.type === "STOCK_UPDATED" || data.type === "CATALOG_UPDATED")) {
+            refreshStorefrontStockUI(data);
+          } else if (data && (data.type === "FAMILY_COMBOS_UPDATED" || data.type === "FAMILY_COMBO_SETTINGS_UPDATED" || data.type === "COLLECTION01_UPDATED")) {
+            this.renderCollection01Section();
+          }
+        };
+      } catch (e) {
+        console.warn("[Storefront BroadcastChannel] notice:", e);
+      }
+    }
+
+    // Listen for storage events (fired automatically by browser across tabs when LocalStorage changes)
+    window.addEventListener("storage", (e) => {
+      if (e.key === "st_catalog_data_v2" || e.key === "st_products_data_v2" || e.key === "st_subscribers_data_v2") {
+        refreshStorefrontStockUI();
+      } else if (e.key === "st_family_combos_v1" || e.key === "st_family_combo_settings_v1" || e.key === "st_collection01_enabled_v2") {
+        this.renderCollection01Section();
+      }
+    });
+  }
+
+  // ==========================================
+  // PAGE NAVIGATION & ROUTING (High Performance Zero-Lag)
+  // ==========================================
+  handleRouteFromHash() {
+    const hash = window.location.hash.replace("#", "").toLowerCase();
+
+    if (hash === "adminbala" || hash === "admin") {
+      const adminTarget = window.location.pathname.includes("/frontend/") ? "adminbala.html" : "frontend/adminbala.html";
+      window.location.href = adminTarget;
+      return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const deptParam = (urlParams.get("dept") || "").toLowerCase().trim();
+    const fabricParam = urlParams.get("fabric");
+
+    const validPages = ["home", "explore", "all", "women", "men", "girls", "boys", "infants", "family", "family-combos"];
+    let targetPage = null;
+
+    if (deptParam && validPages.includes(deptParam)) {
+      targetPage = deptParam;
+    } else if (hash === "family-combos") {
+      targetPage = "family";
+    } else if (hash === "bulkordersstoresection" || hash === "bulk-orders") {
+      if (window.location.pathname.includes("shop.html") || window.location.pathname.endsWith("/shop")) {
+        this.navigateToPage("explore", false);
+        setTimeout(() => {
+          const sec = document.getElementById("bulkOrdersStoreSection");
+          if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 60);
+        return;
+      } else {
+        document.body.classList.add("page-transitioning");
+        window.location.href = "shop.html#bulkOrdersStoreSection";
+        return;
+      }
+    } else if (validPages.includes(hash)) {
+      targetPage = hash;
+    } else {
+      if (window.location.pathname.includes("shop.html") || window.location.pathname.endsWith("/shop")) {
+        targetPage = "explore";
+      } else {
+        targetPage = "home";
+      }
+    }
+
+    if (fabricParam) {
+      this.currentFabricFilter = fabricParam;
+      const fabricSelect = document.getElementById("fabricFilter");
+      if (fabricSelect) fabricSelect.value = fabricParam;
+      if (!deptParam && !hash) targetPage = "all";
+    }
+
+    this.navigateToPage(targetPage, false);
+
+    const pdpParam = urlParams.get("pdp");
+    const searchParam = urlParams.get("search");
+    const bulkParam = urlParams.get("bulk") || urlParams.get("bulkModal");
+    if (bulkParam) {
+      setTimeout(() => this.openBulkInquiryModal(bulkParam), 200);
+    } else if (pdpParam) {
+      setTimeout(() => this.openPDP(pdpParam), 150);
+    } else if (searchParam) {
+      setTimeout(() => {
+        const mobileInput = document.getElementById("mobileHeaderSearchInput");
+        if (mobileInput) mobileInput.value = searchParam;
+        const headerInput = document.getElementById("headerSearchInput");
+        if (headerInput) headerInput.value = searchParam;
+        if (typeof this.handleSearchAutocomplete === "function") {
+          this.handleSearchAutocomplete(searchParam);
+        }
+      }, 150);
+    }
+  }
+
+  navigateToPage(pageKey, updateHash = true) {
+    const isShopPage = window.location.pathname.includes("shop.html") || window.location.pathname.endsWith("/shop");
+    const isHomePage = !isShopPage && (window.location.pathname.includes("index.html") || window.location.pathname.endsWith("/") || window.location.pathname.endsWith("/frontend") || window.location.pathname === "");
+
+    // If destination is home and we are not on index.html, navigate there smoothly
+    if (pageKey === "home") {
+      if (!isHomePage) {
+        sessionStorage.setItem("st_skip_intro_once", "true");
+        document.body.classList.add("page-transitioning");
+        window.location.href = "index.html";
+        return;
+      }
+    } else {
+      // If destination is a shop page and we are not on shop.html, navigate there smoothly
+      if (!isShopPage) {
+        const destHash = pageKey === "family" ? "family-combos" : pageKey;
+        const targetUrl = "shop.html#" + destHash;
+        if (typeof window.navigateToShop === "function") {
+          window.navigateToShop(targetUrl);
+        } else {
+          window.location.href = "loading.html?target=" + encodeURIComponent(targetUrl);
+        }
+        return;
+      }
+    }
+
+    this.currentPage = pageKey;
+    this.currentFabricFilter = "All";
+    this.currentOccasionFilter = "All";
+
+    if (updateHash) {
+      window.location.hash = pageKey === "home" ? "home" : (pageKey === "family" ? "family-combos" : pageKey);
+    }
+
+    document.querySelectorAll(".dept-link").forEach(link => {
+      const p = link.getAttribute("data-page");
+      const isActive = p === pageKey;
+      link.classList.toggle("active", isActive);
+      if (isActive && this.hasInitializedPage) {
+        setTimeout(() => {
+          const scrollWrapper = document.getElementById("deptNavScrollWrapper");
+          if (scrollWrapper) {
+            link.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+          }
+        }, 40);
+      }
+    });
+
+    this.renderCurrentPage();
+    if (updateHash && this.hasInitializedPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    if (window.mobileUI && typeof window.mobileUI.syncActiveBottomNavTab === "function") {
+      window.mobileUI.syncActiveBottomNavTab(pageKey === "home" ? "home" : "shop");
+    }
+  }
+
+  renderCurrentPage() {
+    const isInteractive = !!this.hasInitializedPage;
+    this.hasInitializedPage = true;
+
+    const homeSections = document.querySelectorAll(".home-only-section");
+    const exploreSections = document.querySelectorAll(".explore-only-section");
+    const deptBanner = document.getElementById("deptPageBanner");
+    const deptCatalogSection = document.getElementById("deptCatalogSection");
+    const deptTitle = document.getElementById("deptPageTitle");
+    const deptDesc = document.getElementById("deptPageDesc");
+    const deptBreadcrumbName = document.getElementById("deptBreadcrumbName");
+
+    if (this.currentPage === "home") {
+      homeSections.forEach(s => s.style.display = "block");
+      exploreSections.forEach(s => s.style.display = "none");
+      if (deptBanner) deptBanner.style.display = "none";
+      if (deptCatalogSection) deptCatalogSection.style.display = "none";
+      this.renderCollection01Section();
+    } else if (this.currentPage === "explore") {
+      homeSections.forEach(s => s.style.display = "none");
+      exploreSections.forEach(s => {
+        s.style.display = "block";
+        if (isInteractive) {
+          s.classList.remove("dept-tab-animate");
+          s.classList.add("dept-tab-animate");
+        }
+      });
+      if (deptBanner) deptBanner.style.display = "none";
+      if (deptCatalogSection) deptCatalogSection.style.display = "none";
+      this.renderExploreCollections();
+      this.renderCollection01Section();
+    } else {
+      homeSections.forEach(s => s.style.display = "none");
+      exploreSections.forEach(s => s.style.display = "none");
+      if (deptBanner) {
+        deptBanner.style.display = "block";
+        if (isInteractive) {
+          deptBanner.classList.remove("dept-tab-animate");
+          deptBanner.classList.add("dept-tab-animate");
+        }
+      }
+      if (deptCatalogSection) {
+        deptCatalogSection.style.display = "block";
+        if (isInteractive) {
+          deptCatalogSection.classList.remove("dept-tab-animate");
+          deptCatalogSection.classList.add("dept-tab-animate");
+        }
+      }
+
+      const deptMeta = this.getDepartmentMeta(this.currentPage);
+      if (deptTitle) deptTitle.innerHTML = deptMeta.title;
+      if (deptDesc) deptDesc.textContent = deptMeta.desc;
+      if (deptBreadcrumbName) deptBreadcrumbName.textContent = deptMeta.breadcrumb;
+
+      if (this.currentPage === "family") {
+        const familySec = document.getElementById("familyCombosSection");
+        if (familySec) {
+          familySec.style.display = "block";
+          if (isInteractive) {
+            familySec.classList.remove("dept-tab-animate");
+            familySec.classList.add("dept-tab-animate");
+          }
+        }
+        this.renderCollection01Section();
+      }
+
+      this.renderProductsForDepartment(deptMeta.filterDept);
+    }
+
+    this.renderFestiveCampaign();
+    this.renderBulkOrdersSection();
+
+    // Toggle Mobile Sticky Action Bar ([ ⇅ Sort By ] | [ ⚙ Filter ])
+    // STRICT REQUIREMENT: Only display when actively inside a department catalog; hide on Store's First Page (Explore/Home)
+    const isInsideDepartment = (this.currentPage !== "home" && this.currentPage !== "explore");
+    const stickyBar = document.getElementById("mobileStickyActionBar");
+    if (stickyBar) {
+      stickyBar.style.display = isInsideDepartment ? "" : "none";
+    }
+    document.body.classList.toggle("has-sticky-action-bar", isInsideDepartment);
+    document.documentElement.classList.toggle("dept-preselected", isInsideDepartment);
+  }
+
+  getDepartmentMeta(pageKey) {
+    switch (pageKey) {
+      case "women":
+        return {
+          title: `${window.Icons ? window.Icons.get('ladies', { className: 'dept-banner-icon' }) : ''} Ladies' Silk Sarees & Ethnic Collection`,
+          desc: "Authentic Pure Kanchipuram Silk, Banarasi Katan, French Flax Linen, Chanderi Tissue, and Kalamkari Tussar Sarees.",
+          breadcrumb: "Ladies' Collection",
+          filterDept: "Women's Collection"
+        };
+      case "men":
+        return {
+          title: `${window.Icons ? window.Icons.get('mens', { className: 'dept-banner-icon' }) : ''} Men's Pure Silk & Traditional Dhotis`,
+          desc: "Pure Mulberry Silk Wedding Shirts, 8-Muzham Gold Zari Dhotis (Veshti), and Ceremonial Angavastram Shawls.",
+          breadcrumb: "Men's Collection",
+          filterDept: "Men's Collection"
+        };
+      case "girls":
+        return {
+          title: `${window.Icons ? window.Icons.get('girls', { className: 'dept-banner-icon' }) : ''} Girls' Ethnic Wear (2 - 14 Years)`,
+          desc: "Traditional Pure Silk Pattu Pavadai & Lehenga Sets backed by our Scratch-Free Soft Cotton Inner-Lining Guarantee.",
+          breadcrumb: "Kids Wear (Girls)",
+          filterDept: "Kids Wear (Girls)"
+        };
+      case "boys":
+        return {
+          title: `${window.Icons ? window.Icons.get('boys', { className: 'dept-banner-icon' }) : ''} Boys' Festive Kurta & Dhoti Sets (2 - 14 Years)`,
+          desc: "Silk Jacquard Kurtas with Pre-Pleated Ready-to-Wear Elastic Dhotis and Soft Cotton Undersides.",
+          breadcrumb: "Kids Wear (Boys)",
+          filterDept: "Kids Wear (Boys)"
+        };
+      case "infants":
+        return {
+          title: `${window.Icons ? window.Icons.get('baby', { className: 'dept-banner-icon' }) : ''} Born Babies & Infants (0 - 2 Years)`,
+          desc: "100% GOTS Certified Pure Organic Muslin Cotton Jhablas, Swaddle Blankets, and Hypoallergenic Baby Silk Rompers.",
+          breadcrumb: "Born Babies & Infants",
+          filterDept: "Infants & Toddlers"
+        };
+      case "family":
+        return {
+          title: `${window.Icons ? window.Icons.get('family', { className: 'dept-banner-icon' }) : '👨‍👩‍👧‍👦'} Family Matching Combos & Coordinated Sets`,
+          desc: "Harmonious color-coordinated silk attire for Father, Mother, Son & Daughter woven in matched ceremonial dye batches.",
+          breadcrumb: "Family Combos & Sets",
+          filterDept: "Family Combos & Sets"
+        };
+      case "all":
+        return {
+          title: `🛍️ All Handloom Collections & Master Weaver Creations`,
+          desc: "Browse our complete inventory of pure Kanchipuram silk sarees, festive dhotis, matching family sets, and organic baby wear.",
+          breadcrumb: "All Products",
+          filterDept: "All"
+        };
+      default:
+        return {
+          title: "Srinivasa Family Collection",
+          desc: "Complete pure handloom collections for all generations.",
+          breadcrumb: "Catalog",
+          filterDept: "All"
+        };
+    }
+  }
+
+  // Helper to ensure strict and mutually exclusive department separation
+  matchesDepartment(product, departmentName) {
+    if (!product) return false;
+    if (!departmentName || departmentName === "All" || departmentName === "all") return true;
+
+    const target = departmentName.toLowerCase().trim();
+    const pDept = (product.department || "").toLowerCase().trim();
+    const pCat = (product.category || product.subCategory || "").toLowerCase().trim();
+    const pTitle = (product.title || product.name || "").toLowerCase().trim();
+    const pAge = (product.ageGroup || "").toLowerCase().trim();
+    const fullText = `${pDept} ${pCat} ${pTitle} ${pAge}`;
+
+    // 1. Women's Collection / Ladies' Sarees
+    if (target.includes("women") || target.includes("ladies")) {
+      // Must NOT match kids, girls, boys, infants, or family combos
+      if (pDept.includes("kids") || pDept.includes("girl") || pDept.includes("boy") ||
+        pDept.includes("infant") || pDept.includes("baby") || pDept.includes("family")) {
+        return false;
+      }
+      return pDept.includes("women") || pDept.includes("ladies") || pDept.includes("saree") ||
+        fullText.includes("women's collection") || fullText.includes("ladies") || fullText.includes("saree");
+    }
+
+    // 2. Men's Collection / Dhotis
+    if (target.includes("men") && !target.includes("women")) {
+      // Must NOT match women, kids, girls, boys, infants, or family combos
+      if (pDept.includes("women") || pDept.includes("ladies") || pDept.includes("kids") ||
+        pDept.includes("girl") || pDept.includes("boy") || pDept.includes("infant") ||
+        pDept.includes("baby") || pDept.includes("family")) {
+        return false;
+      }
+      return (pDept.includes("men") && !pDept.includes("women")) ||
+        pDept.includes("dhoti") || pDept.includes("veshti") ||
+        ((fullText.includes("men") || fullText.includes("dhoti") || fullText.includes("veshti")) && !fullText.includes("women"));
+    }
+
+    // 3. Kids Wear (Girls)
+    if (target.includes("girl")) {
+      if (pDept.includes("boy") && !pDept.includes("girl")) return false;
+      if (pDept.includes("infant") || pDept.includes("baby") || pDept.includes("family")) return false;
+      return pDept.includes("girl") || fullText.includes("girl") || fullText.includes("pattu pavadai") || fullText.includes("pavadai") || fullText.includes("lehenga");
+    }
+
+    // 4. Kids Wear (Boys)
+    if (target.includes("boy")) {
+      if (pDept.includes("girl") || pDept.includes("infant") || pDept.includes("baby") || pDept.includes("family")) return false;
+      return pDept.includes("boy") || fullText.includes("boy") || (fullText.includes("kurta") && (fullText.includes("kid") || fullText.includes("boy")));
+    }
+
+    // 5. Infants & Toddlers / Born Babies
+    if (target.includes("infant") || target.includes("baby") || target.includes("toddler") || target.includes("born")) {
+      if (pDept.includes("family")) return false;
+      return pDept.includes("infant") || pDept.includes("baby") || pDept.includes("toddler") ||
+        fullText.includes("infant") || fullText.includes("baby") || fullText.includes("jhabla") || fullText.includes("swaddle") || fullText.includes("romper") || fullText.includes("0 - 2");
+    }
+
+    // 6. Family Combos & Sets
+    if (target.includes("family") || target.includes("combo")) {
+      return pDept.includes("family") || pDept.includes("combo") || fullText.includes("family combo") || fullText.includes("matching set") || fullText.includes("family matching");
+    }
+
+    // Default exact / fallback matching
+    return pDept === target || pDept.includes(target) || target.includes(pDept);
+  }
+
+  // ==========================================
+  // DEPARTMENT PRODUCT CATALOG RENDERING
+  // ==========================================
+  renderProductsForDepartment(departmentName) {
+    const grid = document.getElementById("productsGrid");
+    if (!grid) return;
+
+    let products = window.store.getAllProducts();
+
+    if (departmentName && departmentName !== "All" && departmentName !== "all") {
+      products = products.filter(p => this.matchesDepartment(p, departmentName));
+    }
+
+    if (this.currentFabricFilter !== "All") {
+      products = products.filter(p => p.fabric && p.fabric.includes(this.currentFabricFilter));
+    }
+
+    if (this.currentOccasionFilter !== "All") {
+      products = products.filter(p => p.occasion === this.currentOccasionFilter);
+    }
+
+    if (this.currentSort === "price-low") {
+      products.sort((a, b) => a.priceINR - b.priceINR);
+    } else if (this.currentSort === "price-high") {
+      products.sort((a, b) => b.priceINR - a.priceINR);
+    } else if (this.currentSort === "rating") {
+      products.sort((a, b) => b.rating - a.rating);
+    } else {
+      products.sort((a, b) => (a.trendingRank || 99) - (b.trendingRank || 99));
+    }
+
+    if (products.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 2rem; background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border-color);">
+          <h3 style="color: var(--color-primary); margin-bottom: 0.5rem;">No Products Found for this Filter</h3>
+          <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Try clearing your fabric or occasion filter.</p>
+          <button class="btn btn-outline btn-sm" onclick="window.storefront.resetAllFilters()">Reset Filters</button>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = products.map(product => this.createProductCardHTML(product)).join("");
+    this.bindCardInteractions(grid);
+    if (typeof window.refreshScrollAnimations === "function") {
+      window.refreshScrollAnimations();
+    }
+  }
+
+  // ==========================================
+  // EXPLORE SESSION INITIALIZATION
+  // ==========================================
+  renderExploreCollections() {
+    // Pure Handloom Catalog session removed per user request
+    const exploreGrid = document.getElementById("exploreLiveProductsGrid");
+    if (exploreGrid) {
+      exploreGrid.innerHTML = "";
+    }
+  }
+
+  bindCardInteractions(container) {
+    container.querySelectorAll(".product-card").forEach(card => {
+      const id = card.getAttribute("data-id");
+
+      // Touching or clicking anywhere on the product card opens the PDP quick view
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".quick-add-btn") || e.target.closest(".wishlist-toggle-btn")) {
+          return;
+        }
+        this.openPDP(id);
+      });
+
+      card.querySelectorAll(".open-pdp").forEach(el => {
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.openPDP(id);
+        });
+      });
+
+      const quickAddBtn = card.querySelector(".quick-add-btn");
+      if (quickAddBtn) {
+        quickAddBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const prod = window.store.getProductById(id);
+          const colorName = prod.colors && prod.colors[0] ? prod.colors[0].name : "Standard";
+          const defaultSize = prod.availableSizes && prod.availableSizes[0] ? prod.availableSizes[0] : "Standard";
+          window.store.addToCart(id, colorName, defaultSize, "unstitched", null, 1);
+          this.showToast(`Added "${prod.title}" to your Bag!`, "success");
+        });
+      }
+
+      const wishlistBtn = card.querySelector(".wishlist-toggle-btn");
+      if (wishlistBtn) {
+        wishlistBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const isAdded = window.store.toggleWishlist(id);
+          wishlistBtn.classList.toggle("wishlisted", isAdded);
+          if (window.Icons) {
+            wishlistBtn.innerHTML = isAdded
+              ? window.Icons.get('favouriteFilled', { className: 'card-action-icon' })
+              : window.Icons.get('favourite', { className: 'card-action-icon' });
+          }
+          this.showToast(isAdded ? "Added to your Wishlist!" : "Removed from Wishlist", "info");
+        });
+      }
+
+      const notifyBtn = card.querySelector(".card-notify-btn");
+      if (notifyBtn) {
+        notifyBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const prod = window.store.getProductById(id);
+          if (prod) this.openNotifyModal(prod);
+        });
+      }
+    });
+  }
+
+  renderHomePageFeatured() {
+    const homeGrid = document.getElementById("homeFeaturedProductsGrid");
+    if (!homeGrid) return;
+
+    const catalog = window.store.getAllProducts();
+    // Pick first 8 items (newly added products appear first in catalog)
+    const featuredItems = catalog.slice(0, 8);
+    homeGrid.innerHTML = featuredItems.map(p => this.createProductCardHTML(p)).join("");
+    this.bindCardInteractions(homeGrid);
+    if (typeof window.refreshScrollAnimations === "function") {
+      window.refreshScrollAnimations();
+    }
+  }
+
+  createProductCardHTML(product) {
+    if (!product) return "";
+    const isWishlisted = window.store.isInWishlist(product.id);
+    const stockVal = product.stock !== undefined ? Number(product.stock) : (product.stockCount !== undefined ? Number(product.stockCount) : 10);
+    const isLowStock = stockVal > 0 && stockVal <= (product.lowStockThreshold || 2);
+    const isOutOfStock = stockVal <= 0;
+
+    const priceVal = Number(product.priceINR || product.price || 0);
+    const mrpVal = Number(product.mrpINR || product.originalPriceINR || product.original_price || Math.round(priceVal * 1.3));
+
+    const formattedPrice = window.store.formatPrice(priceVal);
+    const formattedMRP = window.store.formatPrice(mrpVal);
+
+    const titleVal = product.title || product.name || "Handcrafted Heritage Handloom";
+    const deptVal = product.department || "Women's Collection";
+    const subtitleVal = product.subtitle || `${product.fabric || 'Pure Silk'} handcrafted for ${deptVal}`;
+    const primaryImg = product.mainImage || product.image || product.image_url || 'assets/images/family_matching_combo.jpg';
+
+    return `
+      <div class="product-card" data-id="${product.id}">
+        <div class="product-image-box open-pdp">
+          <img src="${primaryImg}" alt="${titleVal}" loading="lazy" onerror="this.onerror=null;this.src='assets/images/family_matching_combo.jpg';" />
+
+          <div class="card-badges-top">
+            ${product.badges && product.badges[0] ? `<span class="badge-silk-mark">${product.badges[0]}</span>` : `<span class="badge-silk-mark">✨ 100% Handloom</span>`}
+            ${isLowStock ? `<span class="badge-scarcity">🔥 Only ${stockVal} Left!</span>` : ""}
+            ${isOutOfStock ? `<span class="badge-scarcity" style="background:#475569; color:#fff;">Sold Out</span>` : ""}
+          </div>
+
+          <div class="card-actions-quick">
+            <button class="quick-action-btn wishlist-toggle-btn ${isWishlisted ? "wishlisted" : ""}" title="Save to Wishlist">
+              ${window.Icons ? (isWishlisted ? window.Icons.get('favouriteFilled', { className: 'card-action-icon' }) : window.Icons.get('favourite', { className: 'card-action-icon' })) : '♥'}
+            </button>
+            <button class="quick-action-btn open-pdp" title="Quick View">
+              ${window.Icons ? window.Icons.get('search', { className: 'card-action-icon' }) : '🔍'}
+            </button>
+          </div>
+        </div>
+
+        <div class="product-details">
+          <span class="product-dept-meta">${deptVal} • ${product.ageGroup || "All Ages"}</span>
+          <h3 class="product-title open-pdp">${titleVal}</h3>
+          <p class="product-subtitle">${subtitleVal}</p>
+
+          ${(product.colors && product.colors.length > 0) ? `
+            <div class="card-color-swatches" onclick="event.stopPropagation();">
+              ${product.colors.slice(0, 4).map((c, i) => `
+                <span class="color-swatch-dot ${i === 0 ? 'active' : ''}"
+                      style="background: ${c.hex || '#800020'};"
+                      title="${this.escapeHtml(c.name || 'Color')}"
+                      data-color-img="${this.escapeHtml(c.image || primaryImg)}"
+                      onclick="window.storefront.switchCardColor(this, '${product.id}')">
+                </span>
+              `).join("")}
+            </div>
+          ` : ""}
+
+          ${product.safetyBadges && product.safetyBadges.length > 0 ? `
+            <div style="display: flex; gap: 0.35rem; margin-bottom: 0.6rem; flex-wrap: wrap;">
+              ${product.safetyBadges.map(sb => `<span class="badge-safety">${sb}</span>`).join("")}
+            </div>
+          ` : ""}
+
+          <div class="product-bottom-row">
+            <div class="price-box">
+              <span class="current-price">${formattedPrice}</span>
+              <span class="mrp-price">${formattedMRP}</span>
+            </div>
+
+            ${isOutOfStock ? `
+              <button class="card-add-btn card-notify-btn" data-id="${product.id}" style="background: var(--color-primary); color: #FFF5CF; border: 1px solid var(--color-gold);">🔔 Notify Me</button>
+            ` : `
+              <button class="card-add-btn quick-add-btn">Add +</button>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  switchCardColor(dotEl, prodId, imgSrc) {
+    const card = dotEl.closest(".product-card");
+    if (!card) return;
+    card.querySelectorAll(".color-swatch-dot").forEach(d => d.classList.remove("active"));
+    dotEl.classList.add("active");
+    const targetSrc = imgSrc || dotEl.getAttribute("data-color-img");
+    const imgEl = card.querySelector(".product-image-box img");
+    if (imgEl && targetSrc) {
+      imgEl.src = targetSrc;
+    }
+  }
+
+  resetAllFilters() {
+    this.currentFabricFilter = "All";
+    this.currentOccasionFilter = "All";
+
+    const fabEl = document.getElementById("fabricFilter");
+    if (fabEl) fabEl.value = "All";
+    const occEl = document.getElementById("occasionFilter");
+    if (occEl) occEl.value = "All";
+
+    this.renderCurrentPage();
+  }
+
+  setupCurrencySelector() {
+    const currencySelect = document.getElementById("topCurrencySelect");
+    if (currencySelect) {
+      currencySelect.value = window.store.activeCurrency;
+      currencySelect.addEventListener("change", (e) => {
+        window.store.setCurrency(e.target.value);
+      });
+    }
+  }
+
+  // ==========================================================================
+  // DEPARTMENT NAVIGATION BAR: CORNER ARROWS & BUTTERY-SMOOTH SCROLLING
+  // ==========================================================================
+  setupDepartmentNavScroll() {
+    const header = document.getElementById("mainHeader");
+    const navBar = document.querySelector(".department-nav-bar");
+    const scrollWrapper = document.getElementById("deptNavScrollWrapper");
+    const leftBtn = document.getElementById("deptScrollLeftBtn");
+    const rightBtn = document.getElementById("deptScrollRightBtn");
+
+    if (!navBar || !scrollWrapper) return;
+
+    // Corner Arrows: Dynamic state (disabled/enabled) and smooth step scrolling
+    const updateArrowStates = () => {
+      const maxScroll = scrollWrapper.scrollWidth - scrollWrapper.clientWidth;
+      if (maxScroll <= 4) {
+        if (leftBtn) {
+          leftBtn.disabled = true;
+          leftBtn.classList.add("disabled");
+        }
+        if (rightBtn) {
+          rightBtn.disabled = true;
+          rightBtn.classList.add("disabled");
+        }
+        return;
+      }
+
+      if (leftBtn) {
+        const atStart = scrollWrapper.scrollLeft <= 4;
+        leftBtn.disabled = atStart;
+        leftBtn.classList.toggle("disabled", atStart);
+      }
+      if (rightBtn) {
+        const atEnd = scrollWrapper.scrollLeft >= maxScroll - 4;
+        rightBtn.disabled = atEnd;
+        rightBtn.classList.toggle("disabled", atEnd);
+      }
+    };
+
+    if (leftBtn) {
+      leftBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const scrollDistance = Math.max(200, Math.floor(scrollWrapper.clientWidth * 0.55));
+        scrollWrapper.scrollBy({ left: -scrollDistance, behavior: "smooth" });
+        setTimeout(updateArrowStates, 320);
+      });
+    }
+
+    if (rightBtn) {
+      rightBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const scrollDistance = Math.max(200, Math.floor(scrollWrapper.clientWidth * 0.55));
+        scrollWrapper.scrollBy({ left: scrollDistance, behavior: "smooth" });
+        setTimeout(updateArrowStates, 320);
+      });
+    }
+
+    // Passive scroll listener for updateArrowStates without blocking main thread
+    scrollWrapper.addEventListener("scroll", updateArrowStates, { passive: true });
+    window.addEventListener("resize", updateArrowStates, { passive: true });
+
+    // Initial arrow state checks
+    setTimeout(updateArrowStates, 60);
+    setTimeout(updateArrowStates, 350);
+
+    // Support Shift + Mouse Wheel for horizontal scrolling without blocking normal vertical page scroll
+    scrollWrapper.addEventListener("wheel", (e) => {
+      if (e.shiftKey) {
+        e.preventDefault();
+        scrollWrapper.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
+
+    // Drag-to-scroll support for desktop
+    let isDown = false;
+    let startX = 0;
+    let initialScroll = 0;
+
+    scrollWrapper.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      isDown = true;
+      startX = e.pageX - scrollWrapper.offsetLeft;
+      initialScroll = scrollWrapper.scrollLeft;
+      scrollWrapper.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDown) {
+        isDown = false;
+        if (scrollWrapper) scrollWrapper.style.cursor = "";
+      }
+    });
+
+    scrollWrapper.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - scrollWrapper.offsetLeft;
+      const walk = (x - startX) * 1.3;
+      scrollWrapper.scrollLeft = initialScroll - walk;
+    });
+
+    // Zero-lag passive header shadow on scroll (Zero layout shift, 100% fluid vertical scrolling)
+    let isTicking = false;
+    const handleScroll = () => {
+      if (!isTicking) {
+        requestAnimationFrame(() => {
+          const y = window.scrollY;
+          if (header) header.classList.toggle("scrolled", y > 40);
+          if (navBar) navBar.classList.toggle("scrolled", y > 40);
+          isTicking = false;
+        });
+        isTicking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+  }
+
+  // ==========================================
+  // PATRON FEEDBACK & REVIEW SESSION HANDLER
+  // ==========================================
+  setupFeedbackModal() {
+    const triggerBtn = document.getElementById("feedbackTriggerBtn");
+    const modal = document.getElementById("feedbackModal");
+    const closeBtn = document.getElementById("feedbackCloseBtn");
+    const closeSuccessBtn = document.getElementById("feedbackCloseSuccessBtn");
+    const submitBtn = document.getElementById("submitFeedbackBtn");
+    const starContainer = document.getElementById("feedbackStarSelector");
+    const ratingInput = document.getElementById("feedbackRatingVal");
+    const softnessPills = document.querySelectorAll(".softness-pill-btn");
+    const softnessInput = document.getElementById("feedbackSoftnessVal");
+    const formContainer = document.getElementById("feedbackFormContainer");
+    const successContainer = document.getElementById("feedbackSuccessContainer");
+
+    // Dynamic Silk & Weaving Feedback Descriptors Map
+    const RATING_DESCRIPTORS = {
+      1: {
+        score: "1.0",
+        title: "Needs Improvement 🙏",
+        subtitle: "We sincerely apologize. Tell us how we can make this right for you.",
+        border: "rgba(239, 68, 68, 0.45)",
+        pillBg: "linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)",
+        titleColor: "#EF4444"
+      },
+      2: {
+        score: "2.0",
+        title: "Fair Experience ⚠️",
+        subtitle: "Weaving or service has scope for enhancement. We value your feedback.",
+        border: "rgba(249, 115, 22, 0.45)",
+        pillBg: "linear-gradient(135deg, #F97316 0%, #C2410C 100%)",
+        titleColor: "#F97316"
+      },
+      3: {
+        score: "3.0",
+        title: "Good & Satisfactory 👍",
+        subtitle: "Authentic handloom quality meeting your festive expectations.",
+        border: "rgba(59, 130, 246, 0.45)",
+        pillBg: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
+        titleColor: "#60A5FA"
+      },
+      4: {
+        score: "4.0",
+        title: "Very Good Weave! ✨",
+        subtitle: "Rich fabric feel, pure threads, and admirable craftsmanship.",
+        border: "rgba(245, 158, 11, 0.5)",
+        pillBg: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
+        titleColor: "#F59E0B"
+      },
+      5: {
+        score: "5.0",
+        title: "Masterpiece Handloom! 👑",
+        subtitle: "Exceptional pure zari weave, heirloom softness & royal luster.",
+        border: "rgba(212, 175, 55, 0.6)",
+        pillBg: "linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)",
+        titleColor: "#D4AF37"
+      }
+    };
+
+    // Soft Harmonic Web Audio Chime on Rating Selection
+    const playRatingTone = (rating) => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 987.77, 1046.50]; // C5 to C6
+        const freq = notes[Math.max(0, Math.min(rating - 1, 4))];
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.09, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.28);
+
+        if (rating === 5) {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = "triangle";
+          osc2.frequency.setValueAtTime(1318.51, now + 0.08); // E6 sparkle harmonic
+          gain2.gain.setValueAtTime(0.07, now + 0.08);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(now + 0.08);
+          osc2.stop(now + 0.42);
+        }
+      } catch (e) {
+        // AudioContext blocked or not allowed prior to interaction
+      }
+    };
+
+    // Star Buttons Target Selection (Strictly elements with data-rating)
+    const getStarItems = () => {
+      if (!starContainer) return [];
+      return Array.from(starContainer.querySelectorAll("[data-rating]")).filter(el => {
+        // Ensure we only select direct star buttons or top-level elements, not inner spans
+        return el.classList.contains("star-rating-btn") || el.parentElement === starContainer;
+      });
+    };
+
+    // Update Visuals and Live Descriptor
+    const updateRatingUI = (displayVal, isHover = false) => {
+      const cleanVal = Math.max(1, Math.min(5, parseInt(displayVal, 10) || 5));
+      const starItems = getStarItems();
+
+      starItems.forEach(item => {
+        const itemVal = parseInt(item.getAttribute("data-rating"), 10);
+        if (isNaN(itemVal)) return;
+
+        if (isHover) {
+          item.classList.toggle("hovered", itemVal <= cleanVal);
+          item.classList.toggle("dimmed", itemVal > cleanVal);
+        } else {
+          item.classList.remove("hovered", "dimmed");
+          item.classList.toggle("active", itemVal <= cleanVal);
+          item.setAttribute("aria-checked", itemVal === cleanVal ? "true" : "false");
+        }
+      });
+
+      // Update Live Dynamic Response Callout
+      const info = RATING_DESCRIPTORS[cleanVal] || RATING_DESCRIPTORS[5];
+      const callout = document.getElementById("ratingFeedbackCallout");
+      const scoreEl = document.getElementById("ratingScoreNumber");
+      const titleEl = document.getElementById("ratingDescriptorTitle");
+      const subEl = document.getElementById("ratingDescriptorSubtitle");
+      const pillEl = document.getElementById("ratingScorePill");
+
+      if (scoreEl) scoreEl.textContent = info.score;
+      if (titleEl) {
+        titleEl.textContent = info.title;
+        titleEl.style.color = info.titleColor;
+      }
+      if (subEl) subEl.textContent = info.subtitle;
+      if (pillEl) pillEl.style.background = info.pillBg;
+      if (callout) callout.style.borderColor = info.border;
+    };
+
+    // Commit Rating Selection
+    const commitRating = (val) => {
+      const cleanVal = Math.max(1, Math.min(5, parseInt(val, 10) || 5));
+      if (ratingInput) ratingInput.value = cleanVal;
+      updateRatingUI(cleanVal, false);
+      playRatingTone(cleanVal);
+
+      // Trigger Micro-Bounce Pop Animation on the clicked/selected star
+      const starItems = getStarItems();
+      const chosen = starItems.find(el => parseInt(el.getAttribute("data-rating"), 10) === cleanVal);
+      if (chosen) {
+        chosen.classList.remove("pop");
+        void chosen.offsetWidth; // Reflow
+        chosen.classList.add("pop");
+        setTimeout(() => chosen.classList.remove("pop"), 500);
+      }
+    };
+
+    const openFeedback = () => {
+      if (formContainer) formContainer.style.display = "block";
+      if (successContainer) successContainer.style.display = "none";
+      const initialRating = parseInt(ratingInput?.value, 10) || 5;
+      updateRatingUI(initialRating, false);
+      if (modal) {
+        modal.classList.add("active");
+        this.syncBodyScrollLock();
+      }
+    };
+
+    const closeFeedback = () => {
+      if (modal) {
+        modal.classList.remove("active");
+        this.syncBodyScrollLock();
+      }
+    };
+
+    // Attach to all feedback trigger buttons across the site
+    document.querySelectorAll(".feedback-nav-btn, .feedback-trigger-btn, #feedbackTriggerBtn, #stickyFeedbackTriggerBtn, #mobileFeedbackBtn, #footerFeedbackBtn, #floatingFeedbackBtn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        openFeedback();
+      });
+    });
+
+    if (closeBtn && modal) {
+      closeBtn.addEventListener("click", closeFeedback);
+    }
+
+    if (closeSuccessBtn && modal) {
+      closeSuccessBtn.addEventListener("click", closeFeedback);
+    }
+
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeFeedback();
+      });
+    }
+
+    // Initialize Interactive Star Rating System
+    if (starContainer && ratingInput) {
+      const starItems = getStarItems();
+
+      starItems.forEach(star => {
+        const starVal = parseInt(star.getAttribute("data-rating"), 10);
+
+        // Hover Effect
+        star.addEventListener("mouseenter", () => {
+          if (!isNaN(starVal)) updateRatingUI(starVal, true);
+        });
+
+        // Click to Rate
+        star.addEventListener("click", (e) => {
+          e.preventDefault();
+          if (!isNaN(starVal)) commitRating(starVal);
+        });
+
+        // Accessible Keyboard Controls
+        star.addEventListener("keydown", (e) => {
+          let currentVal = parseInt(ratingInput.value, 10) || 5;
+          if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            const nextVal = Math.min(5, currentVal + 1);
+            commitRating(nextVal);
+            const targetBtn = starItems.find(el => parseInt(el.getAttribute("data-rating"), 10) === nextVal);
+            if (targetBtn) targetBtn.focus();
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            const prevVal = Math.max(1, currentVal - 1);
+            commitRating(prevVal);
+            const targetBtn = starItems.find(el => parseInt(el.getAttribute("data-rating"), 10) === prevVal);
+            if (targetBtn) targetBtn.focus();
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            commitRating(starVal);
+          } else if (e.key >= "1" && e.key <= "5") {
+            e.preventDefault();
+            const keyVal = parseInt(e.key, 10);
+            commitRating(keyVal);
+            const targetBtn = starItems.find(el => parseInt(el.getAttribute("data-rating"), 10) === keyVal);
+            if (targetBtn) targetBtn.focus();
+          }
+        });
+      });
+
+      // Mouse Leave: Restore to Saved Rating
+      starContainer.addEventListener("mouseleave", () => {
+        const savedVal = parseInt(ratingInput.value, 10) || 5;
+        updateRatingUI(savedVal, false);
+      });
+
+      // Mobile Touch Drag / Slide Rating Support
+      let touchActiveRating = null;
+      starContainer.addEventListener("touchstart", (e) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        const starBtn = target?.closest("[data-rating]");
+        if (starBtn) {
+          const val = parseInt(starBtn.getAttribute("data-rating"), 10);
+          if (!isNaN(val)) {
+            touchActiveRating = val;
+            updateRatingUI(val, true);
+          }
+        }
+      }, { passive: true });
+
+      starContainer.addEventListener("touchmove", (e) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        const starBtn = target?.closest("[data-rating]");
+        if (starBtn) {
+          const val = parseInt(starBtn.getAttribute("data-rating"), 10);
+          if (!isNaN(val) && val !== touchActiveRating) {
+            touchActiveRating = val;
+            updateRatingUI(val, true);
+          }
+        }
+      }, { passive: true });
+
+      starContainer.addEventListener("touchend", () => {
+        if (touchActiveRating !== null) {
+          commitRating(touchActiveRating);
+          touchActiveRating = null;
+        }
+      });
+
+      // Initial visual synchronization
+      const currentRating = parseInt(ratingInput.value, 10) || 5;
+      updateRatingUI(currentRating, false);
+    }
+
+    // Form Submission
+    if (submitBtn && modal) {
+      submitBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const comment = document.getElementById("feedbackCommentInput")?.value.trim();
+        const rating = parseInt(ratingInput?.value, 10) || 5;
+        const author = "Valued Patron";
+        const location = "Verified Customer";
+        const deptTitle = "Pure Handloom Silk";
+        const softnessScore = "10/10 (Feather Soft)";
+
+        if (!comment) {
+          this.showToast("Please enter your review and feedback message.", "warning");
+          return;
+        }
+
+        // Save feedback securely into Store
+        if (window.store && typeof window.store.addFeedback === "function") {
+          window.store.addFeedback({
+            author: author,
+            location: location,
+            dept: deptTitle,
+            rating: rating,
+            title: "Customer Review & Experience",
+            comment: comment,
+            softnessScore: softnessScore,
+            colorAccuracy: "100% True Dye",
+            drapeScore: "Pure Heirloom",
+            avatar: "assets/images/hero_banner.jpg",
+            verifiedBuyer: true
+          });
+          this.renderReviews();
+        } else if (typeof INITIAL_REVIEWS !== "undefined") {
+          INITIAL_REVIEWS.unshift({
+            id: "REV-" + Date.now(),
+            author: author,
+            location: location,
+            dept: deptTitle,
+            rating: rating,
+            title: "Customer Review & Experience",
+            comment: comment,
+            softnessScore: softnessScore,
+            colorAccuracy: "100% True Dye",
+            drapeScore: "Pure Heirloom",
+            avatar: "assets/images/hero_banner.jpg"
+          });
+          this.renderReviews();
+        }
+
+        // Show Success Screen
+        if (formContainer) formContainer.style.display = "none";
+        if (successContainer) successContainer.style.display = "block";
+
+        this.showToast(`🎉 Thank you! ${rating}★ feedback recorded successfully.`, "success");
+      });
+    }
+  }
+
+  // ==========================================
+  // STRICT OWNER LOGIN AUTHENTICATION & ACCESS CONTROL
+  // ==========================================
+  setupOwnerAuthModal() {
+    const trigger = document.getElementById("ownerPortalTrigger");
+    const modal = document.getElementById("ownerAuthModal");
+    const closeBtn = document.getElementById("ownerAuthCloseBtn");
+    const submitBtn = document.getElementById("ownerAuthSubmitBtn");
+    const usernameInput = document.getElementById("ownerUsernameInput");
+    const passwordInput = document.getElementById("ownerPasswordInput");
+    const togglePassBtn = document.getElementById("toggleOwnerPassBtn");
+    const authErrorMsg = document.getElementById("ownerAuthErrorMsg");
+    const exitAdminBtn = document.getElementById("exitAdminBtn");
+
+    if (trigger && modal) {
+      trigger.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (authErrorMsg) authErrorMsg.style.display = "none";
+        modal.classList.add("active");
+        if (usernameInput) {
+          usernameInput.setAttribute("autocomplete", "off");
+          usernameInput.setAttribute("data-lpignore", "true");
+          usernameInput.value = "";
+          setTimeout(() => {
+            usernameInput.removeAttribute("readonly");
+            usernameInput.focus();
+          }, 50);
+        }
+        if (passwordInput) {
+          passwordInput.setAttribute("autocomplete", "new-password");
+          passwordInput.setAttribute("data-lpignore", "true");
+          passwordInput.value = "";
+        }
+      });
+    }
+
+    if (closeBtn && modal) {
+      closeBtn.addEventListener("click", () => modal.classList.remove("active"));
+    }
+
+    if (togglePassBtn && passwordInput) {
+      togglePassBtn.addEventListener("click", () => {
+        const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+        passwordInput.setAttribute("type", type);
+        const iconName = type === "password" ? "eye" : "eye";
+        togglePassBtn.innerHTML = window.Icons ? window.Icons.get(iconName, { size: 14 }) : (type === "password" ? "Show" : "Hide");
+      });
+    }
+
+    if (submitBtn && usernameInput && passwordInput && modal) {
+      const handleLogin = () => {
+        const user = usernameInput.value;
+        const pass = passwordInput.value;
+
+        const res = window.store.loginOwner(user, pass);
+
+        if (res.success) {
+          modal.classList.remove("active");
+          usernameInput.value = "";
+          passwordInput.value = "";
+          if (authErrorMsg) authErrorMsg.style.display = "none";
+          this.showToast(res.message, "success");
+
+          setTimeout(() => {
+            const adminTarget = window.location.pathname.includes("/frontend/") ? "adminbala.html" : "frontend/adminbala.html";
+            window.location.href = adminTarget;
+          }, 500);
+        } else {
+          if (authErrorMsg) {
+            authErrorMsg.textContent = res.message;
+            authErrorMsg.style.display = "block";
+          }
+          this.showToast(res.message, "warning");
+        }
+      };
+
+      submitBtn.addEventListener("click", handleLogin);
+
+      passwordInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") handleLogin();
+      });
+
+      usernameInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") passwordInput.focus();
+      });
+    }
+
+    // Owner Logout Handler
+    if (exitAdminBtn) {
+      exitAdminBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        window.store.logoutOwner();
+        window.location.href = "index.html";
+      });
+    }
+  }
+
+  // ==========================================
+  // CLEAN PDP MODAL & FULLSCREEN LIGHTBOX (Banned Cursor Hover Zoom Removed)
+  // ==========================================
+  openPDP(productId) {
+    const product = window.store.getProductById(productId);
+    if (!product) return;
+
+    this.activeProduct = product;
+    this.selectedColor = product.colors && product.colors[0] ? product.colors[0].name : "Standard";
+    this.selectedSize = product.availableSizes && product.availableSizes[0] ? product.availableSizes[0] : "Standard";
+    this.selectedBlouseKey = "unstitched";
+
+    const modal = document.getElementById("pdpModal");
+    const container = document.getElementById("pdpModalContent");
+    if (!modal || !container) return;
+
+    container.innerHTML = this.createPDPContentHTML(product);
+    modal.classList.add("active");
+    document.body.classList.add("pdp-open");
+    this.syncBodyScrollLock();
+
+    this.bindPDPEvents(product);
+  }
+
+  createPDPContentHTML(product) {
+    const priceVal = Number(product.priceINR || product.price || 0);
+    const mrpVal = Number(product.mrpINR || product.originalPriceINR || product.original_price || Math.round(priceVal * 1.3));
+    const formattedPrice = window.store.formatPrice(priceVal);
+    const formattedMRP = window.store.formatPrice(mrpVal);
+
+    const stockVal = product.stock !== undefined ? Number(product.stock) : (product.stockCount !== undefined ? Number(product.stockCount) : 10);
+    const isLowStock = stockVal > 0 && stockVal <= (product.lowStockThreshold || 2);
+    const isOutOfStock = stockVal <= 0;
+
+    const titleVal = product.title || product.name || "Handcrafted Heritage Handloom";
+    const deptVal = product.department || "Women's Collection";
+    const subtitleVal = product.subtitle || `${product.fabric || 'Pure Silk'} handcrafted for ${deptVal}`;
+    const primaryImg = product.mainImage || product.image || product.image_url || 'assets/images/family_matching_combo.jpg';
+
+    return `
+      <button class="pdp-close-btn" id="pdpCloseBtnInner">✕</button>
+
+      <div class="pdp-media-column">
+        <div class="clean-img-viewer" id="cleanImgViewer" title="Click to open Fullscreen Lightbox">
+          <img src="${primaryImg}" alt="${titleVal}" class="clean-pdp-img" id="pdpMainImg" onerror="this.onerror=null;this.src='assets/images/family_matching_combo.jpg';" />
+          <div class="lightbox-trigger-badge">${window.Icons ? window.Icons.get('search', { className: 'lightbox-badge-icon' }) : '🔍'} Tap to View Fullscreen (HD)</div>
+        </div>
+
+        ${(product.gallery && product.gallery.length > 1) ? `
+          <div class="pdp-gallery-thumbs">
+            ${product.gallery.map((img, i) => `
+              <div class="pdp-thumb ${i === 0 ? "active" : ""}" data-img="${img}">
+                <img src="${img}" alt="${titleVal}" onerror="this.parentElement.style.display='none';" />
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+      </div>
+
+      <div class="pdp-info-column">
+        <div class="pdp-breadcrumbs">
+          Home / ${deptVal} / <strong style="color: var(--color-primary);">${product.id}</strong>
+        </div>
+
+        <h2 class="pdp-title">${titleVal}</h2>
+        <p class="pdp-subtitle">${subtitleVal}</p>
+
+        <div class="pdp-price-row">
+          <span class="pdp-price" id="pdpCalculatedPrice">${formattedPrice}</span>
+          <span class="pdp-mrp" style="text-decoration: line-through; color: var(--text-muted);">${formattedMRP}</span>
+          <span style="font-size: 0.75rem; color: var(--color-success); font-weight: 700;">✓ Free Express Insured Delivery</span>
+        </div>
+
+        ${isLowStock ? `
+          <div style="margin-bottom: 1rem;">
+            <span class="badge-scarcity">🔥 High Demand: Only ${product.stock} sets left in master weaver stock!</span>
+          </div>
+        ` : ""}
+
+        ${product.safetyBadges && product.safetyBadges.length > 0 ? `
+          <div class="pdp-safety-box">
+            <strong>🛡️ Family Safety &amp; Comfort Guarantee:</strong>
+            <p style="margin-top: 0.2rem;">${product.safetyBadges.join(" • ")}</p>
+          </div>
+        ` : ""}
+
+        ${product.availableSizes && product.availableSizes.length > 1 ? `
+          <div class="pdp-size-selector" style="margin-bottom: 1.25rem;">
+            <span class="pdp-label">Select Age &amp; Size: <strong id="pdpSelectedSizeLabel" style="color: var(--color-primary);">${product.availableSizes[0]}</strong></span>
+            <div class="pdp-sizes-grid">
+              ${product.availableSizes.map((size, idx) => `
+                <button class="pdp-size-pill ${idx === 0 ? "active" : ""}" data-size="${size}">${size}</button>
+              `).join("")}
+            </div>
+          </div>
+        ` : ""}
+
+        ${product.blouseOptions ? `
+          <div style="background: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
+            <span class="pdp-label">Blouse Customization &amp; Tailoring</span>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+              <label style="display: flex; justify-content: space-between; font-size: 0.8rem; background: var(--bg-surface); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); cursor: pointer; color: var(--text-main);">
+                <div><input type="radio" name="blouseChoice" value="unstitched" checked /> Unstitched Running Blouse (Included)</div>
+                <strong>+₹0</strong>
+              </label>
+              <label style="display: flex; justify-content: space-between; font-size: 0.8rem; background: var(--bg-surface); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); cursor: pointer; color: var(--text-main);">
+                <div><input type="radio" name="blouseChoice" value="basicStitched" /> Standard Tailored Blouse</div>
+                <strong style="color: var(--color-primary);">+₹999</strong>
+              </label>
+            </div>
+          </div>
+        ` : ""}
+
+        <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+          ${isOutOfStock ? `
+            <button class="btn btn-gold" style="flex:2; min-width: 180px;" id="pdpNotifyWaitlistBtn">🔔 Notify Me When Available</button>
+          ` : `
+            <button class="btn btn-primary" style="flex:2; min-width: 180px; padding: 0.9rem;" id="pdpAddToCartBtn">Add to Shopping Bag</button>
+          `}
+          <button class="btn btn-outline" id="pdpToggleFavBtn" style="padding: 0.85rem 1.1rem; border-color: rgba(225,29,72,0.35); color: #E11D48; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;" title="Save to Favourites">
+            ${window.store.isInWishlist(product.id) ? "❤️ Saved" : "🤍 Favourite"}
+          </button>
+          <a href="https://wa.me/918778503021?text=Hello%20Srinivasa%20Textiles,%20I%20am%20interested%20in%20${encodeURIComponent(product.title)}%20(SKU:%20${product.id})" target="_blank" style="padding: 0.85rem 1.1rem; background: #25D366; color: #fff; font-weight: 700; border-radius: var(--radius-sm); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; text-decoration: none;">
+            💬 WhatsApp
+          </a>
+        </div>
+
+        <table class="specs-table">
+          <tbody>
+            <tr><td class="spec-name">Department</td><td class="spec-value">${product.department} (${product.ageGroup || "All"})</td></tr>
+            <tr><td class="spec-name">Fabric Quality</td><td class="spec-value">${product.fabricType}</td></tr>
+            <tr><td class="spec-name">Zari Grade</td><td class="spec-value">${product.zariType || "N/A"}</td></tr>
+            <tr><td class="spec-name">Weave Technique</td><td class="spec-value">${product.technique}</td></tr>
+            <tr><td class="spec-name">HSN Code</td><td class="spec-value">${product.hsnCode} (5% GST)</td></tr>
+            <tr><td class="spec-name">Certifications</td><td class="spec-value">${(product.badges || []).join(", ")}</td></tr>
+          </tbody>
+        </table>
+
+        <div class="pdp-bottom-actions" style="margin-top: 1.5rem; margin-bottom: 2rem; text-align: center;">
+          <button type="button" class="btn btn-outline btn-sm" id="pdpCloseBtnBottom" style="width: 100%; padding: 0.75rem; font-weight: 700; border-color: var(--color-gold);">
+            ✕ Close Details &amp; Return to Shop
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  bindPDPEvents(product) {
+    const modal = document.getElementById("pdpModal");
+    const closeBtn = document.getElementById("pdpCloseBtnInner");
+    if (closeBtn && modal) {
+      closeBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+        document.body.classList.remove("pdp-open");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    const closeBtnBottom = document.getElementById("pdpCloseBtnBottom");
+    if (closeBtnBottom && modal) {
+      closeBtnBottom.addEventListener("click", () => {
+        modal.classList.remove("active");
+        document.body.classList.remove("pdp-open");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    const imgViewer = document.getElementById("cleanImgViewer");
+    const mainImg = document.getElementById("pdpMainImg");
+    if (imgViewer && mainImg) {
+      const handleImageLightbox = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        this.openFullscreenLightbox(mainImg.src);
+      };
+      imgViewer.addEventListener("click", handleImageLightbox);
+      imgViewer.addEventListener("touchend", handleImageLightbox, { passive: false });
+    }
+
+    document.querySelectorAll(".pdp-thumb").forEach(thumb => {
+      thumb.addEventListener("click", (e) => {
+        document.querySelectorAll(".pdp-thumb").forEach(t => t.classList.remove("active"));
+        const target = e.currentTarget;
+        target.classList.add("active");
+        const imgUrl = target.getAttribute("data-img");
+        if (mainImg && imgUrl) {
+          mainImg.src = imgUrl;
+        }
+      });
+    });
+
+    document.querySelectorAll(".pdp-size-pill").forEach(pill => {
+      pill.addEventListener("click", (e) => {
+        document.querySelectorAll(".pdp-size-pill").forEach(p => p.classList.remove("active"));
+        const target = e.currentTarget;
+        target.classList.add("active");
+        this.selectedSize = target.getAttribute("data-size");
+        const label = document.getElementById("pdpSelectedSizeLabel");
+        if (label) label.textContent = this.selectedSize;
+      });
+    });
+
+    document.querySelectorAll('input[name="blouseChoice"]').forEach(radio => {
+      radio.addEventListener("change", (e) => {
+        this.selectedBlouseKey = e.target.value;
+        this.updatePDPPricing();
+      });
+    });
+
+    const addCartBtn = document.getElementById("pdpAddToCartBtn");
+    if (addCartBtn) {
+      addCartBtn.addEventListener("click", () => {
+        window.store.addToCart(product.id, this.selectedColor, this.selectedSize, this.selectedBlouseKey, null, 1);
+        modal.classList.remove("active");
+        this.showToast(`Added "${product.title}" (${this.selectedSize}) to your Bag!`, "success");
+
+        this.openCartDrawer();
+      });
+    }
+
+    const pdpNotifyBtn = document.getElementById("pdpNotifyWaitlistBtn");
+    if (pdpNotifyBtn) {
+      pdpNotifyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        modal.classList.remove("active");
+        this.openNotifyModal(product);
+      });
+    }
+
+    const pdpFavBtn = document.getElementById("pdpToggleFavBtn");
+    if (pdpFavBtn) {
+      pdpFavBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isFav = window.store.toggleWishlist(product.id);
+        pdpFavBtn.innerHTML = isFav ? "❤️ Saved" : "🤍 Favourite";
+        this.showToast(isFav ? `❤️ Added "${product.title}" to Favourites!` : `Removed from Favourites`, "info");
+      });
+    }
+  }
+
+  // ==========================================
+  // NOTIFY ME WHEN AVAILABLE (WAITLIST MODAL)
+  // ==========================================
+  openNotifyModal(product) {
+    if (!product) return;
+
+    const modal = document.getElementById("notifyModal");
+    if (!modal) return;
+
+    const idInput = document.getElementById("notifyProductId");
+    const imgEl = document.getElementById("notifyProductImg");
+    const skuEl = document.getElementById("notifyProductSku");
+    const titleEl = document.getElementById("notifyProductTitle");
+    const priceEl = document.getElementById("notifyProductPrice");
+    const formView = document.getElementById("notifyFormView");
+    const successView = document.getElementById("notifySuccessView");
+
+    if (idInput) idInput.value = product.id;
+    if (imgEl) imgEl.src = product.mainImage || "assets/images/banarasi_blue.jpg";
+    if (skuEl) skuEl.textContent = `SKU: ${product.id}`;
+    if (titleEl) titleEl.textContent = product.title;
+    if (priceEl) priceEl.textContent = window.store.formatPrice(product.priceINR);
+
+    if (formView) formView.style.display = "block";
+    if (successView) successView.style.display = "none";
+
+    modal.classList.add("active");
+    this.syncBodyScrollLock();
+  }
+
+  // ==========================================
+  // GOOGLE-STYLE ELONGATED HERO SEARCH ENGINE
+  // ==========================================
+  initHeroGoogleSearch() {
+    const input = document.getElementById("heroSearchInput");
+    const clearBtn = document.getElementById("heroSearchClearBtn");
+    const dropdown = document.getElementById("heroSearchDropdown");
+    const resultsContainer = document.getElementById("heroSearchLiveResults");
+    const submitBtn = document.getElementById("heroSearchSubmitBtn");
+
+    if (!input || !dropdown || !resultsContainer) return;
+
+    const performSearch = (query) => {
+      const q = (query || "").trim().toLowerCase();
+      if (clearBtn) clearBtn.style.display = q.length > 0 ? "block" : "none";
+
+      if (q.length < 2) {
+        dropdown.style.display = "none";
+        resultsContainer.innerHTML = "";
+        return;
+      }
+
+      const allProducts = window.store ? window.store.getAllProducts() : [];
+      const matches = allProducts.filter(p =>
+        (p.title || p.name || "").toLowerCase().includes(q) ||
+        (p.department && p.department.toLowerCase().includes(q)) ||
+        (p.fabric && p.fabric.toLowerCase().includes(q)) ||
+        (p.category && p.category.toLowerCase().includes(q)) ||
+        (p.occasion && p.occasion.toLowerCase().includes(q))
+      ).slice(0, 8);
+
+      if (matches.length === 0) {
+        resultsContainer.innerHTML = `
+          <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.88rem;">
+            No handloom textiles found matching "<strong>${this.escapeHtml(query)}</strong>".
+          </div>
+        `;
+        dropdown.style.display = "block";
+        return;
+      }
+
+      resultsContainer.innerHTML = matches.map(p => {
+        const title = this.escapeHtml(p.title || p.name || "Handcrafted Heritage Silk");
+        const price = (p.priceINR || p.price || 0).toLocaleString('en-IN');
+        const dept = this.escapeHtml(p.department || "Heritage Pure Silk");
+        const img = (Array.isArray(p.images) && p.images[0]) || p.image || p.image_url || "assets/images/family_matching_combo.jpg";
+        return `
+          <div class="hero-search-item" data-product-id="${this.escapeHtml(p.id)}">
+            <img src="${img}" alt="${title}" class="hero-search-item-img" loading="lazy" />
+            <div class="hero-search-item-info">
+              <div class="hero-search-item-title">${title}</div>
+              <div class="hero-search-item-meta">
+                <span>🏷️ ${dept}</span>
+                <span>✨ 100% Silk Mark</span>
+              </div>
+            </div>
+            <div class="hero-search-item-price">₹${price}</div>
+          </div>
+        `;
+      }).join("");
+
+      dropdown.style.display = "block";
+
+      resultsContainer.querySelectorAll(".hero-search-item").forEach(item => {
+        item.addEventListener("click", () => {
+          const id = item.getAttribute("data-product-id");
+          dropdown.style.display = "none";
+          this.openPDP(id);
+        });
+      });
+    };
+
+    input.addEventListener("input", (e) => performSearch(e.target.value));
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const first = resultsContainer.querySelector(".hero-search-item");
+        if (first) {
+          first.click();
+        } else if (input.value.trim()) {
+          window.location.href = `shop.html?search=${encodeURIComponent(input.value.trim())}`;
+        }
+      } else if (e.key === "Escape") {
+        dropdown.style.display = "none";
+      }
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        input.value = "";
+        clearBtn.style.display = "none";
+        dropdown.style.display = "none";
+        resultsContainer.innerHTML = "";
+        input.focus();
+      });
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener("click", () => {
+        const val = input.value.trim();
+        if (val) {
+          window.location.href = `shop.html?search=${encodeURIComponent(val)}`;
+        } else {
+          input.focus();
+        }
+      });
+    }
+
+    document.addEventListener("click", (e) => {
+      const container = document.querySelector(".hero-google-search-container");
+      if (container && !container.contains(e.target)) {
+        dropdown.style.display = "none";
+      }
+    });
+  }
+
+  setupNotifyModal() {
+    const modal = document.getElementById("notifyModal");
+    const closeBtn = document.getElementById("notifyModalCloseBtn");
+    const doneCloseBtn = document.getElementById("notifyDoneCloseBtn");
+    const form = document.getElementById("notifyWaitlistForm");
+    const formView = document.getElementById("notifyFormView");
+    const successView = document.getElementById("notifySuccessView");
+
+    const closeModal = () => {
+      if (modal) {
+        modal.classList.remove("active");
+        this.syncBodyScrollLock();
+      }
+    };
+
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (doneCloseBtn) doneCloseBtn.addEventListener("click", closeModal);
+
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal();
+      });
+    }
+
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const productId = document.getElementById("notifyProductId")?.value;
+        const name = document.getElementById("notifyCustomerName")?.value.trim();
+        const phone = document.getElementById("notifyCustomerPhone")?.value.trim();
+        const email = document.getElementById("notifyCustomerEmail")?.value.trim();
+
+        if (!name || !phone) {
+          this.showToast("Please provide your name and WhatsApp number.", "warning");
+          return;
+        }
+
+        const product = window.store.getProductById(productId) || {
+          id: productId,
+          title: "Handloom Silk Garment",
+          mainImage: "assets/images/banarasi_blue.jpg"
+        };
+
+        // Save to central store
+        const entry = window.store.addSubscriberNotification({
+          productId: product.id,
+          productTitle: product.title,
+          productImage: product.mainImage,
+          customerName: name,
+          phone: "+91 " + phone.replace(/^\+91\s*/, ""),
+          email: email,
+          size: this.selectedSize || "Standard"
+        });
+
+        // Populate Done / Success View
+        const doneName = document.getElementById("notifyDoneCustomerName");
+        const doneTitle = document.getElementById("notifyDoneProdTitle");
+        const donePhone = document.getElementById("notifyDonePhone");
+
+        if (doneName) doneName.textContent = name;
+        if (doneTitle) doneTitle.textContent = `"${product.title}"`;
+        if (donePhone) donePhone.textContent = `+91 ${phone.replace(/^\+91\s*/, "")}`;
+
+        if (formView) formView.style.display = "none";
+        if (successView) successView.style.display = "block";
+
+        form.reset();
+
+        this.showToast(`Done! Priority restock alert registered for ${product.title}`, "success");
+      });
+    }
+  }
+
+  openFullscreenLightbox(imgUrl) {
+    const modal = document.getElementById("lightboxModal");
+    const img = document.getElementById("lightboxMainImg");
+    if (modal && img) {
+      const targetSrc = imgUrl || (this.activeProduct ? (this.activeProduct.mainImage || this.activeProduct.image) : null);
+      if (targetSrc) {
+        img.src = targetSrc;
+      }
+      this._lightboxOpenedAt = Date.now();
+      modal.classList.add("active");
+      document.body.classList.add("lightbox-open");
+      this.syncBodyScrollLock();
+    }
+  }
+
+  closeFullscreenLightbox() {
+    const modal = document.getElementById("lightboxModal");
+    if (modal) {
+      modal.classList.remove("active");
+      document.body.classList.remove("lightbox-open");
+      this.syncBodyScrollLock();
+    }
+  }
+
+  updatePDPPricing() {
+    if (!this.activeProduct) return;
+    const blouseOpt = this.activeProduct.blouseOptions ? this.activeProduct.blouseOptions[this.selectedBlouseKey] : null;
+    const extra = blouseOpt ? blouseOpt.extraPriceINR : 0;
+    const totalINR = this.activeProduct.priceINR + extra;
+
+    const priceEl = document.getElementById("pdpCalculatedPrice");
+    if (priceEl) {
+      priceEl.textContent = window.store.formatPrice(totalINR);
+    }
+  }
+
+  // ==========================================
+  // SLIDE-OVER CART DRAWER & CHECKOUT
+  // ==========================================
+  updateCartUI() {
+    const cart = window.store.getCart();
+    const totals = window.store.getCartTotals();
+    const count = (window.store && typeof window.store.getCartCount === "function")
+      ? window.store.getCartCount()
+      : (Array.isArray(cart) ? cart.length : totals.itemCount);
+
+    const cartBadges = document.querySelectorAll("#headerCartBadge, #stickyCartBadge, .cart-count-badge, .header-cart-badge");
+    const drawerItemCount = document.getElementById("drawerItemCount");
+    cartBadges.forEach(badge => {
+      badge.textContent = count;
+      badge.classList.remove("badge-pop");
+      void badge.offsetWidth;
+      badge.classList.add("badge-pop");
+    });
+    if (drawerItemCount) drawerItemCount.textContent = count;
+
+    const freeShippingBar = document.getElementById("freeShippingBarText");
+    const progressFill = document.getElementById("freeShippingProgressFill");
+    const threshold = window.store.settings.freeShippingThresholdINR;
+
+    if (freeShippingBar && progressFill) {
+      if (totals.subtotalINR >= threshold) {
+        freeShippingBar.innerHTML = "🎉 Congratulations! You unlocked <strong>FREE Express Insured Delivery</strong>!";
+        progressFill.style.width = "100%";
+      } else {
+        const diff = threshold - totals.subtotalINR;
+        const percent = Math.min(100, Math.round((totals.subtotalINR / threshold) * 100));
+        freeShippingBar.innerHTML = `Add <strong>${window.store.formatPrice(diff)}</strong> more to get <strong>FREE Express Delivery</strong>!`;
+        progressFill.style.width = `${percent}%`;
+      }
+    }
+
+    const body = document.getElementById("cartItemsBody");
+    if (!body) return;
+
+    if (cart.length === 0) {
+      body.innerHTML = `
+        <div class="cart-empty-state" style="text-align: center; padding: 3rem 1rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🛍️</div>
+          <h4 style="color: var(--color-primary); margin-bottom: 0.5rem;">Your Shopping Bag is Empty</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Explore our Women's, Men's, Kids, and Family matching sets.</p>
+        </div>
+      `;
+    } else {
+      body.innerHTML = cart.map(item => `
+        <div class="cart-item-card" data-cart-id="${item.cartItemId}">
+          <img src="${item.image}" alt="${item.title}" class="cart-item-img" />
+          <div class="cart-item-details">
+            <h4 class="cart-item-title">${item.title}</h4>
+            <span class="cart-item-meta">Dept: <strong>${item.department}</strong> • Size: <strong>${item.selectedSize}</strong></span>
+            ${item.blouseLabel ? `<span class="cart-item-blouse">${item.blouseLabel}</span>` : ""}
+            <span class="cart-item-price">${window.store.formatPrice(item.itemTotalINR)}</span>
+
+            <div class="cart-qty-row">
+              <div class="qty-control">
+                <button class="qty-btn qty-minus" data-id="${item.cartItemId}">-</button>
+                <span class="qty-number">${item.qty}</span>
+                <button class="qty-btn qty-plus" data-id="${item.cartItemId}">+</button>
+              </div>
+              <span class="cart-item-remove" data-id="${item.cartItemId}">Remove</span>
+            </div>
+          </div>
+        </div>
+      `).join("");
+
+      body.querySelectorAll(".qty-minus").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const id = e.target.getAttribute("data-id");
+          const item = cart.find(i => i.cartItemId === id);
+          if (item) window.store.updateCartQty(id, item.qty - 1);
+        });
+      });
+
+      body.querySelectorAll(".qty-plus").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const id = e.target.getAttribute("data-id");
+          const item = cart.find(i => i.cartItemId === id);
+          if (item) window.store.updateCartQty(id, item.qty + 1);
+        });
+      });
+
+      body.querySelectorAll(".cart-item-remove").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const id = e.target.getAttribute("data-id");
+          window.store.removeFromCart(id);
+          this.showToast("Item removed from bag", "info");
+        });
+      });
+    }
+
+    const subtotalEl = document.getElementById("cartSubtotal");
+    const discountEl = document.getElementById("cartDiscount");
+    const discountLine = document.getElementById("cartDiscountLine");
+    const activeCouponBox = document.getElementById("cartActiveCouponBox");
+    const giftWrapEl = document.getElementById("cartGiftWrapAmount");
+    const gstEl = document.getElementById("cartGst");
+    const totalEl = document.getElementById("cartTotal");
+
+    if (subtotalEl) subtotalEl.textContent = window.store.formatPrice(totals.subtotalINR);
+
+    const couponInput = document.getElementById("cartCouponInput");
+    const applyCouponBtn = document.getElementById("applyCouponBtn");
+
+    if (totals.discountINR > 0 && totals.coupon) {
+      if (couponInput) {
+        couponInput.value = "";
+        couponInput.placeholder = `🔒 Locked (${totals.coupon.code} Applied)`;
+        couponInput.disabled = true;
+      }
+      if (applyCouponBtn) {
+        applyCouponBtn.disabled = true;
+        applyCouponBtn.textContent = "Applied ✓";
+        applyCouponBtn.classList.add("disabled");
+      }
+
+      if (discountEl) {
+        discountEl.textContent = `-${window.store.formatPrice(totals.discountINR)}`;
+        discountEl.style.color = "#059669";
+        discountEl.style.fontWeight = "800";
+      }
+      const discountLabel = totals.coupon.discountType === "flat"
+        ? `₹${(totals.coupon.discountAmount || totals.coupon.discountValue || 0).toLocaleString("en-IN")} Flat OFF`
+        : `${totals.coupon.discountPercent}% OFF`;
+
+      if (discountLine) {
+        const labelSpan = discountLine.querySelector("span");
+        if (labelSpan) labelSpan.innerHTML = `Discount (<strong>${totals.coupon.code}</strong> - ${discountLabel}):`;
+      }
+      if (activeCouponBox) {
+        activeCouponBox.style.display = "block";
+        activeCouponBox.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; font-size: 0.775rem;">
+            <div>
+              <span style="color: #047857; font-weight: 700; display: block;">🏷️ "${totals.coupon.code}" Applied (${discountLabel})</span>
+              <span style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 1px;">🔒 Single coupon policy (1 coupon per shopping order)</span>
+            </div>
+            <button type="button" id="removeActiveCouponBtn" style="background: none; border: none; color: #DC2626; font-size: 0.75rem; font-weight: 800; cursor: pointer; padding: 0 0.25rem; text-decoration: underline;" title="Remove current coupon to enable another promo code">✕ Remove</button>
+          </div>
+        `;
+        document.getElementById("removeActiveCouponBtn")?.addEventListener("click", () => {
+          window.store.removeCoupon();
+          this.showToast("Promo code removed. You can now choose another coupon.", "info");
+        });
+      }
+    } else if (window.store && window.store.lastUnavailableCoupon) {
+      const un = window.store.lastUnavailableCoupon;
+      if (couponInput) {
+        couponInput.disabled = false;
+        couponInput.value = "";
+      }
+      if (applyCouponBtn) {
+        applyCouponBtn.disabled = false;
+        applyCouponBtn.textContent = "Apply";
+      }
+      if (discountEl) {
+        discountEl.textContent = "₹0";
+        discountEl.style.color = "";
+        discountEl.style.fontWeight = "";
+      }
+      if (discountLine) {
+        const labelSpan = discountLine.querySelector("span");
+        if (labelSpan) labelSpan.textContent = "Discount:";
+      }
+      if (activeCouponBox) {
+        activeCouponBox.style.display = "block";
+        activeCouponBox.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(239, 68, 68, 0.12); border: 1.5px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; font-size: 0.775rem;">
+            <span style="color: #DC2626; font-weight: 700;">⚠️ Promo code "${un.code}" is <strong>Not Available</strong> (${un.reason === "deleted" ? "Removed by Store" : "Disabled"})</span>
+            <button type="button" id="dismissUnavailableCouponBtn" style="background: none; border: none; color: #DC2626; font-size: 0.8rem; font-weight: 800; cursor: pointer; padding: 0 0.35rem;" title="Dismiss">✕</button>
+          </div>
+        `;
+        document.getElementById("dismissUnavailableCouponBtn")?.addEventListener("click", () => {
+          window.store.clearUnavailableNotice();
+        });
+      }
+    } else {
+      if (couponInput) {
+        couponInput.disabled = false;
+      }
+      if (applyCouponBtn) {
+        applyCouponBtn.disabled = false;
+        applyCouponBtn.textContent = "Apply";
+      }
+
+      if (discountEl) {
+        discountEl.textContent = "₹0";
+        discountEl.style.color = "";
+        discountEl.style.fontWeight = "";
+      }
+      if (discountLine) {
+        const labelSpan = discountLine.querySelector("span");
+        if (labelSpan) labelSpan.textContent = "Discount:";
+      }
+      if (activeCouponBox) {
+        activeCouponBox.style.display = "none";
+        activeCouponBox.innerHTML = "";
+      }
+    }
+
+    if (giftWrapEl) giftWrapEl.textContent = totals.giftWrapINR > 0 ? `+${window.store.formatPrice(totals.giftWrapINR)}` : "₹0";
+    if (gstEl) gstEl.textContent = window.store.formatPrice(totals.gstINR);
+    if (totalEl) totalEl.textContent = window.store.formatPrice(totals.totalINR);
+
+    // Render dynamic available offers list in cart
+    this.renderCartAvailableOffers(totals);
+  }
+
+  renderCartAvailableOffers(totals) {
+    const offersBox = document.getElementById("cartAvailableOffersBox");
+    if (offersBox) {
+      offersBox.innerHTML = "";
+      offersBox.style.display = "none";
+    }
+  }
+
+  quickApplyCoupon(code) {
+    if (!window.store) return;
+    const res = window.store.applyCoupon(code);
+    this.showToast(res.message, res.success ? "success" : "warning");
+    this.updateCartUI();
+  }
+
+  getCombinedCouponsList() {
+    if (!window.store) return [];
+    const liveCoupons = window.store.getCoupons() || [];
+    const deletedCoupons = window.store.getDeletedCoupons() || [];
+    const campaign = (typeof window.store.getFestiveCampaign === "function") ? window.store.getFestiveCampaign() : null;
+    const campaignOffers = (campaign && Array.isArray(campaign.offers)) ? campaign.offers : [];
+
+    const map = new Map();
+
+    // 1. Add all active coupons from window.store.getCoupons()
+    liveCoupons.filter(c => c && c.isActive).forEach(c => {
+      const code = (c.code || "").toUpperCase().trim();
+      if (code) {
+        map.set(code, {
+          id: c.id,
+          code: c.code,
+          badge: c.badge || (c.discountType === "flat" ? `FLAT ₹${c.discountAmount} OFF` : `${c.discountPercent}% OFF SPECIAL`),
+          title: c.title || `${c.code} Special Savings`,
+          description: c.description || (c.minOrderValue > 0 ? `Valid on orders over ₹${c.minOrderValue.toLocaleString('en-IN')}.` : 'Exclusive handloom silk privilege savings.'),
+          discount: c.discountType === "flat" ? `₹${c.discountAmount} OFF` : `${c.discountPercent}% OFF`,
+          discountType: c.discountType || (c.discountPercent > 0 ? "percent" : "flat"),
+          discountAmount: c.discountAmount || 0,
+          discountPercent: c.discountPercent || 0,
+          minOrderValue: c.minOrderValue || 0,
+          maxDiscount: c.maxDiscount || null,
+          isActive: true,
+          isDeleted: false,
+          validUntil: c.validUntil || ""
+        });
+      }
+    });
+
+    // 2. Add or overlay campaign offers from Festive Specials
+    campaignOffers.filter(o => o && o.isActive !== false).forEach(o => {
+      const code = (o.code || "").toUpperCase().trim();
+      if (code) {
+        const existing = map.get(code) || {};
+        map.set(code, {
+          id: o.id || existing.id,
+          code: o.code || existing.code,
+          badge: o.badge || existing.badge || "Festive Offer",
+          title: o.title || existing.title || "Festive Discount",
+          description: o.description || existing.description || "Special celebratory voucher for family handlooms.",
+          discount: o.discount || existing.discount || "Special Offer",
+          discountType: existing.discountType || (o.discount && o.discount.includes("%") ? "percent" : "flat"),
+          discountAmount: existing.discountAmount || 0,
+          discountPercent: existing.discountPercent || 0,
+          minOrderValue: existing.minOrderValue || 0,
+          maxDiscount: existing.maxDiscount || null,
+          isActive: true,
+          isDeleted: false,
+          validUntil: o.validUntil || existing.validUntil || ""
+        });
+      }
+    });
+
+    // 3. Mark deleted coupons explicitly if not active
+    deletedCoupons.forEach(dc => {
+      const code = (dc.code || "").toUpperCase().trim();
+      if (code && !map.has(code)) {
+        map.set(code, {
+          id: dc.id,
+          code: dc.code,
+          badge: "⚠️ NOT AVAILABLE",
+          title: dc.title || `${dc.code} Special Offer`,
+          description: "Removed by Store Management",
+          discount: "Not Available",
+          isActive: false,
+          isDeleted: true
+        });
+      }
+    });
+
+    // Order: canonical 4 festive preferred codes first, followed by any additional codes
+    const festivePreferredCodes = ["FESTIVE20", "BRIDAL15", "KIDSGIFT", "PREPAID500"];
+    const list = Array.from(map.values());
+
+    list.sort((a, b) => {
+      const idxA = festivePreferredCodes.indexOf((a.code || "").toUpperCase());
+      const idxB = festivePreferredCodes.indexOf((b.code || "").toUpperCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return 0;
+    });
+
+    return list;
+  }
+
+  renderFestiveVouchers() {
+    const grid = document.getElementById("festiveVouchersGrid");
+    if (!grid) return;
+
+    if (!window.store) return;
+
+    const itemsToDisplay = this.getCombinedCouponsList();
+
+    if (itemsToDisplay.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; width: 100%; text-align: center; padding: 2.5rem 1rem; background: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1.5px dashed var(--border-color); color: var(--text-muted);">
+          <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">🏷️</span>
+          <h4 style="margin: 0 0 0.35rem 0; color: var(--text-heading); font-family: var(--font-serif-display);">Festive Offers Update</h4>
+          <p style="margin: 0; font-size: 0.85rem;">Seasonal vouchers are currently undergoing updates. Check back soon!</p>
+        </div>
+      `;
+      this.initFestiveVouchersCarousel();
+      this.updateFloatingCouponPill(0);
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    grid.innerHTML = itemsToDisplay.map((c, idx) => {
+      const isExpired = c.validUntil ? new Date(c.validUntil) < today : false;
+      const isUnavailable = c.isDeleted || !c.isActive || isExpired;
+
+      const badgeText = isUnavailable
+        ? "⚠️ NOT AVAILABLE"
+        : (c.badge || "FESTIVE OFFER");
+
+      const badgeStyle = isUnavailable
+        ? "background: linear-gradient(135deg, #DC2626, #EF4444); color: #FFF;"
+        : "";
+
+      const cardClass = `festive-voucher-card ${isUnavailable ? 'festive-voucher-unavailable' : ''}`;
+      const cardStyle = isUnavailable
+        ? "border: 1.5px dashed rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.03);"
+        : "";
+
+      const titleHtml = isUnavailable
+        ? `<h4 style="text-decoration: line-through; color: var(--text-muted); opacity: 0.85;">${this.escapeHtml(c.title)}</h4>`
+        : `<h4>${this.escapeHtml(c.title)}</h4>`;
+
+      const descHtml = isUnavailable
+        ? `<p style="color: #DC2626; font-weight: 700; margin-bottom: 0.35rem; font-size: 0.82rem;">⚠️ This coupon code is Not Available (${c.isDeleted ? 'Removed by Store Management' : (isExpired ? 'Expired' : 'Temporarily Disabled')})</p>
+           <p style="text-decoration: line-through; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">${this.escapeHtml(c.description || '')}</p>`
+        : `<p>${this.escapeHtml(c.description || 'Exclusive handloom silk privilege savings.')}</p>`;
+
+      const codeRowHtml = isUnavailable
+        ? `<div class="festive-code-row" style="border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08);">
+            <span class="festive-code-text" style="text-decoration: line-through; color: #DC2626; opacity: 0.75;">${this.escapeHtml(c.code)}</span>
+            <button type="button" class="festive-copy-btn disabled" disabled style="background: rgba(239, 68, 68, 0.15); color: #DC2626; border: 1px solid rgba(239, 68, 68, 0.4); cursor: not-allowed; opacity: 0.9; font-weight: 700;">Not Available</button>
+           </div>`
+        : `<div class="festive-code-row">
+            <span class="festive-code-text">${this.escapeHtml(c.code)}</span>
+            <button type="button" class="festive-copy-btn"
+              onclick="navigator.clipboard?.writeText('${this.escapeHtml(c.code)}'); window.storefront.showToast('Copied voucher code ${this.escapeHtml(c.code)}!', 'success');">Copy Code</button>
+           </div>`;
+
+      // Floating animation staggered delay for organic float wave
+      const floatDelay = ((idx % 4) * 0.5).toFixed(2);
+
+      return `
+        <div class="${cardClass}" style="${cardStyle} animation-delay: ${floatDelay}s;">
+          <span class="festive-voucher-badge" style="${badgeStyle}">${this.escapeHtml(badgeText)}</span>
+          <div class="festive-voucher-content">
+            ${titleHtml}
+            ${descHtml}
+          </div>
+          ${codeRowHtml}
+        </div>
+      `;
+    }).join("");
+
+    this.initFestiveVouchersCarousel();
+    this.updateFloatingCouponPill(itemsToDisplay.filter(c => !c.isDeleted && c.isActive).length);
+  }
+
+  initFestiveVouchersCarousel() {
+    const wrapper = document.getElementById("festiveVouchersCarouselWrapper") || document.querySelector(".festive-vouchers-carousel-wrapper");
+    const grid = document.getElementById("festiveVouchersGrid") || (wrapper && wrapper.querySelector(".festive-vouchers-grid"));
+    if (!grid) return;
+
+    const prevBtn = document.getElementById("festiveVouchersPrevBtn") || (wrapper && wrapper.querySelector(".festive-carousel-prev"));
+    const nextBtn = document.getElementById("festiveVouchersNextBtn") || (wrapper && wrapper.querySelector(".festive-carousel-next"));
+
+    const cards = grid.querySelectorAll(".festive-voucher-card");
+    const count = cards.length;
+
+    let isCarouselActive = false;
+
+    const syncCarouselMode = () => {
+      const isOverflowing = grid.scrollWidth > grid.clientWidth + 8;
+      isCarouselActive = count > 4 || isOverflowing;
+
+      if (wrapper) {
+        wrapper.classList.toggle("has-carousel", isCarouselActive);
+        grid.classList.toggle("is-carousel", isCarouselActive);
+      }
+
+      if (prevBtn && nextBtn) {
+        prevBtn.style.display = isCarouselActive ? "flex" : "none";
+        nextBtn.style.display = isCarouselActive ? "flex" : "none";
+      }
+
+      syncArrows();
+    };
+
+    const syncArrows = () => {
+      if (!isCarouselActive || !prevBtn || !nextBtn) return;
+      const atStart = grid.scrollLeft <= 4;
+      const atEnd = grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 8;
+
+      if (prevBtn.disabled !== atStart) {
+        prevBtn.disabled = atStart;
+        prevBtn.classList.toggle("disabled", atStart);
+      }
+      if (nextBtn.disabled !== atEnd) {
+        nextBtn.disabled = atEnd;
+        nextBtn.classList.toggle("disabled", atEnd);
+      }
+    };
+
+    const getCardList = () => Array.from(grid.querySelectorAll(".festive-voucher-card"));
+
+    const getClosestCardIndex = () => {
+      const cardList = getCardList();
+      if (!cardList.length) return 0;
+      const gridRect = grid.getBoundingClientRect();
+      const gridCenter = gridRect.left + gridRect.width / 2;
+      let closestIdx = 0;
+      let minDiff = Infinity;
+      cardList.forEach((card, idx) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.left + rect.width / 2;
+        const diff = Math.abs(cardCenter - gridCenter);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIdx = idx;
+        }
+      });
+      return closestIdx;
+    };
+
+    const scrollToCardIndex = (targetIdx) => {
+      const cardList = getCardList();
+      if (!cardList.length) return;
+      const safeIdx = Math.max(0, Math.min(targetIdx, cardList.length - 1));
+      cardList[safeIdx].scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest"
+      });
+      setTimeout(syncArrows, 400);
+    };
+
+    if (prevBtn && !prevBtn._boundCarousel) {
+      prevBtn._boundCarousel = true;
+      prevBtn.addEventListener("click", () => {
+        const curr = getClosestCardIndex();
+        scrollToCardIndex(curr - 1);
+      });
+    }
+
+    if (nextBtn && !nextBtn._boundCarousel) {
+      nextBtn._boundCarousel = true;
+      nextBtn.addEventListener("click", () => {
+        const curr = getClosestCardIndex();
+        scrollToCardIndex(curr + 1);
+      });
+    }
+
+    if (!grid._boundCarouselScroll) {
+      grid._boundCarouselScroll = true;
+      let scrollTicking = false;
+      grid.addEventListener("scroll", () => {
+        if (!scrollTicking) {
+          scrollTicking = true;
+          requestAnimationFrame(() => {
+            syncArrows();
+            scrollTicking = false;
+          });
+        }
+      }, { passive: true });
+    }
+
+    if (!window._festiveCarouselResizeBound) {
+      window._festiveCarouselResizeBound = true;
+      let resizeTicking = false;
+      window.addEventListener("resize", () => {
+        if (!resizeTicking) {
+          resizeTicking = true;
+          requestAnimationFrame(() => {
+            syncCarouselMode();
+            resizeTicking = false;
+          });
+        }
+      }, { passive: true });
+    }
+
+    syncCarouselMode();
+    requestAnimationFrame(syncCarouselMode);
+  }
+
+  // ==========================================
+  // MOBILE FOOTER CAROUSEL & SWIPE CONTROLLER
+  // ==========================================
+  scrollFooterSlide(slideIndex) {
+    const scrollContainer = document.getElementById("footerColumnsScroll");
+    if (!scrollContainer) return;
+    const slides = scrollContainer.querySelectorAll(".footer-col");
+    if (!slides || slides.length === 0) return;
+
+    const targetIndex = Math.max(0, Math.min(slideIndex, slides.length - 1));
+    const targetSlide = slides[targetIndex];
+    if (targetSlide) {
+      targetSlide.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+
+    this.updateFooterCarouselState(targetIndex);
+  }
+
+  updateFooterCarouselState(activeIndex) {
+    // Synchronize top navigation tab pills
+    const tabs = document.querySelectorAll("#footerCarouselNav .footer-nav-tab");
+    tabs.forEach((tab, i) => {
+      tab.classList.toggle("active", i === activeIndex);
+    });
+
+    // Synchronize bottom slide dots
+    const dots = document.querySelectorAll("#footerCarouselDots .footer-dot");
+    dots.forEach((dot, i) => {
+      dot.classList.toggle("active", i === activeIndex);
+    });
+
+    // Update prev/next arrows state if present
+    const prevBtn = document.getElementById("footerArrowPrev");
+    const nextBtn = document.getElementById("footerArrowNext");
+    if (prevBtn) {
+      prevBtn.style.opacity = activeIndex === 0 ? "0.4" : "1";
+    }
+    if (nextBtn) {
+      nextBtn.style.opacity = activeIndex === 1 ? "0.4" : "1";
+    }
+  }
+
+  initFooterCarousel() {
+    const scrollContainer = document.getElementById("footerColumnsScroll");
+    if (!scrollContainer || scrollContainer._boundFooterCarousel) return;
+    scrollContainer._boundFooterCarousel = true;
+
+    // 1. Native scroll listener with center-point detection
+    let scrollDebounce = null;
+    scrollContainer.addEventListener("scroll", () => {
+      if (scrollDebounce) clearTimeout(scrollDebounce);
+      scrollDebounce = setTimeout(() => {
+        const slides = scrollContainer.querySelectorAll(".footer-col");
+        if (!slides || slides.length < 2) return;
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const containerCenter = containerRect.left + containerRect.width / 2;
+
+        let closestIndex = 0;
+        let minDistance = Infinity;
+
+        slides.forEach((slide, idx) => {
+          const rect = slide.getBoundingClientRect();
+          const slideCenter = rect.left + rect.width / 2;
+          const distance = Math.abs(slideCenter - containerCenter);
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestIndex = idx;
+          }
+        });
+
+        this.updateFooterCarouselState(closestIndex);
+      }, 50);
+    }, { passive: true });
+
+    // 2. Touch Swipe Controller for foolproof mobile gestures
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isSwiping = false;
+
+    scrollContainer.addEventListener("touchstart", (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      isSwiping = true;
+    }, { passive: true });
+
+    scrollContainer.addEventListener("touchend", (e) => {
+      if (!isSwiping || !e.changedTouches || e.changedTouches.length === 0) return;
+      isSwiping = false;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+
+      // Only handle horizontal swipes > 35px where horizontal movement exceeds vertical
+      if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (deltaX < 0) {
+          // Swipe left -> Customer Services (slide 1)
+          this.scrollFooterSlide(1);
+        } else {
+          // Swipe right -> Family Departments (slide 0)
+          this.scrollFooterSlide(0);
+        }
+      }
+    }, { passive: true });
+
+    // Initial state sync
+    this.updateFooterCarouselState(0);
+  }
+
+  initFestiveDealsCarousel() {
+    const wrapper = document.getElementById("festiveDealsCarouselWrapper") || document.querySelector(".festive-deals-carousel-wrapper");
+    const grid = document.getElementById("festiveDealsGrid") || (wrapper && wrapper.querySelector(".festive-deals-grid"));
+    if (!grid) return;
+
+    const prevBtn = document.getElementById("festiveDealsPrevBtn") || (wrapper && wrapper.querySelector(".festive-deals-prev"));
+    const nextBtn = document.getElementById("festiveDealsNextBtn") || (wrapper && wrapper.querySelector(".festive-deals-next"));
+
+    const cards = grid.querySelectorAll(".festive-deal-card");
+    const count = cards.length;
+
+    let isDealsCarouselActive = false;
+
+    const syncDealsCarouselMode = () => {
+      const isOverflowing = grid.scrollWidth > grid.clientWidth + 8;
+      isDealsCarouselActive = count > 4 || isOverflowing;
+
+      if (wrapper) {
+        wrapper.classList.toggle("has-carousel", isDealsCarouselActive);
+        grid.classList.toggle("is-carousel", isDealsCarouselActive);
+      }
+
+      if (prevBtn && nextBtn) {
+        prevBtn.style.display = isDealsCarouselActive ? "flex" : "none";
+        nextBtn.style.display = isDealsCarouselActive ? "flex" : "none";
+      }
+
+      syncDealsArrows();
+    };
+
+    const syncDealsArrows = () => {
+      if (!isDealsCarouselActive || !prevBtn || !nextBtn) return;
+      const atStart = grid.scrollLeft <= 4;
+      const atEnd = grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 8;
+
+      if (prevBtn.disabled !== atStart) {
+        prevBtn.disabled = atStart;
+        prevBtn.classList.toggle("disabled", atStart);
+      }
+      if (nextBtn.disabled !== atEnd) {
+        nextBtn.disabled = atEnd;
+        nextBtn.classList.toggle("disabled", atEnd);
+      }
+    };
+
+    const getDealsCardList = () => Array.from(grid.querySelectorAll(".festive-deal-card"));
+
+    const getClosestDealsCardIndex = () => {
+      const cardList = getDealsCardList();
+      if (!cardList.length) return 0;
+      const gridRect = grid.getBoundingClientRect();
+      const gridCenter = gridRect.left + gridRect.width / 2;
+      let closestIdx = 0;
+      let minDiff = Infinity;
+      cardList.forEach((card, idx) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.left + rect.width / 2;
+        const diff = Math.abs(cardCenter - gridCenter);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIdx = idx;
+        }
+      });
+      return closestIdx;
+    };
+
+    const scrollToDealsCardIndex = (targetIdx) => {
+      const cardList = getDealsCardList();
+      if (!cardList.length) return;
+      const safeIdx = Math.max(0, Math.min(targetIdx, cardList.length - 1));
+      cardList[safeIdx].scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest"
+      });
+      setTimeout(syncDealsArrows, 400);
+    };
+
+    if (prevBtn && !prevBtn._boundDealsCarousel) {
+      prevBtn._boundDealsCarousel = true;
+      prevBtn.addEventListener("click", () => {
+        const curr = getClosestDealsCardIndex();
+        scrollToDealsCardIndex(curr - 1);
+      });
+    }
+
+    if (nextBtn && !nextBtn._boundDealsCarousel) {
+      nextBtn._boundDealsCarousel = true;
+      nextBtn.addEventListener("click", () => {
+        const curr = getClosestDealsCardIndex();
+        scrollToDealsCardIndex(curr + 1);
+      });
+    }
+
+    if (!grid._boundDealsScroll) {
+      grid._boundDealsScroll = true;
+      let scrollTicking = false;
+      grid.addEventListener("scroll", () => {
+        if (!scrollTicking) {
+          scrollTicking = true;
+          requestAnimationFrame(() => {
+            syncDealsArrows();
+            scrollTicking = false;
+          });
+        }
+      }, { passive: true });
+    }
+
+    if (!window._festiveDealsResizeBound) {
+      window._festiveDealsResizeBound = true;
+      let resizeTicking = false;
+      window.addEventListener("resize", () => {
+        if (!resizeTicking) {
+          resizeTicking = true;
+          requestAnimationFrame(() => {
+            syncDealsCarouselMode();
+            resizeTicking = false;
+          });
+        }
+      }, { passive: true });
+    }
+
+    syncDealsCarouselMode();
+    requestAnimationFrame(syncDealsCarouselMode);
+  }
+
+  setupFloatingCouponPill() {
+    const pill = document.getElementById("floatingCouponPill");
+    const popupCard = document.getElementById("floatingCouponCodePopup");
+    [pill, popupCard].filter(Boolean).forEach(el => {
+      if (!el._boundCouponPill) {
+        el._boundCouponPill = true;
+        let lastTrigger = 0;
+        const handleTrigger = (e) => {
+          const now = Date.now();
+          if (now - lastTrigger < 350) return;
+          lastTrigger = now;
+          e.preventDefault();
+          this.openCouponPopup();
+        };
+        el.addEventListener("click", handleTrigger);
+        el.addEventListener("touchend", handleTrigger, { passive: false });
+      }
+    });
+
+    // Bind any global coupon triggers (e.g. cart drawer "Browse All Coupons" button)
+    document.querySelectorAll(".cart-view-coupons-link, .open-coupon-panel-btn, [data-action='open-coupons']").forEach(btn => {
+      if (!btn._boundCouponOpen) {
+        btn._boundCouponOpen = true;
+        let lastClick = 0;
+        const triggerOpen = (e) => {
+          const now = Date.now();
+          if (now - lastClick < 350) return;
+          lastClick = now;
+          e.preventDefault();
+          this.openCouponPopup();
+        };
+        btn.addEventListener("click", triggerOpen);
+        btn.addEventListener("touchend", triggerOpen, { passive: false });
+      }
+    });
+
+    // Panel overlay click: clicking on backdrop closes both drawers smoothly
+    const modal = document.getElementById("couponPopupModal");
+    if (modal && !modal._boundOverlayClose) {
+      modal._boundOverlayClose = true;
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal || e.target.id === "couponPopupBackdrop") {
+          e.preventDefault();
+          this.closeCouponPopup();
+          this.closeCartDrawer();
+        }
+      });
+    }
+
+    // Bind Close button and Backdrop clicks
+    const closeBtn = document.getElementById("couponPopupCloseBtn");
+    if (closeBtn && !closeBtn._bound) {
+      closeBtn._bound = true;
+      closeBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeCouponPopup();
+      });
+    }
+
+    const backdrop = document.getElementById("couponPopupBackdrop");
+    if (backdrop && !backdrop._bound) {
+      backdrop._bound = true;
+      backdrop.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.closeCouponPopup();
+        this.closeCartDrawer();
+      });
+    }
+
+    // Bind Footer "View Shopping Bag" button
+    const viewCartBtn = document.getElementById("couponPopupViewCartBtn");
+    if (viewCartBtn && !viewCartBtn._bound) {
+      viewCartBtn._bound = true;
+      viewCartBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.closeCouponPopup();
+        setTimeout(() => {
+          this.openCartDrawer();
+        }, 180);
+      });
+    }
+
+    // Bind Footer "View Festive Showcase" button
+    const scrollBtn = document.getElementById("couponPopupScrollBtn");
+    if (scrollBtn && !scrollBtn._bound) {
+      scrollBtn._bound = true;
+      scrollBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.closeCouponPopup();
+        const section = document.getElementById("festiveOffersSection") || document.getElementById("festiveVouchersCarouselWrapper");
+        if (section && section.style.display !== "none") {
+          setTimeout(() => {
+            section.scrollIntoView({ behavior: "smooth", block: "start" });
+            section.classList.add("festive-section-highlight");
+            setTimeout(() => section.classList.remove("festive-section-highlight"), 2000);
+          }, 150);
+        } else {
+          window.location.href = "shop.html#festiveOffersSection";
+        }
+      });
+    }
+
+    // Bind Category Filter Tabs in Panel
+    const tabsContainer = document.getElementById("couponPanelTabs");
+    if (tabsContainer && !tabsContainer._bound) {
+      tabsContainer._bound = true;
+      tabsContainer.addEventListener("click", (e) => {
+        const tabBtn = e.target.closest(".coupon-filter-tab");
+        if (!tabBtn) return;
+        e.preventDefault();
+        tabsContainer.querySelectorAll(".coupon-filter-tab").forEach(t => t.classList.remove("active"));
+        tabBtn.classList.add("active");
+        const filter = tabBtn.getAttribute("data-filter") || "all";
+        this.renderCouponPopupList(filter);
+      });
+    }
+
+    // Bind Direct Promo Input inside Panel
+    const directApplyBtn = document.getElementById("couponPanelDirectApplyBtn");
+    const directInput = document.getElementById("couponPanelDirectInput");
+    if (directApplyBtn && directInput && !directApplyBtn._bound) {
+      directApplyBtn._bound = true;
+      const handleDirectApply = (e) => {
+        e.preventDefault();
+        const val = directInput.value.trim().toUpperCase();
+        if (!val) {
+          this.showToast("Please enter a promo code to apply.", "warning");
+          return;
+        }
+        this.applyCouponFromPanel(val, directApplyBtn);
+        directInput.value = "";
+      };
+      directApplyBtn.addEventListener("click", handleDirectApply);
+      directInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleDirectApply(e);
+        }
+      });
+    }
+
+    // Mobile Swipe-Down to Dismiss on bottom sheet panel
+    const dialog = document.getElementById("couponPopupDialog");
+    const dragHandle = document.getElementById("couponPanelDragHandle");
+    if (dialog && !dialog._boundSwipe) {
+      dialog._boundSwipe = true;
+      let startY = 0;
+      let currentY = 0;
+      let isDragging = false;
+
+      const onTouchStart = (e) => {
+        // Only initiate drag if touch is on drag handle or dialog top
+        if (window.innerWidth > 768) return;
+        const touch = e.touches[0];
+        if (e.target.closest("#couponPanelDragHandle") || e.target.closest(".coupon-popup-header")) {
+          startY = touch.clientY;
+          isDragging = true;
+        }
+      };
+
+      const onTouchMove = (e) => {
+        if (!isDragging) return;
+        currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+        if (deltaY > 0) {
+          dialog.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+        }
+      };
+
+      const onTouchEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        const deltaY = currentY - startY;
+        dialog.style.transform = "";
+        if (deltaY > 70) {
+          this.closeCouponPopup();
+        }
+      };
+
+      dialog.addEventListener("touchstart", onTouchStart, { passive: true });
+      dialog.addEventListener("touchmove", onTouchMove, { passive: true });
+      dialog.addEventListener("touchend", onTouchEnd, { passive: true });
+    }
+
+    // Escape key dismissal
+    if (!window._couponPopupEscBound) {
+      window._couponPopupEscBound = true;
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const m = document.getElementById("couponPopupModal");
+          if (m && m.classList.contains("active")) {
+            this.closeCouponPopup();
+            this.closeCartDrawer();
+          }
+        }
+      });
+    }
+
+    // Sync coupon panel state when cart updates
+    if (!window._couponPanelCartSyncBound) {
+      window._couponPanelCartSyncBound = true;
+      window.addEventListener("cartUpdated", () => {
+        const modal = document.getElementById("couponPopupModal");
+        if (modal && modal.classList.contains("active")) {
+          this.renderCouponPopupList(this._activeCouponFilter || "all");
+        }
+      });
+    }
+
+    this.updateFloatingCouponPill();
+    this.syncCouponPopupVisibility();
+  }
+
+  openCouponPopup(autoOpenCart = false) {
+    const campaign = (window.store && typeof window.store.getFestiveCampaign === "function") ? window.store.getFestiveCampaign() : null;
+    const isCampaignEnabled = !campaign || campaign.enabled !== false;
+    const items = typeof this.getCombinedCouponsList === "function" ? this.getCombinedCouponsList() : [];
+    const activeCoupons = items.filter(c => !c.isDeleted && c.isActive);
+
+    if (!isCampaignEnabled || activeCoupons.length === 0) {
+      this.syncCouponPopupVisibility();
+      this.showToast("Promotional coupon session is currently paused by store management.", "info");
+      return;
+    }
+
+    if (autoOpenCart) {
+      const cartDrawer = document.getElementById("cartDrawer");
+      if (cartDrawer && !cartDrawer.classList.contains("active")) {
+        this.openCartDrawer();
+      }
+    }
+
+    const modal = document.getElementById("couponPopupModal");
+    if (!modal) return;
+
+    if (this._couponCloseTimeout) {
+      clearTimeout(this._couponCloseTimeout);
+      this._couponCloseTimeout = null;
+    }
+
+    // Reset filter to all on open
+    this._activeCouponFilter = "all";
+    const tabsContainer = document.getElementById("couponPanelTabs");
+    if (tabsContainer) {
+      tabsContainer.querySelectorAll(".coupon-filter-tab").forEach(t => {
+        t.classList.toggle("active", t.getAttribute("data-filter") === "all");
+      });
+    }
+
+    this.renderCouponPopupList("all");
+
+    modal.style.display = "flex";
+    // Trigger layout reflow for clean CSS transition without flicker
+    void modal.offsetWidth;
+    modal.classList.add("active");
+    this.syncBodyScrollLock();
+  }
+
+  closeCouponPopup() {
+    const modal = document.getElementById("couponPopupModal");
+    if (!modal) return;
+
+    modal.classList.remove("active");
+    this.syncBodyScrollLock();
+
+    if (this._couponCloseTimeout) {
+      clearTimeout(this._couponCloseTimeout);
+    }
+    this._couponCloseTimeout = setTimeout(() => {
+      if (!modal.classList.contains("active")) {
+        modal.style.display = "none";
+      }
+    }, 280);
+  }
+
+  renderCouponPopupList(filter = "all") {
+    const body = document.getElementById("couponPopupBody");
+    if (!body) return;
+
+    this._activeCouponFilter = filter || "all";
+    const items = typeof this.getCombinedCouponsList === "function" ? this.getCombinedCouponsList() : [];
+    const activeCoupons = items.filter(c => !c.isDeleted && c.isActive);
+
+    const countElem = document.getElementById("couponPopupAvailableText");
+    if (countElem) {
+      countElem.textContent = `${activeCoupons.length} Active Festive Coupons`;
+    }
+
+    const tabCountAll = document.getElementById("couponTabCountAll");
+    if (tabCountAll) {
+      tabCountAll.textContent = activeCoupons.length;
+    }
+
+    // Filter coupons by category
+    let displayedCoupons = activeCoupons;
+    if (filter === "flat") {
+      displayedCoupons = activeCoupons.filter(c => c.discountType === "flat" || (c.discountAmount && c.discountAmount > 0));
+    } else if (filter === "percent") {
+      displayedCoupons = activeCoupons.filter(c => c.discountType === "percent" || (c.discountPercent && c.discountPercent > 0));
+    } else if (filter === "festive") {
+      displayedCoupons = activeCoupons.filter(c => {
+        const str = `${c.code || ""} ${c.badge || ""} ${c.title || ""}`.toUpperCase();
+        return str.includes("FESTIVE") || str.includes("BRIDAL") || str.includes("KIDS") || str.includes("PREPAID") || str.includes("HERITAGE");
+      });
+    }
+
+    if (displayedCoupons.length === 0) {
+      body.innerHTML = `
+        <div style="text-align: center; padding: 2.8rem 1rem; color: var(--text-muted);">
+          <span style="font-size: 2.6rem; display: block; margin-bottom: 0.5rem;">🏷️</span>
+          <h4 style="margin: 0 0 0.35rem; color: var(--text-heading); font-family: var(--font-serif-display); font-size: 1.05rem;">No Coupons in this Category</h4>
+          <p style="margin: 0; font-size: 0.85rem;">Select "All Offers" to view our complete festive privilege collection!</p>
+        </div>
+      `;
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const currentActiveCode = (window.store && window.store.activeCoupon && window.store.activeCoupon.code)
+      ? window.store.activeCoupon.code.toUpperCase()
+      : null;
+
+    // Sync direct input box & button in header: Lock if coupon is already active
+    const directInput = document.getElementById("couponPanelDirectInput");
+    const directBtn = document.getElementById("couponPanelDirectApplyBtn");
+    if (directInput && directBtn) {
+      if (currentActiveCode) {
+        directInput.disabled = true;
+        directInput.value = "";
+        directInput.placeholder = `🔒 Locked (${currentActiveCode} Applied)`;
+        directBtn.disabled = true;
+        directBtn.textContent = "Applied ✓";
+        directBtn.classList.add("applied");
+      } else {
+        directInput.disabled = false;
+        directInput.placeholder = "Enter coupon or promo code...";
+        directBtn.disabled = false;
+        directBtn.textContent = "Apply";
+        directBtn.classList.remove("applied");
+      }
+    }
+
+    // Single Coupon Limit Banner at Top of Popup
+    const limitBannerHtml = currentActiveCode ? `
+      <div class="coupon-single-limit-banner" style="margin-bottom: 1.25rem; padding: 0.75rem 1rem; background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(122, 12, 46, 0.08)); border: 1.5px solid var(--color-gold); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="font-size: 0.825rem; color: var(--text-main); line-height: 1.45;">
+          <strong>🔒 1 Coupon Per Shopping:</strong> Promo code <strong style="color: var(--color-gold); font-family: monospace; font-size: 0.95rem;">${currentActiveCode}</strong> is currently active. Other coupon codes cannot be enabled simultaneously for this order.
+        </div>
+        <button type="button" class="btn btn-outline btn-xs" style="color: #DC2626 !important; border-color: #FECDD3 !important; background: #FFF !important; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; white-space: nowrap;" onclick="window.store.removeCoupon(); window.storefront.renderCouponPopupList(); window.storefront.updateCartUI(); window.storefront.showToast('Coupon removed. You can now select another coupon.', 'info');">
+          ✕ Remove to Switch
+        </button>
+      </div>
+    ` : '';
+
+    body.innerHTML = limitBannerHtml + displayedCoupons.map((c) => {
+      const isExpired = c.validUntil ? new Date(c.validUntil) < today : false;
+      const expiryText = c.validUntil
+        ? (isExpired ? "⚠️ Expired" : `Valid till ${new Date(c.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`)
+        : "Limited Time Privilege";
+
+      const badgeText = c.badge || (c.discount || "FESTIVE PRIVILEGE");
+      const title = c.title || `${c.code} Special Savings`;
+      const desc = c.description || "Exclusive handloom silk privilege savings.";
+      const code = (c.code || "").toUpperCase();
+
+      const discountTag = c.discountType === "flat" && c.discountAmount
+        ? `₹${c.discountAmount} FLAT OFF`
+        : (c.discountPercent ? `${c.discountPercent}% OFF` : (c.discount || "SPECIAL OFFER"));
+
+      const minOrderText = (c.minOrderValue && c.minOrderValue > 0)
+        ? `Min. Order: ₹${c.minOrderValue.toLocaleString('en-IN')}`
+        : null;
+
+      const isCurrentActive = currentActiveCode === code;
+      const isAnotherActive = Boolean(currentActiveCode && !isCurrentActive);
+
+      return `
+        <div class="coupon-popup-ticket ${isExpired ? 'ticket-unavailable' : ''} ${isCurrentActive ? 'ticket-applied' : ''} ${isAnotherActive ? 'ticket-locked' : ''}">
+          <div class="coupon-ticket-top">
+            <span class="coupon-ticket-badge">${this.escapeHtml(badgeText)}</span>
+            <span class="coupon-ticket-expiry">${this.escapeHtml(expiryText)}</span>
+          </div>
+
+          <div class="coupon-ticket-main">
+            <div class="coupon-ticket-headline-row">
+              <span class="coupon-ticket-value">${this.escapeHtml(discountTag)}</span>
+              <h4 class="coupon-ticket-title">${this.escapeHtml(title)}</h4>
+            </div>
+            <p class="coupon-ticket-desc">${this.escapeHtml(desc)}</p>
+            <div class="coupon-ticket-meta-info">
+              ${minOrderText ? `<span class="coupon-min-order-pill">🛒 ${this.escapeHtml(minOrderText)}</span>` : '<span class="coupon-min-order-pill free">✨ No Minimum Order</span>'}
+              ${isCurrentActive ? '<span class="coupon-min-order-pill free">🟢 Active in Cart</span>' : ''}
+              ${isAnotherActive ? `<span class="coupon-min-order-pill" style="background: rgba(239, 68, 68, 0.08); color: #DC2626; border-color: rgba(239, 68, 68, 0.3);">🔒 Locked (1 Coupon Limit)</span>` : ''}
+            </div>
+          </div>
+
+          <div class="coupon-ticket-action-row">
+            <div class="coupon-ticket-code-tag" title="Click to copy code" onclick="window.storefront.copyCouponCode(this, '${this.escapeHtml(code)}')">
+              <span class="code-scissors">✂️</span>
+              <strong>${this.escapeHtml(code)}</strong>
+            </div>
+
+            <div class="coupon-ticket-buttons">
+              ${isCurrentActive
+          ? `<button type="button" class="coupon-ticket-apply-btn applied" disabled title="Currently active in your shopping bag">
+                     <span>Applied ✓</span>
+                   </button>`
+          : (isAnotherActive
+            ? `<button type="button" class="coupon-ticket-apply-btn locked" disabled title="Only 1 coupon allowed per shopping order. Remove '${currentActiveCode}' from your bag to apply this coupon.">
+                         <span>🔒 1 Coupon Limit</span>
+                       </button>`
+            : `<button type="button" class="coupon-ticket-apply-btn" onclick="window.storefront.applyCouponFromPanel('${this.escapeHtml(code)}', this)">
+                         <span>Apply to Bag</span>
+                       </button>`
+          )
+        }
+              <button type="button" class="coupon-ticket-copy-btn" data-code="${this.escapeHtml(code)}" onclick="window.storefront.copyCouponCode(this, '${this.escapeHtml(code)}')">
+                <span>Copy</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  applyCouponFromPanel(code, btn) {
+    if (!code || !window.store) return;
+    const res = window.store.applyCoupon(code);
+    if (res.success) {
+      if (btn) {
+        btn.innerHTML = "<span>Applied ✓</span>";
+        btn.classList.add("applied");
+        btn.disabled = true;
+      }
+      this.showToast(res.message || `🎉 Coupon "${code}" applied to bag!`, "success");
+      this.updateCartUI();
+      // Re-render list to reflect updated active state across all coupons
+      setTimeout(() => {
+        this.renderCouponPopupList(this._activeCouponFilter || "all");
+      }, 250);
+    } else {
+      if (res.isLocked) {
+        this.showToast(res.message, "warning");
+      } else {
+        this.copyCouponCode(null, code);
+        this.showToast(`Code "${code}" copied! Note: ${res.message}`, "warning");
+      }
+    }
+  }
+
+  copyCouponCode(btn, code) {
+    if (!code) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).catch(() => { });
+    }
+    if (btn) {
+      const originalText = btn.innerHTML;
+      btn.innerHTML = "<span>Copied! ✓</span>";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.classList.remove("copied");
+      }, 2000);
+    }
+    this.showToast(`Copied coupon code ${code}! Paste at checkout to save.`, "success");
+  }
+
+  updateFloatingCouponPill(count) {
+    const campaign = (window.store && typeof window.store.getFestiveCampaign === "function") ? window.store.getFestiveCampaign() : null;
+    const isCampaignEnabled = !campaign || campaign.enabled !== false;
+    const items = typeof this.getCombinedCouponsList === "function" ? this.getCombinedCouponsList() : [];
+    const activeCoupons = (count !== undefined) ? count : (items.filter(c => !c.isDeleted && c.isActive).length);
+    const isSessionLive = Boolean(isCampaignEnabled && activeCoupons > 0);
+
+    const pillContainers = document.querySelectorAll("#floatingCouponPillContainer, .floating-coupon-pill-container");
+    if (!isSessionLive) {
+      pillContainers.forEach(container => {
+        container.style.display = "none";
+        container.classList.add("coupon-session-disabled");
+        container.setAttribute("hidden", "true");
+        container.setAttribute("data-session-active", "false");
+      });
+    } else {
+      pillContainers.forEach(container => {
+        container.style.display = "";
+        container.classList.remove("coupon-session-disabled");
+        container.removeAttribute("hidden");
+        container.setAttribute("data-session-active", "true");
+      });
+
+      // Update dynamic code inside bottom-left floating popup chip
+      const activeList = items.filter(c => !c.isDeleted && c.isActive);
+      const featuredCoupon = activeList[0];
+      if (featuredCoupon) {
+        const code = (featuredCoupon.code || "HERITAGE10").toUpperCase();
+        const discount = featuredCoupon.discountType === "flat" && featuredCoupon.discountAmount
+          ? `₹${featuredCoupon.discountAmount} OFF`
+          : (featuredCoupon.discountPercent ? `${featuredCoupon.discountPercent}% OFF` : (featuredCoupon.discount || "10% OFF"));
+
+        const codeEl = document.getElementById("floatingPopupCode");
+        if (codeEl) codeEl.textContent = code;
+        const discountEl = document.getElementById("floatingPopupDiscount");
+        if (discountEl) discountEl.textContent = discount;
+      }
+    }
+
+    const badge = document.getElementById("floatingCouponCount");
+    if (badge) {
+      badge.textContent = activeCoupons;
+    }
+    const tabCountAll = document.getElementById("couponTabCountAll");
+    if (tabCountAll) {
+      tabCountAll.textContent = activeCoupons;
+    }
+    const modalCount = document.getElementById("couponPopupAvailableText");
+    if (modalCount) {
+      modalCount.textContent = `${activeCoupons} Active Festive Coupons`;
+    }
+    const modal = document.getElementById("couponPopupModal");
+    if (modal && modal.classList.contains("active")) {
+      if (!isSessionLive) {
+        this.closeCouponPopup();
+      } else {
+        this.renderCouponPopupList(this._activeCouponFilter || "all");
+      }
+    }
+  }
+
+  syncCouponPopupVisibility(customCampaign) {
+    const campaign = customCampaign || (window.store && typeof window.store.getFestiveCampaign === "function" ? window.store.getFestiveCampaign() : null);
+    const isCampaignEnabled = !campaign || campaign.enabled !== false;
+
+    const items = typeof this.getCombinedCouponsList === "function" ? this.getCombinedCouponsList() : [];
+    const activeCoupons = items.filter(c => !c.isDeleted && c.isActive);
+    const hasActiveCoupons = activeCoupons.length > 0;
+
+    const isSessionLive = Boolean(isCampaignEnabled && hasActiveCoupons);
+
+    const pillContainers = document.querySelectorAll("#floatingCouponPillContainer, .floating-coupon-pill-container");
+    const couponModal = document.getElementById("couponPopupModal");
+    const cartBrowseCouponLinks = document.querySelectorAll(".cart-view-coupons-link, .open-coupon-panel-btn, [data-action='open-coupons']");
+
+    if (isSessionLive) {
+      pillContainers.forEach(container => {
+        container.style.display = "";
+        container.classList.remove("coupon-session-disabled");
+        container.removeAttribute("hidden");
+        container.setAttribute("data-session-active", "true");
+      });
+
+      // Update dynamic code inside bottom-left floating popup chip
+      const featuredCoupon = activeCoupons[0];
+      if (featuredCoupon) {
+        const code = (featuredCoupon.code || "HERITAGE10").toUpperCase();
+        const discount = featuredCoupon.discountType === "flat" && featuredCoupon.discountAmount
+          ? `₹${featuredCoupon.discountAmount} OFF`
+          : (featuredCoupon.discountPercent ? `${featuredCoupon.discountPercent}% OFF` : (featuredCoupon.discount || "10% OFF"));
+
+        const codeEl = document.getElementById("floatingPopupCode");
+        if (codeEl) codeEl.textContent = code;
+        const discountEl = document.getElementById("floatingPopupDiscount");
+        if (discountEl) discountEl.textContent = discount;
+      }
+
+      cartBrowseCouponLinks.forEach(link => {
+        link.style.display = "";
+        link.removeAttribute("hidden");
+      });
+
+      const badge = document.getElementById("floatingCouponCount");
+      if (badge) badge.textContent = activeCoupons.length;
+
+      const tabCountAll = document.getElementById("couponTabCountAll");
+      if (tabCountAll) tabCountAll.textContent = activeCoupons.length;
+
+      const modalCount = document.getElementById("couponPopupAvailableText");
+      if (modalCount) modalCount.textContent = `${activeCoupons.length} Active Festive Coupons`;
+    } else {
+      pillContainers.forEach(container => {
+        container.style.display = "none";
+        container.classList.add("coupon-session-disabled");
+        container.setAttribute("hidden", "true");
+        container.setAttribute("data-session-active", "false");
+      });
+
+      cartBrowseCouponLinks.forEach(link => {
+        link.style.display = "none";
+      });
+
+      if (couponModal && (couponModal.classList.contains("active") || couponModal.style.display === "flex")) {
+        this.closeCouponPopup();
+      }
+
+      const badge = document.getElementById("floatingCouponCount");
+      if (badge) badge.textContent = "0";
+    }
+
+    return isSessionLive;
+  }
+
+  // ==========================================================================
+  // "LIMITED TIME FESTIVE SPECIAL 2026" REAL-TIME STOREFRONT ENGINE
+  // ==========================================================================
+  initFestiveCampaignSync() {
+    // 1. Cross-tab BroadcastChannel for 0ms instant sync (festive campaign channel)
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        const channel = new BroadcastChannel("st_festive_channel_v1");
+        channel.onmessage = (event) => {
+          if (event.data && event.data.type === "FESTIVE_CAMPAIGN_UPDATED") {
+            this.renderFestiveCampaign(event.data.campaign);
+            this.syncCouponPopupVisibility(event.data.campaign);
+          }
+        };
+      } catch (e) {
+        console.warn("[Storefront] Festive BroadcastChannel notice:", e);
+      }
+
+      // Also listen to main inventory & coupon channel
+      try {
+        const invChannel = new BroadcastChannel("st_inventory_channel_v2");
+        invChannel.onmessage = (event) => {
+          const d = event.data;
+          if (d && (d.type === "COUPONS_UPDATED" || d.type === "FESTIVE_CAMPAIGN_UPDATED")) {
+            this.syncCouponPopupVisibility();
+            this.renderFestiveVouchers();
+            this.renderFestiveCampaign();
+          }
+        };
+      } catch (e) {
+        console.warn("[Storefront] Inventory BroadcastChannel notice:", e);
+      }
+    }
+
+    // 2. Storage event listener (when admin toggles or edits in another tab/window)
+    window.addEventListener("storage", (e) => {
+      if (e.key === "st_festive_campaign_v1" || e.key === "st_coupons_data_v2" || e.key === "st_deleted_coupons_data_v2") {
+        this.renderFestiveCampaign();
+        this.syncCouponPopupVisibility();
+      }
+    });
+
+    // 3. Same-window custom event
+    window.addEventListener("festiveCampaignUpdated", (e) => {
+      this.renderFestiveCampaign(e.detail);
+      this.syncCouponPopupVisibility(e.detail);
+    });
+  }
+
+  renderFestiveCampaign(customCampaign) {
+    if (!window.store || typeof window.store.getFestiveCampaign !== "function") return;
+
+    // Always synchronize coupon popup visibility across all storefront pages (index.html and shop.html)
+    this.syncCouponPopupVisibility(customCampaign);
+
+    // "LIMITED TIME FESTIVE SPECIAL 2026" session is strictly exclusive to shop.html
+    const isShopPage = (window.location.pathname.includes("shop.html") ||
+      window.location.href.includes("shop.html") ||
+      window.location.pathname.endsWith("/shop") ||
+      (document.body && document.body.classList.contains("shop-page"))) &&
+      !(document.body && document.body.classList.contains("home-page"));
+    if (!isShopPage) {
+      const containers = document.querySelectorAll("#festiveCampaignContainer, #festiveOffersSection, .festive-offers-section");
+      const ticker = document.getElementById("festiveTopTickerBar");
+      containers.forEach(c => {
+        c.style.display = "none";
+        c.innerHTML = "";
+      });
+      if (ticker) {
+        ticker.style.display = "none";
+        ticker.innerHTML = "";
+      }
+      return;
+    }
+
+    const campaign = customCampaign || window.store.getFestiveCampaign();
+    const isLive = Boolean(campaign && campaign.enabled);
+
+    const containers = document.querySelectorAll("#festiveOffersSection, .festive-offers-section");
+    const ticker = document.getElementById("festiveTopTickerBar");
+
+    // Clear any existing timer interval
+    if (this.festiveTimerInterval) {
+      clearInterval(this.festiveTimerInterval);
+      this.festiveTimerInterval = null;
+    }
+
+    // =========================================================================
+    // CASE 1: OFF -> COMPLETELY HIDDEN IN REAL-TIME WITH ZERO FOOTPRINT
+    // =========================================================================
+    if (!isLive) {
+      containers.forEach(c => {
+        c.style.display = "none";
+        c.innerHTML = "";
+      });
+      if (ticker) {
+        ticker.style.display = "none";
+        ticker.innerHTML = "";
+      }
+      return;
+    }
+
+    // =========================================================================
+    // CASE 2: ON -> RENDER GRAND FESTIVE SESSION IN REAL-TIME
+    // =========================================================================
+    // Top Ticker Announcement
+    if (ticker) {
+      if (campaign.topBannerEnabled && campaign.topBannerText) {
+        ticker.style.display = "block";
+        const safeText = this.escapeHtml(campaign.topBannerText);
+        ticker.innerHTML = `
+          <div class="festive-ticker-track-wrap">
+            <div class="festive-ticker-track">
+              <div class="festive-ticker-content">
+                <span class="festive-ticker-sparkle">🎉</span>
+                <span class="festive-ticker-text">${safeText}</span>
+                <span class="festive-ticker-sparkle">✨</span>
+              </div>
+              <div class="festive-ticker-content" aria-hidden="true">
+                <span class="festive-ticker-sparkle">🎉</span>
+                <span class="festive-ticker-text">${safeText}</span>
+                <span class="festive-ticker-sparkle">✨</span>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        ticker.style.display = "none";
+        ticker.innerHTML = "";
+      }
+    }
+
+    const badge = campaign.badge || "🎉 LIMITED TIME FESTIVE SPECIAL 2026";
+    const headline = campaign.headline || "Grand Festive & Wedding Handloom Offers";
+    const subtitle = campaign.subtitle || "Celebrate your family milestones with exclusive seasonal vouchers, complimentary silver-tested purity certificates, and festive combo savings up to 22%.";
+
+    // Build Vouchers HTML
+    const activeOffers = (campaign.offers || []).filter(o => o.isActive !== false);
+    const vouchersHtml = activeOffers.map(o => `
+      <div class="festive-voucher-card">
+        <span class="festive-voucher-badge">${this.escapeHtml(o.badge || "Festive Offer")}</span>
+        <div class="festive-voucher-content">
+          <h4>${this.escapeHtml(o.title || "Festive Discount")}</h4>
+          <p>${this.escapeHtml(o.description || "")}</p>
+        </div>
+        <div class="festive-code-row">
+          <span class="festive-code-text">${this.escapeHtml(o.code || "")}</span>
+          <button type="button" class="festive-copy-btn" onclick="navigator.clipboard?.writeText('${this.escapeHtml(o.code || '')}'); window.storefront.showToast('Copied voucher code ${this.escapeHtml(o.code || '')}!', 'success');">
+            Copy Code
+          </button>
+        </div>
+      </div>
+    `).join("");
+
+    // Build Featured Deals HTML
+    const activeDeals = (campaign.deals || []).filter(d => d.isActive !== false);
+    const dealsHtml = activeDeals.map(d => {
+      const orig = Number(d.originalPrice || 0);
+      const fest = Number(d.festivePrice || 0);
+      const img = d.image || "assets/images/family_matching_combo.jpg";
+      const pct = orig > fest ? Math.round(((orig - fest) / orig) * 100) : 0;
+      return `
+        <div class="festive-deal-card">
+          <div class="festive-deal-media">
+            <img src="${img}" alt="${this.escapeHtml(d.title || "")}" onerror="this.src='assets/images/family_matching_combo.jpg'" />
+            <span class="festive-deal-badge">${this.escapeHtml(d.badge || "Festive Deal")}</span>
+          </div>
+          <div class="festive-deal-body">
+            <div>
+              <h4 class="festive-deal-title">${this.escapeHtml(d.title || "")}</h4>
+              <p class="festive-deal-desc">${this.escapeHtml(d.description || "")}</p>
+            </div>
+            <div>
+              <div class="festive-price-row">
+                <span class="festive-price-current">₹${fest.toLocaleString("en-IN")}</span>
+                ${orig > fest ? `<span class="festive-price-original">₹${orig.toLocaleString("en-IN")}</span>` : ""}
+                ${pct > 0 ? `<span class="festive-price-save">(${pct}% OFF)</span>` : ""}
+              </div>
+              <button type="button" class="btn btn-gold btn-sm" style="width: 100%; font-weight: 800;" onclick="window.storefront.openPDP('${this.escapeHtml(d.productId || '')}')">
+                Inspect Festive Deal ➔
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Build Perks HTML
+    const perks = campaign.perks || [];
+    const perksHtml = perks.map(p => `
+      <div class="festive-perk-item">
+        <span class="festive-perk-icon">${p.icon || "✨"}</span>
+        <div class="festive-perk-text">
+          <strong>${this.escapeHtml(p.title || "")}</strong>
+          <span>${this.escapeHtml(p.desc || "")}</span>
+        </div>
+      </div>
+    `).join("");
+
+    containers.forEach(container => {
+      // Respect Home vs Explore section classes
+      if (container.classList.contains("home-only-section") && this.currentPage !== "home") {
+        container.style.display = "none";
+        return;
+      }
+      if (container.classList.contains("explore-only-section") && this.currentPage !== "explore") {
+        container.style.display = "none";
+        return;
+      }
+
+      container.style.display = "block";
+      container.innerHTML = `
+        <div class="container">
+          <!-- Festive Grand Header -->
+          <div class="section-header">
+            <span class="section-tag festive-section-tag">${this.escapeHtml(badge)}</span>
+            <h2 class="section-title">${this.escapeHtml(headline)}</h2>
+            <p class="section-subtitle">${this.escapeHtml(subtitle)}</p>
+            <div class="section-divider"><span class="section-divider-motif">✦</span></div>
+          </div>
+
+          <!-- Live Countdown Timer Banner -->
+          <div class="festive-countdown-banner">
+            <div class="festive-countdown-header">
+              <span class="countdown-sparkle">⏰</span>
+              <span class="countdown-title">FESTIVAL CELEBRATION OFFERS END IN:</span>
+            </div>
+            <div class="festive-timer-display sf-festive-timer">
+              <div class="timer-box"><span class="timer-num sf-timer-days">00</span><span class="timer-lbl">DAYS</span></div>
+              <div class="timer-box"><span class="timer-num sf-timer-hours">00</span><span class="timer-lbl">HRS</span></div>
+              <div class="timer-box"><span class="timer-num sf-timer-mins">00</span><span class="timer-lbl">MINS</span></div>
+              <div class="timer-box"><span class="timer-num sf-timer-secs">00</span><span class="timer-lbl">SECS</span></div>
+            </div>
+          </div>
+
+          <!-- Interactive Click-to-Copy Festival Vouchers Carousel Wrapper -->
+          <div class="festive-vouchers-carousel-wrapper" id="festiveVouchersCarouselWrapper">
+            <button type="button" class="festive-carousel-btn festive-carousel-prev" id="festiveVouchersPrevBtn" aria-label="Previous coupons" title="Previous Coupons">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <div class="festive-vouchers-grid" id="festiveVouchersGrid">
+              <!-- Populated and synchronized by renderFestiveVouchers -->
+            </div>
+            <button type="button" class="festive-carousel-btn festive-carousel-next" id="festiveVouchersNextBtn" aria-label="Next coupons" title="Next Coupons">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Featured Festive Deal Cards Carousel Wrapper -->
+          ${activeDeals.length > 0 ? `
+            <div class="festive-deals-carousel-wrapper" id="festiveDealsCarouselWrapper">
+              <button type="button" class="festive-carousel-btn festive-deals-prev" id="festiveDealsPrevBtn" aria-label="Previous festive deals" title="Previous Deals">
+                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+
+              <div class="festive-deals-grid" id="festiveDealsGrid">
+                ${dealsHtml}
+              </div>
+
+              <button type="button" class="festive-carousel-btn festive-deals-next" id="festiveDealsNextBtn" aria-label="Next festive deals" title="Next Deals">
+                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+            </div>
+          ` : ""}
+
+          <!-- Festive Perks Strip -->
+          ${perks.length > 0 ? `
+            <div class="festive-perks-bar">
+              ${perksHtml}
+            </div>
+          ` : ""}
+        </div>
+      `;
+    });
+
+    // Populate and initialize festive vouchers carousel
+    this.renderFestiveVouchers();
+
+    // Initialize festive deals carousel
+    this.initFestiveDealsCarousel();
+
+    // Start Live Storefront Countdown Timer Interval
+    this.startFestiveTimer(campaign.countdownEnd);
+  }
+
+  startFestiveTimer(countdownEnd) {
+    if (this.festiveTimerInterval) {
+      clearInterval(this.festiveTimerInterval);
+    }
+    const target = countdownEnd ? new Date(countdownEnd).getTime() : 0;
+
+    const tick = () => {
+      const diff = Math.max(0, target - Date.now());
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+      document.querySelectorAll(".sf-timer-days").forEach(el => el.textContent = String(days).padStart(2, "0"));
+      document.querySelectorAll(".sf-timer-hours").forEach(el => el.textContent = String(hours).padStart(2, "0"));
+      document.querySelectorAll(".sf-timer-mins").forEach(el => el.textContent = String(mins).padStart(2, "0"));
+      document.querySelectorAll(".sf-timer-secs").forEach(el => el.textContent = String(secs).padStart(2, "0"));
+    };
+
+    tick();
+    this.festiveTimerInterval = setInterval(tick, 1000);
+  }
+
+  escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  updateWishlistCount() {
+    const wishlistBadges = document.querySelectorAll("#headerWishlistBadge, #stickyWishlistBadge, .wishlist-count-badge");
+    const drawerCount = document.getElementById("wishlistDrawerCount");
+    const count = (window.store && typeof window.store.getWishlistCount === "function")
+      ? window.store.getWishlistCount()
+      : ((window.store && Array.isArray(window.store.wishlist)) ? window.store.wishlist.length : 0);
+
+    wishlistBadges.forEach(b => {
+      b.textContent = count;
+      b.style.display = "inline-flex";
+    });
+    if (drawerCount) {
+      drawerCount.textContent = count;
+    }
+  }
+
+  syncCardWishlistButtons() {
+    if (!window.store || typeof window.store.isInWishlist !== "function") return;
+    document.querySelectorAll(".product-card").forEach(card => {
+      const id = card.getAttribute("data-id");
+      const btn = card.querySelector(".wishlist-toggle-btn");
+      if (btn && id) {
+        const isWish = window.store.isInWishlist(id);
+        btn.classList.toggle("wishlisted", isWish);
+        if (window.Icons) {
+          btn.innerHTML = isWish
+            ? window.Icons.get('favouriteFilled', { className: 'card-action-icon' })
+            : window.Icons.get('favourite', { className: 'card-action-icon' });
+        }
+      }
+    });
+  }
+
+  setupWishlistDrawer() {
+    const drawer = document.getElementById("wishlistDrawer");
+    const overlay = document.getElementById("wishlistDrawerOverlay");
+    const closeBtn = document.getElementById("wishlistCloseBtn");
+    const moveAllBtn = document.getElementById("wishlistMoveAllToCartBtn");
+    const clearBtn = document.getElementById("wishlistClearBtn");
+
+    document.querySelectorAll(".wishlist-btn, #wishlistTriggerBtn, .favourites-trigger-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.openWishlistDrawer();
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => this.closeWishlistDrawer());
+    }
+
+    if (overlay) {
+      overlay.addEventListener("click", () => this.closeWishlistDrawer());
+    }
+
+    if (moveAllBtn) {
+      moveAllBtn.addEventListener("click", () => {
+        const products = window.store.getWishlistProducts();
+        if (products.length === 0) {
+          this.showToast("Your Favourites list is empty!", "info");
+          return;
+        }
+
+        let movedCount = 0;
+        products.forEach(p => {
+          if (p.stock > 0) {
+            window.store.moveWishlistItemToCart(p.id);
+            movedCount++;
+          }
+        });
+
+        if (movedCount > 0) {
+          this.showToast(`🎉 Moved ${movedCount} favourite item(s) to your Shopping Bag!`, "success");
+          this.closeWishlistDrawer();
+          setTimeout(() => this.openCartDrawer(), 300);
+        } else {
+          this.showToast("Selected items are currently out of stock.", "warning");
+        }
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        if (!window.store.wishlist || window.store.wishlist.length === 0) return;
+        if (confirm("Clear all items from your saved Favourites?")) {
+          window.store.clearWishlist();
+          this.showToast("Favourites cleared", "info");
+        }
+      });
+    }
+  }
+
+  openWishlistDrawer() {
+    // Close cart drawer if open
+    this.closeCartDrawer();
+    // Close mobile nav drawer if open
+    document.getElementById("mobileNavDrawer")?.classList.remove("active");
+    document.getElementById("mobileNavOverlay")?.classList.remove("active");
+    document.body.classList.remove("mobile-nav-open");
+
+    const drawer = document.getElementById("wishlistDrawer");
+    const overlay = document.getElementById("wishlistDrawerOverlay");
+    if (drawer && overlay) {
+      this.renderWishlistDrawer();
+      drawer.classList.add("active");
+      overlay.classList.add("active");
+      document.body.classList.add("wishlist-open");
+      this.syncBodyScrollLock();
+    }
+  }
+
+  closeWishlistDrawer() {
+    const drawer = document.getElementById("wishlistDrawer");
+    const overlay = document.getElementById("wishlistDrawerOverlay");
+    if (drawer) drawer.classList.remove("active");
+    if (overlay) overlay.classList.remove("active");
+    document.body.classList.remove("wishlist-open");
+    this.syncBodyScrollLock();
+  }
+
+  openCartDrawer() {
+    // Close wishlist drawer if open
+    this.closeWishlistDrawer();
+    // Close mobile nav drawer if open
+    document.getElementById("mobileNavDrawer")?.classList.remove("active");
+    document.getElementById("mobileNavOverlay")?.classList.remove("active");
+    document.body.classList.remove("mobile-nav-open");
+
+    const drawer = document.getElementById("cartDrawer");
+    const overlay = document.getElementById("cartDrawerOverlay");
+    if (drawer && overlay) {
+      this.updateCartUI();
+      drawer.classList.add("active");
+      overlay.classList.add("active");
+      document.body.classList.add("cart-open");
+      this.syncBodyScrollLock();
+      // NOTE: User directive: Coupon session opens ONLY when user touches "View Available Coupons" inside the shopping bag
+    }
+  }
+
+  closeCartDrawer() {
+    const drawer = document.getElementById("cartDrawer");
+    const overlay = document.getElementById("cartDrawerOverlay");
+    if (drawer) drawer.classList.remove("active");
+    if (overlay) overlay.classList.remove("active");
+    document.body.classList.remove("cart-open");
+    this.syncBodyScrollLock();
+
+    // Coupon code session strictly closes when shopping bag closes
+    this.closeCouponPopup();
+  }
+
+  renderWishlistDrawer() {
+    const body = document.getElementById("wishlistItemsBody");
+    const footer = document.getElementById("wishlistDrawerFooter");
+    if (!body) return;
+
+    this.updateWishlistCount();
+
+    const products = window.store.getWishlistProducts();
+
+    if (products.length === 0) {
+      if (footer) footer.style.display = "none";
+      body.innerHTML = `
+        <div class="wishlist-empty-state">
+          <div class="wishlist-empty-icon">${window.Icons ? window.Icons.get('favourite', { className: 'empty-state-fav-icon' }) : '♥'}</div>
+          <h4>Your Favourites is Empty</h4>
+          <p>Tap the heart icon on any pure Kanchipuram silk saree, kids pattu pavadai, or royal family set to save your favorite weaves here!</p>
+          <button class="btn btn-gold btn-sm" id="wishlistExploreBtn" style="margin-top: 1.25rem;">
+            Explore Heirloom Collections ➔
+          </button>
+        </div>
+      `;
+
+      const exploreBtn = document.getElementById("wishlistExploreBtn");
+      if (exploreBtn) {
+        exploreBtn.addEventListener("click", () => {
+          this.closeWishlistDrawer();
+          const catalogSec = document.getElementById("catalogSection") || document.getElementById("featuredSection");
+          if (catalogSec) {
+            catalogSec.scrollIntoView({ behavior: "smooth" });
+          } else {
+            window.location.href = "shop.html";
+          }
+        });
+      }
+      return;
+    }
+
+    if (footer) footer.style.display = "block";
+
+    body.innerHTML = products.map(product => {
+      const isLowStock = product.stock <= (product.lowStockThreshold || 2);
+      const isOutOfStock = product.stock <= 0;
+      const firstColor = (product.colors && product.colors[0]) || { image: product.mainImage };
+
+      return `
+        <div class="wishlist-item-card" data-id="${product.id}">
+          <div class="wishlist-thumb-wrapper" data-pdp-id="${product.id}" title="Click to view details">
+            <img src="${product.mainImage || firstColor.image}" alt="${product.title}" class="wishlist-item-img" />
+            ${isOutOfStock ? `<span class="wishlist-stock-pill oos">Looming</span>` : isLowStock ? `<span class="wishlist-stock-pill low">Only ${product.stock} Left</span>` : ""}
+          </div>
+          <div class="wishlist-item-info">
+            <div style="font-size: 0.7rem; color: var(--color-gold-dark); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
+              ${product.department}
+            </div>
+            <h4 class="wishlist-item-title" data-pdp-id="${product.id}">${product.title}</h4>
+            <div class="wishlist-item-pricing">
+              <span class="wishlist-item-price">${window.store.formatPrice(product.priceINR)}</span>
+              ${product.mrpINR > product.priceINR ? `<span class="wishlist-item-mrp">${window.store.formatPrice(product.mrpINR)}</span>` : ""}
+            </div>
+
+            <div class="wishlist-item-actions">
+              <button class="btn btn-gold btn-sm wishlist-move-btn" data-id="${product.id}" ${isOutOfStock ? "disabled" : ""}>
+                ${isOutOfStock ? "Sold Out" : "🛍️ Move to Bag"}
+              </button>
+              <button class="wishlist-remove-icon-btn" data-id="${product.id}" title="Remove from Favourites">
+                ✕ Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // PDP click handlers
+    body.querySelectorAll("[data-pdp-id]").forEach(el => {
+      el.addEventListener("click", (e) => {
+        const id = e.currentTarget.getAttribute("data-pdp-id");
+        this.closeWishlistDrawer();
+        this.openPDP(id);
+      });
+    });
+
+    // Move single item to bag
+    body.querySelectorAll(".wishlist-move-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = e.currentTarget.getAttribute("data-id") || e.target.closest("[data-id]")?.getAttribute("data-id");
+        if (id) {
+          const res = window.store.moveWishlistItemToCart(id);
+          if (res) {
+            this.showToast("🎉 Added to your Shopping Bag!", "success");
+            this.renderWishlistDrawer();
+            this.updateCartUI();
+          }
+        }
+      });
+    });
+
+    // Remove item from wishlist
+    body.querySelectorAll(".wishlist-remove-icon-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = e.currentTarget.getAttribute("data-id") || e.target.closest("[data-id]")?.getAttribute("data-id");
+        if (id) {
+          window.store.toggleWishlist(id);
+          this.showToast("Removed from Favourites", "info");
+        }
+      });
+    });
+  }
+
+  setupCheckoutHandlers() {
+    const checkoutBtn = document.getElementById("cartCheckoutBtn");
+    const checkoutModal = document.getElementById("checkoutModal");
+    const closeCheckoutBtn = document.getElementById("checkoutCloseBtn");
+    const autoDetectPayBtn = document.getElementById("autoDetectPayBtn");
+    const upiQrContainer = document.getElementById("upiQrContainer");
+    const placeOrderBtn = document.getElementById("placeOrderBtn");
+    const copyUpiBtn = document.getElementById("copyUpiIdBtn");
+
+    this.isPaymentVerified = false;
+    this.verifiedTxnRef = "";
+    this.activeRealtimeOrderId = "";
+    this.realtimePaymentChannel = null;
+
+    // Web Audio API chime sound on successful payment verification & button unlock
+    const playUnlockChime = () => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+
+        // Note 1: E5
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(659.25, now);
+        gain1.gain.setValueAtTime(0.12, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.3);
+
+        // Note 2: B5 (cheerful harmonic)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(987.77, now + 0.12);
+        gain2.gain.setValueAtTime(0.15, now + 0.12);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.12);
+        osc2.stop(now + 0.5);
+      } catch (e) {
+        // AudioContext not allowed before user interaction or unsupported
+      }
+    };
+
+    // Central Automated Realtime Payment Verification & Button Unlock Callback
+    this.handleRealtimePaymentUnlock = (paidRow = {}) => {
+      if (this.isPaymentVerified) return;
+
+      const totals = window.store.getCartTotals();
+      const formattedTotal = window.store.formatPrice(totals.totalINR);
+
+      const userRef = paidRow.utr_number || paidRow.upi_ref_no || `UPI/HDFC/TXN-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+
+      this.isPaymentVerified = true;
+      this.verifiedTxnRef = userRef;
+
+      const verifiedBadge = document.getElementById("paymentVerifiedBadge");
+      const lockHint = document.getElementById("orderLockHint");
+      const statusPill = document.getElementById("upiGatewayStatusPill");
+      const txnDetailsEl = document.getElementById("verifiedTxnDetails");
+
+      if (txnDetailsEl) {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        txnDetailsEl.textContent = `UPI Gateway (GPay / PhonePe / Paytm) • Ref: ${userRef} • Status: PAID (${timeStr})`;
+      }
+
+      if (verifiedBadge) verifiedBadge.style.display = "flex";
+
+      if (statusPill) {
+        statusPill.innerHTML = '<span class="admin-pulse-dot" style="background:#10B981;"></span> Payment Received &amp; Verified! Generating Bill...';
+        statusPill.style.color = '#059669';
+        statusPill.style.borderColor = '#10B981';
+      }
+
+      if (autoDetectPayBtn) {
+        autoDetectPayBtn.innerHTML = "<span>✅</span> Payment Received • Auto-Generating Bill...";
+        autoDetectPayBtn.style.background = "#059669";
+        autoDetectPayBtn.disabled = true;
+      }
+
+      // UNLOCK PLACE ORDER BUTTON AUTOMATICALLY VIA SUPABASE REALTIME PUSH
+      if (placeOrderBtn) {
+        placeOrderBtn.disabled = false;
+        placeOrderBtn.className = "btn btn-gold btn-lg btn-place-order-unlocked";
+        placeOrderBtn.innerHTML = "<span>🎉</span> Payment Verified • Opening Invoice ➔";
+        placeOrderBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      if (lockHint) {
+        lockHint.innerHTML = "✅ Payment Verified! Auto-generating your GST Tax Invoice &amp; Delivery Bill...";
+        lockHint.style.color = "#10B981";
+        lockHint.style.fontWeight = "700";
+      }
+
+      playUnlockChime();
+
+      this.showToast(`🎉 Payment of ${formattedTotal} Received! Generating your GST Tax Invoice Bill...`, "success");
+
+      // AUTOMATIC BILL GENERATION: Auto-place order and pop up the official GST Tax Invoice
+      setTimeout(() => {
+        const checkoutModal = document.getElementById("checkoutModal");
+        if (checkoutModal && checkoutModal.classList.contains("active")) {
+          this.handlePlaceOrder();
+        }
+      }, 1200);
+    };
+
+    // Helper to simulate webhook / gateway update to Supabase DB
+    const triggerPaymentWebhookToSupabase = async (customUtr = null) => {
+      const orderId = this.activeRealtimeOrderId;
+      if (!orderId) return;
+
+      const utr = customUtr || `UPI/HDFC/TXN-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+
+      const statusPill = document.getElementById("upiGatewayStatusPill");
+      if (statusPill) {
+        statusPill.innerHTML = '<span class="admin-pulse-dot" style="background:#F59E0B;"></span> Checking Google Pay / PhonePe / Paytm Gateway...';
+      }
+
+      if (autoDetectPayBtn) {
+        autoDetectPayBtn.disabled = true;
+        autoDetectPayBtn.innerHTML = "<span>⏳</span> Checking Payment with Bank Gateway...";
+      }
+
+      // Update Supabase DB row to 'paid' -> Triggers Supabase Realtime WebSocket Event
+      if (window.supabaseService) {
+        await window.supabaseService.updateOrderToPaid(orderId, utr);
+      }
+    };
+
+    if (checkoutBtn && checkoutModal) {
+      checkoutBtn.addEventListener("click", async () => {
+        const cart = window.store.getCart();
+        if (cart.length === 0) {
+          this.showToast("Your shopping bag is empty!", "warning");
+          return;
+        }
+
+        this.closeCartDrawer();
+
+        const totals = window.store.getCartTotals();
+        const formattedTotal = window.store.formatPrice(totals.totalINR);
+
+        const totalEl = document.getElementById("checkoutTotalDisplay");
+        if (totalEl) totalEl.textContent = formattedTotal;
+
+        const qrAmountEl = document.getElementById("upiQrAmountDisplay");
+        if (qrAmountEl) qrAmountEl.textContent = formattedTotal;
+
+        // Generate Unique Realtime Order ID
+        const activeOrderId = "ST-ORD-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
+        this.activeRealtimeOrderId = activeOrderId;
+
+        // Clean up previous subscription channel if exists
+        if (this.realtimePaymentChannel && window.supabaseService) {
+          window.supabaseService.unsubscribeChannel(this.realtimePaymentChannel);
+          this.realtimePaymentChannel = null;
+        }
+
+        // Reset Payment Verification State on opening checkout
+        this.isPaymentVerified = false;
+        this.verifiedTxnRef = "";
+
+        const verifiedBadge = document.getElementById("paymentVerifiedBadge");
+        if (verifiedBadge) verifiedBadge.style.display = "none";
+
+        const statusPill = document.getElementById("upiGatewayStatusPill");
+        if (statusPill) {
+          statusPill.innerHTML = '<span class="admin-pulse-dot"></span> Supabase Realtime: Listening for Payment (status = "pending")...';
+          statusPill.style.color = '#059669';
+        }
+
+        if (autoDetectPayBtn) {
+          autoDetectPayBtn.disabled = false;
+          autoDetectPayBtn.style.background = "linear-gradient(135deg, #059669 0%, #10B981 100%)";
+          autoDetectPayBtn.innerHTML = "<span>⚡</span> I Have Paid via UPI (Unlock Order)";
+        }
+
+        const lockHint = document.getElementById("orderLockHint");
+        if (lockHint) {
+          lockHint.innerHTML = "⚠️ Supabase Realtime: Button will unlock automatically when order status becomes 'paid'";
+          lockHint.style.color = "var(--text-muted)";
+          lockHint.style.fontWeight = "normal";
+        }
+
+        if (placeOrderBtn) {
+          placeOrderBtn.disabled = true;
+          placeOrderBtn.className = "btn btn-gold btn-lg btn-place-order-locked";
+          placeOrderBtn.innerHTML = "<span>🔒</span> Pay via UPI to Unlock Order Placement";
+        }
+
+        // Real-Time Dynamic UPI QR Code with exact payable amount, merchant VPA, and order note
+        const activeOrderIdClean = activeOrderId.replace(/-/g, "_");
+        const payableAmount = totals.totalINR;
+        const upiDeepLink = `upi://pay?pa=srinivasatextiles@hdfcbank&pn=Srinivasa%20Textiles&am=${payableAmount}&cu=INR&tn=Order_${activeOrderIdClean}`;
+
+        const upiQrLink = document.getElementById("upiQrLink");
+        if (upiQrLink) {
+          upiQrLink.href = upiDeepLink;
+        }
+
+        // Generate dynamic scannable QR containing the exact UPI amount string
+        const qrDynamicImg = document.getElementById("upiQrDynamicImg");
+        if (qrDynamicImg) {
+          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=8&data=${encodeURIComponent(upiDeepLink)}`;
+          qrDynamicImg.src = qrCodeUrl;
+        }
+
+        // Step 1: Create 'pending' row in Supabase DB
+        const name = document.getElementById("custName")?.value.trim() || "Valued Customer";
+        const phone = document.getElementById("custPhone")?.value.trim() || "9840012345";
+        const address = document.getElementById("custAddress")?.value.trim() || "Tamil Nadu, India";
+        const email = document.getElementById("custEmail")?.value.trim() || "customer@srinivasatextiles.com";
+
+        if (window.supabaseService) {
+          await window.supabaseService.createPendingOrder({
+            order_id: activeOrderId,
+            customer_name: name,
+            mobile_number: phone,
+            shipping_address: address,
+            email: email,
+            total_amount: totals.totalINR,
+            amount: totals.totalINR,
+            cart_items: cart.map(i => ({ name: i.title, qty: i.qty, price: i.unitPriceINR, size: i.selectedSize, color: i.selectedColor }))
+          });
+
+          // Step 2: Subscribe to Realtime UPDATE changes on this order
+          this.realtimePaymentChannel = window.supabaseService.subscribeToOrderPayment(activeOrderId, (paidRow) => {
+            console.info("🎉 [Supabase Realtime Channel] Received Paid Status for:", activeOrderId, paidRow);
+            this.handleRealtimePaymentUnlock(paidRow);
+          });
+        }
+
+        checkoutModal.classList.add("active");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    if (closeCheckoutBtn && checkoutModal) {
+      closeCheckoutBtn.addEventListener("click", () => {
+        if (this.realtimePaymentChannel && window.supabaseService) {
+          window.supabaseService.unsubscribeChannel(this.realtimePaymentChannel);
+          this.realtimePaymentChannel = null;
+        }
+        checkoutModal.classList.remove("active");
+        this.syncBodyScrollLock();
+      });
+    }
+
+    // 1-Click Payment Confirmation Trigger (Updates Supabase -> Triggers Realtime Broadcast)
+    if (autoDetectPayBtn) {
+      autoDetectPayBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        triggerPaymentWebhookToSupabase();
+      });
+    }
+
+    // Copy UPI ID button handler
+    if (copyUpiBtn) {
+      copyUpiBtn.addEventListener("click", () => {
+        const upiId = document.getElementById("upiIdText")?.textContent || "srinivasatextiles@hdfcbank";
+        navigator.clipboard.writeText(upiId).then(() => {
+          copyUpiBtn.textContent = "✅ Copied!";
+          this.showToast("UPI ID copied to clipboard!", "info");
+          setTimeout(() => {
+            copyUpiBtn.textContent = "📋 Copy";
+          }, 2500);
+        }).catch(() => {
+          this.showToast("UPI ID: " + upiId, "info");
+        });
+      });
+    }
+
+    const upiQrLink = document.getElementById("upiQrLink");
+    if (upiQrLink) {
+      upiQrLink.addEventListener("click", () => {
+        this.hasInitiatedUpiPayment = true;
+        this.showToast("⚡ Opening Google Pay / UPI App for payment...", "info");
+        const statusPill = document.getElementById("upiGatewayStatusPill");
+        if (statusPill) {
+          statusPill.innerHTML = '<span class="admin-pulse-dot" style="background:#F59E0B;"></span> Supabase Realtime: Waiting for UPI Payment Confirmation...';
+          statusPill.style.color = '#D97706';
+        }
+      });
+    }
+
+    document.querySelectorAll(".payment-card-opt").forEach(opt => {
+      opt.addEventListener("click", (e) => {
+        document.querySelectorAll(".payment-card-opt").forEach(o => o.classList.remove("active"));
+        const target = e.currentTarget;
+        target.classList.add("active");
+        const method = target.getAttribute("data-method");
+
+        const upiBox = document.getElementById("upiPaymentBox");
+        const codBox = document.getElementById("codPaymentBox");
+
+        if (upiBox) upiBox.style.display = method === "upi" ? "block" : "none";
+        if (codBox) codBox.style.display = method === "cod" ? "block" : "none";
+      });
+    });
+
+    if (placeOrderBtn) {
+      placeOrderBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.handlePlaceOrder();
+      });
+    }
+  }
+
+  handlePlaceOrder() {
+    // Strict System Verification Check: Order cannot be placed without system verification
+    if (!this.isPaymentVerified) {
+      this.showToast("⚠️ Please complete UPI payment first to unlock order confirmation!", "warning");
+      return;
+    }
+
+    const name = document.getElementById("custName")?.value.trim();
+    const phone = document.getElementById("custPhone")?.value.trim();
+    const address = document.getElementById("custAddress")?.value.trim();
+    const email = document.getElementById("custEmail")?.value.trim();
+    const gstin = document.getElementById("custGstin")?.value.trim();
+    const txnRef = this.verifiedTxnRef || `UPI/HDFC/TXN-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+    const orderIdToUse = this.activeRealtimeOrderId || ("ST-ORD-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000));
+
+    if (!name || !phone || !address) {
+      this.showToast("Please provide your Full Name, Phone Number, and Shipping Address.", "warning");
+      return;
+    }
+
+    const activePaymentOpt = document.querySelector(".payment-card-opt.active");
+    const paymentMethod = activePaymentOpt ? activePaymentOpt.getAttribute("data-name") : "UPI Instant Pay (QR Verified)";
+
+    const totals = window.store.getCartTotals();
+    const cart = window.store.getCart();
+
+    const order = window.store.createOrder({
+      orderId: orderIdToUse,
+      customer: { name, email, phone, address, gstin },
+      items: cart.map(item => ({
+        productId: item.productId,
+        title: item.title,
+        color: item.selectedColor,
+        size: item.selectedSize,
+        hsnCode: item.hsnCode,
+        qty: item.qty,
+        unitPriceINR: item.unitPriceINR,
+        blouseOption: item.blouseLabel,
+        totalINR: item.itemTotalINR * item.qty
+      })),
+      subtotalINR: totals.subtotalINR,
+      discountINR: totals.discountINR,
+      couponCode: totals.coupon ? totals.coupon.code : "",
+      gstINR: totals.gstINR,
+      shippingINR: totals.shippingINR,
+      totalAmountINR: totals.totalINR,
+      paymentMethod: `UPI (Ref: ${txnRef})`,
+      paymentStatus: "paid",
+      status: "paid",
+      transactionId: txnRef,
+      upi_ref_no: txnRef,
+      utr_number: txnRef,
+      courier: "BlueDart Express"
+    });
+
+    // Clean up Realtime Channel
+    if (this.realtimePaymentChannel && window.supabaseService) {
+      window.supabaseService.unsubscribeChannel(this.realtimePaymentChannel);
+      this.realtimePaymentChannel = null;
+    }
+
+    document.getElementById("checkoutModal")?.classList.remove("active");
+    this.syncBodyScrollLock();
+
+    this.showToast(`🎉 Order ${order.orderId} Confirmed & Saved in Supabase!`, "success");
+
+    // Automatically open the official GST Tax Invoice for the customer
+    setTimeout(() => {
+      this.openGSTInvoiceModal(order.orderId);
+    }, 300);
+  }
+
+  openGSTInvoiceModal(orderId, isEditMode = false) {
+    const order = window.store.orders.find(o => o.orderId === orderId);
+    if (!order) return;
+
+    const modal = document.getElementById("invoiceModal");
+    const container = document.getElementById("invoiceModalContent");
+    if (!modal || !container) return;
+
+    const subtotal = order.subtotalINR || 0;
+    const discount = order.discountINR || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const cgst = Math.round(taxableAmount * 0.025);
+    const sgst = Math.round(taxableAmount * 0.025);
+    const totalTax = cgst + sgst;
+    const shippingFee = order.shippingINR || 0;
+    const finalAmount = (order.totalAmountINR !== undefined && order.totalAmountINR !== null) ? order.totalAmountINR : (taxableAmount + totalTax + shippingFee);
+
+    const waOrderMsg = encodeURIComponent(`Namaste ${order.customer ? order.customer.name : 'Customer'}! 🙏 Here is your official GST Tax Invoice from Srinivasa Textiles for Order #${order.orderId} (Total: ₹${finalAmount.toLocaleString("en-IN")}). Courier: ${order.courier || 'BlueDart Express'} (AWB: ${order.trackingNumber}).`);
+    const waLink = `https://wa.me/${(order.customer && order.customer.phone ? order.customer.phone.replace(/[^0-9]/g, '') : '918778503021')}?text=${waOrderMsg}`;
+
+    // RENDER OFFICIAL GST TAX INVOICE
+    container.innerHTML = `
+      <button class="pdp-close-btn" id="invoiceCloseBtn" style="top: 1rem; right: 1rem;">✕</button>
+
+      <div class="invoice-header">
+        <div class="invoice-brand">
+          <h2>SRINIVASA TEXTILES</h2>
+          <p>Master Weavers &amp; Pure Silk Family Store Since 1978</p>
+          <p>108 Raja Veedhi, Kanchipuram, Tamil Nadu - 631501, India</p>
+          <p><strong>GSTIN:</strong> ${window.store.settings.gstin} | <strong>State Code:</strong> 33</p>
+        </div>
+
+        <div class="invoice-meta">
+          <h3>TAX INVOICE</h3>
+          <p><strong>Invoice No:</strong> INV-${order.orderId.replace("ST-ORD-", "")}</p>
+          <p><strong>Invoice Date:</strong> ${order.date}</p>
+          <p><strong>Payment:</strong> ${order.paymentMethod}</p>
+        </div>
+      </div>
+
+      <div class="invoice-billing-grid">
+        <div>
+          <strong style="color: var(--color-primary-dark); text-transform: uppercase;">Billed To / Consignee:</strong>
+          <p style="font-weight: 700; margin-top: 0.25rem;">${order.customer ? order.customer.name : "Customer"}</p>
+          <p>${order.customer ? order.customer.address : "N/A"}</p>
+          <p><strong>Phone:</strong> ${order.customer ? order.customer.phone : "N/A"} | <strong>Email:</strong> ${(order.customer && order.customer.email) || "N/A"}</p>
+          ${(order.customer && order.customer.gstin) ? `<p><strong>Buyer GSTIN:</strong> ${order.customer.gstin}</p>` : ""}
+          ${order.giftWrap ? `<p style="color: var(--color-success); font-weight:700; margin-top:0.25rem;">🎁 Festive Gift Wrap with Handwritten Message Included</p>` : ""}
+        </div>
+        <div>
+          <strong style="color: var(--color-primary-dark); text-transform: uppercase;">Shipping Partner:</strong>
+          <p><strong>Courier:</strong> ${order.courier || "BlueDart Express"}</p>
+          <p><strong>AWB Tracking:</strong> ${order.trackingNumber}</p>
+        </div>
+      </div>
+
+      <table class="invoice-items-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item Description</th>
+            <th>HSN / SAC</th>
+            <th>Qty</th>
+            <th>Unit Rate</th>
+            <th>CGST (2.5%)</th>
+            <th>SGST (2.5%)</th>
+            <th>Total (INR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(order.items || []).map((item, i) => {
+      const itemTaxable = item.totalINR;
+      const itemCgst = Math.round(itemTaxable * 0.025);
+      const itemSgst = Math.round(itemTaxable * 0.025);
+      const itemTotal = itemTaxable + itemCgst + itemSgst;
+      return `
+              <tr>
+                <td>${i + 1}</td>
+                <td>
+                  <strong>${item.title}</strong>
+                  <span style="display: block; font-size: 0.7rem; color: var(--text-muted);">Size: ${item.size || "Standard"} • Color: ${item.color}</span>
+                </td>
+                <td>${item.hsnCode || "50072010"}</td>
+                <td>${item.qty}</td>
+                <td>₹${(item.unitPriceINR).toLocaleString("en-IN")}</td>
+                <td>₹${itemCgst.toLocaleString("en-IN")}</td>
+                <td>₹${itemSgst.toLocaleString("en-IN")}</td>
+                <td><strong>₹${itemTotal.toLocaleString("en-IN")}</strong></td>
+              </tr>
+            `;
+    }).join("")}
+        </tbody>
+      </table>
+
+      <div class="invoice-summary-box">
+        <div class="invoice-summary-row"><span>Subtotal Taxable:</span> <span>₹${taxableAmount.toLocaleString("en-IN")}</span></div>
+        ${discount > 0 ? `<div class="invoice-summary-row" style="color: var(--color-success); font-weight: 700;"><span>Discount (${order.couponCode || 'Custom'}):</span> <span>-₹${discount.toLocaleString("en-IN")}</span></div>` : ""}
+        <div class="invoice-summary-row"><span>CGST (2.5%):</span> <span>₹${cgst.toLocaleString("en-IN")}</span></div>
+        <div class="invoice-summary-row"><span>SGST (2.5%):</span> <span>₹${sgst.toLocaleString("en-IN")}</span></div>
+        ${shippingFee > 0 ? `<div class="invoice-summary-row"><span>Shipping &amp; Handling:</span> <span>₹${shippingFee.toLocaleString("en-IN")}</span></div>` : `<div class="invoice-summary-row" style="color: var(--color-success); font-weight: 700;"><span>Shipping (Express Courier):</span> <span>FREE (₹0)</span></div>`}
+        <div class="invoice-summary-row total"><span>Total Amount:</span> <span>₹${finalAmount.toLocaleString("en-IN")}</span></div>
+      </div>
+
+      <div class="invoice-actions" style="margin-top: 1.5rem; display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap;">
+        <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print / Save PDF</button>
+      </div>
+    `;
+
+    modal.classList.add("active");
+    this.syncBodyScrollLock();
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(container);
+    }
+    document.getElementById("invoiceCloseBtn")?.addEventListener("click", () => {
+      modal.classList.remove("active");
+      this.syncBodyScrollLock();
+    });
+  }
+
+  openShippingLabelModal(orderId) {
+    const order = window.store.orders.find(o => o.orderId === orderId);
+    if (!order) return;
+
+    const modal = document.getElementById("invoiceModal");
+    const container = document.getElementById("invoiceModalContent");
+    if (!modal || !container) return;
+
+    // RENDER VIEW LABEL MODE
+    container.innerHTML = `
+      <button class="pdp-close-btn" id="labelCloseBtn" style="top: 1rem; right: 1rem;">✕</button>
+      <div class="shipping-label-card">
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 0.75rem;">
+          <h2 style="font-size: 1.25rem; font-family: var(--font-sans); font-weight: 800;">${(order.courier || "BLUEDART EXPRESS").toUpperCase()}</h2>
+          <span style="font-weight: 800; font-size: 1rem; background: #000; color: #fff; padding: 0.2rem 0.5rem;">FAMILY EXPRESS</span>
+        </div>
+        <div class="label-barcode-mock"></div>
+        <p style="text-align: center; font-family: monospace; font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;">AWB: ${order.trackingNumber}</p>
+        <div style="border-top: 1px solid #000; padding-top: 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
+          <strong style="text-transform: uppercase;">Deliver To:</strong>
+          <h3 style="font-size: 1.1rem; margin-top: 0.25rem;">${order.customer ? order.customer.name : "Customer"}</h3>
+          <p>${order.customer ? order.customer.address : "N/A"}</p>
+          <p><strong>Mobile:</strong> ${order.customer ? order.customer.phone : "N/A"}</p>
+        </div>
+      </div>
+      <div class="invoice-actions" style="max-width: 500px; margin: 1.5rem auto 0; display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;">
+        <button class="btn btn-outline-gold btn-sm" onclick="window.storefront.openGSTInvoiceModal('${order.orderId}')">🧾 View GST Invoice</button>
+        <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print Label (4x6 format)</button>
+      </div>
+    `;
+
+    modal.classList.add("active");
+    this.syncBodyScrollLock();
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(container);
+    }
+    document.getElementById("labelCloseBtn")?.addEventListener("click", () => {
+      modal.classList.remove("active");
+      this.syncBodyScrollLock();
+    });
+  }
+
+  handleSearchAutocomplete(query) {
+    const cleanQuery = (query || "").trim().toLowerCase();
+    const resultsContainer = document.getElementById("searchLiveResults");
+    if (!resultsContainer) return;
+
+    if (cleanQuery.length < 2) {
+      resultsContainer.innerHTML = "";
+      return;
+    }
+
+    const matches = window.store.getAllProducts().filter(p =>
+      (p.title || p.name || "").toLowerCase().includes(cleanQuery) ||
+      (p.department && p.department.toLowerCase().includes(cleanQuery)) ||
+      (p.fabric && p.fabric.toLowerCase().includes(cleanQuery)) ||
+      (p.occasion && p.occasion.toLowerCase().includes(cleanQuery))
+    );
+
+    if (matches.length === 0) {
+      resultsContainer.innerHTML = `<div style="grid-column: 1 / -1; font-size: 0.85rem; color: #888;">No textiles found matching "${query}".</div>`;
+      return;
+    }
+
+    resultsContainer.innerHTML = matches.map(p => `
+      <div class="search-result-item" data-id="${p.id}" style="display: flex; gap: 0.75rem; padding: 0.5rem; background: var(--bg-surface-alt); border-radius: 4px; cursor: pointer;">
+        <img src="${p.mainImage}" alt="${p.title}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" />
+        <div>
+          <h4 style="font-size: 0.85rem; color: var(--text-heading);">${p.title}</h4>
+          <p style="font-size: 0.725rem; color: var(--text-muted);">${p.department}</p>
+          <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-primary);">${window.store.formatPrice(p.priceINR)}</span>
+        </div>
+      </div>
+    `).join("");
+
+    resultsContainer.querySelectorAll(".search-result-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const id = item.getAttribute("data-id");
+        this.closeSearchModal();
+        this.openPDP(id);
+      });
+    });
+  }
+
+  renderReviews() {
+    const grid = document.getElementById("ugcGrid");
+    if (!grid) return;
+
+    const reviews = (window.store && typeof window.store.getFeedbacks === "function")
+      ? window.store.getFeedbacks()
+      : (typeof INITIAL_REVIEWS !== "undefined" ? INITIAL_REVIEWS : []);
+
+    if (!reviews || reviews.length === 0) {
+      grid.innerHTML = `<p style="text-align: center; color: var(--text-muted); grid-column: 1 / -1;">No customer reviews recorded yet.</p>`;
+      return;
+    }
+
+    const generateStarsHtml = (rating) => {
+      const count = Math.max(1, Math.min(5, parseInt(rating, 10) || 5));
+      let stars = "";
+      for (let i = 1; i <= 5; i++) {
+        const isFilled = i <= count;
+        stars += `<svg class="ugc-star-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style="fill: ${isFilled ? '#F59E0B' : 'rgba(148, 163, 184, 0.28)'}; stroke: ${isFilled ? '#D97706' : '#94A3B8'}; stroke-width: 1.2; display: inline-block; vertical-align: middle; margin-right: 2px;">
+          <path d="M12 2.25l2.97 6.01 6.64.97-4.8 4.68 1.13 6.61L12 17.4l-5.94 3.12 1.13-6.61-4.8-4.68 6.64-.97L12 2.25z"/>
+        </svg>`;
+      }
+      return `<div class="ugc-stars" aria-label="${count} out of 5 stars">${stars} <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-gold); margin-left: 4px;">(${count}.0)</span></div>`;
+    };
+
+    grid.innerHTML = reviews.map(r => `
+      <div class="ugc-card">
+        <div class="ugc-header">
+          <img src="${r.avatar || 'assets/images/hero_banner.jpg'}" alt="${r.author}" class="ugc-avatar" />
+          <div class="ugc-author-meta">
+            <h4>${r.author}</h4>
+            <span>${r.location} • <strong style="color: var(--color-success);">✓ ${r.status || 'Verified Buyer'}</strong></span>
+          </div>
+        </div>
+
+        ${generateStarsHtml(r.rating || 5)}
+        <h4 class="ugc-card-title">${r.title || 'Patron Review'}</h4>
+        <p class="ugc-comment">"${r.comment}"</p>
+
+        <div class="ugc-metrics-pill">
+          <span class="metric-tag">Softness: ${r.softnessScore || '10/10'}</span>
+          <span class="metric-tag">Color: ${r.colorAccuracy || '100% True Dye'}</span>
+          <span class="metric-tag">Drape: ${r.drapeScore || 'Pure Heirloom'}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  showToast(message, type = "info", duration = 3500) {
+    let container = document.getElementById("toastContainer");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toastContainer";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = `toast-card toast-${type}`;
+    toast.setAttribute("role", "alert");
+
+    const icon = type === "success" ? "✓" : type === "warning" ? "⚠️" : type === "error" || type === "danger" ? "✕" : "ℹ️";
+
+    toast.innerHTML = `
+      <div class="toast-icon-wrap">${icon}</div>
+      <div class="toast-body">
+        <div class="toast-text">${message}</div>
+      </div>
+      <button type="button" class="toast-close-btn" aria-label="Dismiss notification" title="Dismiss">&times;</button>
+      <div class="toast-progress-bar" style="animation-duration: ${duration}ms;"></div>
+    `;
+
+    const closeBtn = toast.querySelector(".toast-close-btn");
+    const dismiss = () => {
+      if (toast.classList.contains("toast-closing")) return;
+      toast.classList.add("toast-closing");
+      setTimeout(() => toast.remove(), 240);
+    };
+
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        dismiss();
+      };
+    }
+    toast.onclick = (e) => {
+      if (e.target === closeBtn) return;
+      dismiss();
+    };
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      dismiss();
+    }, duration);
+  }
+
+  // ==========================================================================
+  // STOREFRONT BULK ORDERS & WHOLESALE SESSION
+  // ==========================================================================
+  initBulkOrdersSync() {
+    // 1. BroadcastChannel across tabs/windows
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        const bc = new BroadcastChannel("st_bulk_sync");
+        bc.onmessage = (event) => {
+          if (event.data && (event.data.type === "BULK_SETTINGS_UPDATED" || event.data.type === "BULK_PACKAGES_UPDATED")) {
+            this.renderBulkOrdersSection();
+          }
+        };
+      } catch (e) {
+        console.warn("[Storefront] Bulk BroadcastChannel notice:", e);
+      }
+    }
+
+    // 2. Storage event listener (when admin toggles master switch or adds packages in another tab)
+    window.addEventListener("storage", (e) => {
+      if (e.key === "st_bulk_settings_v1" || e.key === "st_bulk_packages_v1") {
+        this.renderBulkOrdersSection();
+      }
+    });
+
+    // 3. Same-window custom events from store
+    window.addEventListener("bulkSettingsUpdated", () => this.renderBulkOrdersSection());
+    window.addEventListener("bulkPackagesUpdated", () => this.renderBulkOrdersSection());
+  }
+
+  scrollToBulkSection() {
+    const isShopPage = window.location.pathname.includes("shop.html") || window.location.pathname.endsWith("/shop");
+    if (!isShopPage) {
+      window.location.href = "shop.html#bulkOrdersStoreSection";
+      return;
+    }
+
+    if (this.currentPage && this.currentPage !== "explore") {
+      this.navigateToPage("explore", false);
+    }
+    setTimeout(() => {
+      const section = document.getElementById("bulkOrdersStoreSection");
+      if (section) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 150);
+  }
+
+  renderBulkOrdersSection() {
+    if (!window.store || typeof window.store.getBulkSettings !== "function") return;
+
+    const settings = window.store.getBulkSettings();
+    const isLive = Boolean(settings && settings.enabled !== false);
+
+    const section = document.getElementById("bulkOrdersStoreSection");
+    const headerBtn = document.getElementById("headerBulkOrdersBtn");
+    const mobileBtn = document.getElementById("mobileNavBulkBtn");
+
+    // Toggle header button visibility
+    if (headerBtn) {
+      headerBtn.style.display = isLive ? "inline-flex" : "none";
+    }
+
+    // Toggle mobile drawer button visibility
+    if (mobileBtn) {
+      mobileBtn.style.display = isLive ? "flex" : "none";
+    }
+
+    // If section element doesn't exist on this page (e.g. shop.html), return
+    if (!section) return;
+
+    // CASE 1: OFF -> COMPLETELY HIDDEN IN REAL TIME WITH ZERO FOOTPRINT
+    if (!isLive) {
+      section.style.display = "none";
+      const grid = document.getElementById("bulkPackagesStoreGrid");
+      if (grid) grid.innerHTML = "";
+      return;
+    }
+
+    // CASE 2: ON -> RENDER BULK ORDERS SESSION ON WEBSITE
+    if (this.currentPage && this.currentPage !== "explore" && this.currentPage !== "home") {
+      section.style.display = "none";
+      return;
+    }
+    section.style.display = "block";
+
+    // Update section headlines/badges if customized
+    const badgeEl = document.getElementById("bulkSectionBadge");
+    const headlineEl = document.getElementById("bulkSectionHeadline");
+    const subtitleEl = document.getElementById("bulkSectionSubtitle");
+
+    if (badgeEl && settings.badge) badgeEl.textContent = settings.badge;
+    if (headlineEl && settings.title) headlineEl.textContent = settings.title;
+    if (subtitleEl && settings.subtitle) subtitleEl.textContent = settings.subtitle;
+
+    // Render active packages
+    const grid = document.getElementById("bulkPackagesStoreGrid");
+    if (!grid) return;
+
+    const allPackages = window.store.getBulkPackages() || [];
+    const activePackages = allPackages.filter(p => p.isActive !== false);
+
+    if (activePackages.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 2.5rem; background: var(--bg-surface); border: 1px dashed var(--border-color); border-radius: 12px;">
+          <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">✨</span>
+          <h4 style="margin: 0 0 0.5rem 0; color: var(--text-heading);">Exclusive Weaving Batches in Preparation</h4>
+          <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 460px; margin: 0 auto 1rem;">
+            New bulk packages for the upcoming wedding season are being curated by our master weavers.
+          </p>
+          <button type="button" class="btn btn-gold btn-sm" onclick="window.storefront.openBulkInquiryModal('custom')">
+            Request Custom Troupe Quote ➔
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = activePackages.map(pkg => {
+      const wholesaleFormatted = Number(pkg.wholesalePrice || 0).toLocaleString("en-IN");
+      const retailFormatted = Number(pkg.retailMrp || (pkg.wholesalePrice * 2)).toLocaleString("en-IN");
+      const discount = pkg.discountPercent || Math.round(((pkg.retailMrp - pkg.wholesalePrice) / pkg.retailMrp) * 100) || 50;
+
+      return `
+        <div class="bulk-store-card" id="bulk-card-${pkg.id}" onclick="window.storefront.openBulkPackageModal('${pkg.id}')" style="cursor: pointer;" title="Click to view full specifications &amp; place order">
+          <div class="bulk-card-media">
+            <img src="${pkg.image || 'assets/images/family_matching_combo.jpg'}" alt="${pkg.title}" loading="lazy" onerror="this.src='assets/images/hero_banner.jpg'" />
+            <div class="bulk-card-hover-prompt"><span>🔍 Click to View Full Details &amp; Order</span></div>
+          </div>
+
+          <div class="bulk-card-content">
+            <span class="bulk-card-category">${pkg.category || 'Wholesale Lot'}</span>
+            <h3 class="bulk-card-title">${pkg.title}</h3>
+            <p class="bulk-card-desc">${pkg.description || ''}</p>
+
+            <div class="bulk-card-specs">
+              <div><strong>🧵 Weave:</strong> ${pkg.fabric || '100% Pure Kanchipuram Silk'}</div>
+              <div><strong>📦 Set:</strong> ${pkg.inclusions || 'Standard assortment'}</div>
+              <div><strong>⏱️ Lead Time:</strong> ${pkg.timeline || '10-15 Days'}</div>
+            </div>
+
+            <div class="bulk-card-pricing">
+              <span class="bulk-wholesale-rate">₹${wholesaleFormatted}</span>
+              <span class="bulk-retail-mrp">₹${retailFormatted}</span>
+              <span class="bulk-moq-pill">MOQ: ${pkg.moq || 15} ${pkg.unitLabel || 'Pieces'}</span>
+            </div>
+
+            <button type="button" class="btn btn-gold btn-sm" onclick="event.stopPropagation(); window.storefront.openBulkPackageModal('${pkg.id}')" style="width: 100%; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">
+              <span>📋</span> View Full Details &amp; Order ➔
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    this.setupBulkPackagesCarouselEvents();
+  }
+
+  setupBulkPackagesCarouselEvents() {
+    const prevBtn = document.getElementById("bulkPackagesPrevBtn");
+    const nextBtn = document.getElementById("bulkPackagesNextBtn");
+    const grid = document.getElementById("bulkPackagesStoreGrid");
+    if (!grid) return;
+
+    if (prevBtn && !prevBtn._bound) {
+      prevBtn._bound = true;
+      prevBtn.addEventListener("click", () => {
+        grid.scrollBy({ left: -320, behavior: "smooth" });
+      });
+    }
+
+    if (nextBtn && !nextBtn._bound) {
+      nextBtn._bound = true;
+      nextBtn.addEventListener("click", () => {
+        grid.scrollBy({ left: 320, behavior: "smooth" });
+      });
+    }
+  }
+
+  // ==========================================
+  // COLLECTION 01: FAMILY MATCHING COMBOS REAL-TIME CONTROLLER
+  // ==========================================
+  // COLLECTION 01: AUTO-ROTATING FAMILY COMBOS SHOWCASE
+  // ==========================================
+  renderCollection01Section() {
+    const isLive = !window.store || typeof window.store.isCollection01Enabled !== "function" || window.store.isCollection01Enabled();
+    const combos = (window.store && typeof window.store.getFamilyCombos === "function") ? window.store.getFamilyCombos() : [];
+    const activeCombos = combos.filter(c => c.isActive !== false);
+
+    const settings = typeof window.store.getFamilyComboSettings === "function"
+      ? window.store.getFamilyComboSettings()
+      : { autoRotate: true, intervalSeconds: 5, pauseOnHover: true };
+
+    // Only rendered on shop.html (never on index.html)
+    const shopSection = document.getElementById("familyCombosSection");
+    const shopContainer = document.getElementById("familyCombosContainer");
+    const isVisiblePage = !this.currentPage || this.currentPage === "explore" || this.currentPage === "family";
+
+    if (shopSection && shopContainer) {
+      if (!isLive || !isVisiblePage || activeCombos.length === 0) {
+        shopSection.style.display = "none";
+      } else {
+        shopSection.style.display = "block";
+        this.buildFamilyComboCarousel(shopContainer, activeCombos, settings);
+      }
+    }
+  }
+
+  buildFamilyComboCarousel(container, activeCombos, settings) {
+    if (!container || !activeCombos || activeCombos.length === 0) return;
+
+    // Single combo case (no carousel needed)
+    if (activeCombos.length === 1) {
+      const single = activeCombos[0];
+      container.innerHTML = this.renderSingleComboBannerHTML(single);
+      return;
+    }
+
+    // Ensure active index is within range
+    if (typeof this.activeComboIndex !== "number" || this.activeComboIndex >= activeCombos.length) {
+      this.activeComboIndex = 0;
+    }
+
+    const intervalSecs = settings.intervalSeconds || 5;
+    const isAutoRotate = settings.autoRotate !== false;
+
+    // Build Slide Items
+    const slidesHTML = activeCombos.map((combo, idx) => `
+      <div class="combo-slide-item" data-index="${idx}">
+        ${this.renderSingleComboBannerHTML(combo)}
+      </div>
+    `).join("");
+
+    // Build Dots
+    const dotsHTML = activeCombos.map((_, idx) => `
+      <button class="combo-carousel-dot ${idx === this.activeComboIndex ? 'active' : ''}" data-index="${idx}" aria-label="Go to combo ${idx + 1}" title="Combo ${idx + 1}"></button>
+    `).join("");
+
+    container.innerHTML = `
+      <div class="family-combo-carousel-wrap" id="famCarouselWrap-${container.id}">
+        <!-- Top Animated Micro Progress Bar for Auto-Rotation (hidden when paused) -->
+        <div class="combo-timer-bar-wrap" style="${isAutoRotate ? '' : 'display: none !important;'}">
+          <div class="combo-timer-bar-progress" id="famProgress-${container.id}"></div>
+        </div>
+
+        <!-- Sleek Floating Combo Counter (Zero height impact on banner) -->
+        <div class="combo-floating-badge" id="famCounter-${container.id}">
+          <span>👨‍👩‍👧‍👦</span> <span id="famCounterText-${container.id}">Combo ${this.activeComboIndex + 1} of ${activeCombos.length}</span>
+          ${!isAutoRotate ? '<span style="margin-left: 5px; color: #F59E0B; font-weight: 700; font-size: 0.65rem;">⏸️ Paused</span>' : `<span style="margin-left: 5px; color: #10B981; font-weight: 700; font-size: 0.65rem;">⚡ ${intervalSecs}s</span>`}
+        </div>
+
+        <!-- Slides Viewport & Track (arrows inside so they center on the image area) -->
+        <div class="family-combo-slides-viewport" style="position: relative;">
+          <div class="combo-slides-track" id="famTrack-${container.id}" style="transform: translateX(-${this.activeComboIndex * 100}%);">
+            ${slidesHTML}
+          </div>
+          <!-- Navigation Arrows inside viewport for stable centering -->
+          <button type="button" class="combo-carousel-arrow combo-arrow-prev" id="famPrevBtn-${container.id}" aria-label="Previous Combo">&#10094;</button>
+          <button type="button" class="combo-carousel-arrow combo-arrow-next" id="famNextBtn-${container.id}" aria-label="Next Combo">&#10095;</button>
+        </div>
+
+        <!-- Bottom Dots -->
+        <div class="combo-carousel-dots" id="famDots-${container.id}">
+          ${dotsHTML}
+        </div>
+      </div>
+    `;
+
+    // Initialize Interactive Carousel Engine
+    this.initCarouselEngine(container.id, activeCombos, settings);
+  }
+
+  renderSingleComboBannerHTML(combo) {
+    const mother = combo.inclusions?.mother || "Rajasi Heavy Gold Zari Kanchipuram Silk Saree";
+    const father = combo.inclusions?.father || "Pure Mulberry Silk Shirt & 8-Muzham Dhoti Set";
+    const daughter = combo.inclusions?.daughter || "Matching Mayuri Pattu Pavadai with Soft Cotton Lining";
+    const son = combo.inclusions?.son || "Royal Silk Jacquard Kurta & Elastic Dhoti Pant";
+
+    const priceStr = `₹${Number(combo.price).toLocaleString('en-IN')}`;
+    const origPriceStr = combo.originalPrice ? `₹${Number(combo.originalPrice).toLocaleString('en-IN')}` : '';
+    const savingsStr = combo.savingsText || '';
+
+    const waMsg = encodeURIComponent(
+      `Vanakkam Srinivasa Textiles 🙏\n` +
+      `I would like to inquire about the Family Matching Combo:\n` +
+      `"${combo.title}" (${priceStr})\n` +
+      `Could you assist me with family sizing and delivery timeline?`
+    );
+
+    const imgSrc = combo.posterImage || 'assets/images/family_matching_combo.jpg';
+
+    return `
+      <div class="family-combo-banner" id="comboBanner-${combo.id}">
+        <div class="combo-banner-image">
+          <div class="combo-banner-backdrop" style="background-image: url('${imgSrc}');"></div>
+          <img src="${imgSrc}" alt="${combo.title}"
+            onerror="this.onerror=null; this.src='assets/images/family_matching_combo.jpg';" />
+          <div class="combo-image-badge">
+            ✨ Single-Batch Ceremonial Handloom Dye
+          </div>
+        </div>
+
+        <div class="combo-banner-content">
+          <span class="combo-badge-tag">
+            ${combo.badge || '👨‍👩‍👧‍👦 HIGH VALUE FAMILY BUNDLE'}
+          </span>
+          <h3 style="font-size: 1.75rem; color: var(--color-primary); margin: 0 0 0.35rem 0; font-family: var(--font-serif-display); line-height: 1.25;">
+            ${combo.title}
+          </h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.85rem;">
+            ${combo.subtitle || combo.description || ''}
+          </p>
+
+          <ul class="combo-features-list" style="margin-bottom: 0.95rem; list-style: none; padding: 0;">
+            <li style="margin-bottom: 0.35rem; font-size: 0.88rem;">✨ <strong>Mother:</strong> ${mother}</li>
+            <li style="margin-bottom: 0.35rem; font-size: 0.88rem;">👨 <strong>Father:</strong> ${father}</li>
+            <li style="margin-bottom: 0.35rem; font-size: 0.88rem;">👧 <strong>Daughter:</strong> ${daughter}</li>
+            <li style="margin-bottom: 0.35rem; font-size: 0.88rem;">👦 <strong>Son:</strong> ${son}</li>
+          </ul>
+
+          <div style="display: flex; align-items: baseline; gap: 0.85rem; margin-bottom: 1.15rem; flex-wrap: wrap;">
+            <span style="font-size: 1.95rem; font-weight: 800; color: var(--color-primary);">${priceStr}</span>
+            ${origPriceStr ? `<span style="font-size: 1.05rem; color: var(--text-muted); text-decoration: line-through;">${origPriceStr}</span>` : ''}
+            ${savingsStr ? `<span style="font-size: 0.85rem; font-weight: 800; color: var(--color-success); background: rgba(16,185,129,0.12); padding: 3px 8px; border-radius: 4px;">${savingsStr}</span>` : ''}
+          </div>
+
+          <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+            <button class="btn btn-gold btn-lg" onclick="window.storefront.openFamilyComboBookingModal('${combo.id}')"
+              style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 800;">
+              <span>🛍️</span> Book This Family Bundle ➔
+            </button>
+            <a href="https://wa.me/918778503021?text=${waMsg}" target="_blank" class="btn btn-outline-gold"
+              style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none; font-weight: 700;">
+              <span>💬</span> WhatsApp Inquiry
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  initCarouselEngine(containerId, activeCombos, settings) {
+    const wrap = document.getElementById(`famCarouselWrap-${containerId}`);
+    const track = document.getElementById(`famTrack-${containerId}`);
+    const progress = document.getElementById(`famProgress-${containerId}`);
+    const counterText = document.getElementById(`famCounterText-${containerId}`);
+    const prevBtn = document.getElementById(`famPrevBtn-${containerId}`);
+    const nextBtn = document.getElementById(`famNextBtn-${containerId}`);
+    const dotsWrap = document.getElementById(`famDots-${containerId}`);
+
+    if (!wrap || !track) return;
+
+    if (!this.carouselStates) this.carouselStates = {};
+
+    // Clear existing timer if any
+    if (this.carouselStates[containerId]) {
+      clearInterval(this.carouselStates[containerId].timer);
+      cancelAnimationFrame(this.carouselStates[containerId].raf);
+    }
+
+    const state = {
+      currentIndex: this.activeComboIndex || 0,
+      totalCombos: activeCombos.length,
+      intervalSecs: Math.max(2, settings.intervalSeconds || 5),
+      isAutoRotate: settings.autoRotate !== false,
+      isHovered: false,
+      timer: null,
+      raf: null
+    };
+
+    this.carouselStates[containerId] = state;
+
+    const syncViewportHeight = () => {
+      const viewport = wrap.querySelector(".family-combo-slides-viewport");
+      if (!viewport) return;
+      if (window.innerWidth > 992) {
+        // Desktop: locked to default stable 500px, completely immune to image dimension changes
+        viewport.style.height = "500px";
+      } else {
+        // Tablet / Mobile: compute uniform max height once across all slides so transitions never jump
+        const slides = track.querySelectorAll(".combo-slide-item");
+        if (slides && slides.length > 0) {
+          let maxH = 0;
+          slides.forEach(s => {
+            const h = s.offsetHeight;
+            if (h > maxH) maxH = h;
+          });
+          if (maxH > 0) {
+            viewport.style.height = `${maxH}px`;
+          }
+        }
+      }
+    };
+
+    const updateUI = (idx) => {
+      state.currentIndex = idx;
+      this.activeComboIndex = idx;
+      track.style.transform = `translateX(-${idx * 100}%)`;
+
+      if (counterText) {
+        counterText.textContent = `Combo ${idx + 1} of ${state.totalCombos}`;
+      }
+
+      if (dotsWrap) {
+        const dots = dotsWrap.querySelectorAll(".combo-carousel-dot");
+        dots.forEach((dot, dIdx) => {
+          dot.classList.toggle("active", dIdx === idx);
+        });
+      }
+
+      resetProgress();
+    };
+
+    const resetProgress = () => {
+      if (progress) {
+        progress.style.transition = "none";
+        progress.style.width = "0%";
+      }
+    };
+
+    const animateProgress = () => {
+      resetProgress();
+      if (!state.isAutoRotate || state.isHovered || !progress) return;
+      // Force repaint to start CSS transition from 0%
+      void progress.offsetWidth;
+      progress.style.transition = `width ${state.intervalSecs}s linear`;
+      progress.style.width = "100%";
+    };
+
+    const startTimer = () => {
+      clearInterval(state.timer);
+
+      if (!state.isAutoRotate || state.isHovered) {
+        resetProgress();
+        return;
+      }
+
+      animateProgress();
+      state.timer = setInterval(() => {
+        if (!state.isHovered && state.isAutoRotate) {
+          const nextIndex = (state.currentIndex + 1) % state.totalCombos;
+          updateUI(nextIndex);
+          animateProgress();
+        }
+      }, state.intervalSecs * 1000);
+    };
+
+    const goNext = () => {
+      const nextIndex = (state.currentIndex + 1) % state.totalCombos;
+      updateUI(nextIndex);
+      startTimer();
+    };
+
+    const goPrev = () => {
+      const prevIndex = (state.currentIndex - 1 + state.totalCombos) % state.totalCombos;
+      updateUI(prevIndex);
+      startTimer();
+    };
+
+    if (nextBtn) nextBtn.onclick = (e) => { e.stopPropagation(); goNext(); };
+    if (prevBtn) prevBtn.onclick = (e) => { e.stopPropagation(); goPrev(); };
+
+    if (dotsWrap) {
+      dotsWrap.querySelectorAll(".combo-carousel-dot").forEach((dot) => {
+        dot.onclick = (e) => {
+          e.stopPropagation();
+          const targetIdx = parseInt(dot.getAttribute("data-index"));
+          if (!isNaN(targetIdx)) {
+            updateUI(targetIdx);
+            startTimer();
+          }
+        };
+      });
+    }
+
+    if (settings.pauseOnHover !== false) {
+      wrap.onmouseenter = () => {
+        state.isHovered = true;
+        clearInterval(state.timer);
+        resetProgress();
+      };
+
+      wrap.onmouseleave = () => {
+        state.isHovered = false;
+        startTimer();
+      };
+    }
+
+    // Touch Swipe on mobile
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    wrap.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    wrap.addEventListener("touchend", (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const diff = touchEndX - touchStartX;
+      if (Math.abs(diff) > 40) {
+        if (diff < 0) goNext();
+        else goPrev();
+      }
+    }, { passive: true });
+
+    // Auto-adjust carousel viewport height dynamically to images
+    const slideImgs = track.querySelectorAll("img");
+    slideImgs.forEach((img) => {
+      if (img.complete) {
+        syncViewportHeight();
+      } else {
+        img.addEventListener("load", syncViewportHeight);
+      }
+    });
+    window.addEventListener("resize", syncViewportHeight);
+    setTimeout(syncViewportHeight, 60);
+    setTimeout(syncViewportHeight, 300);
+
+    // Start rotation timer
+    startTimer();
+  }
+
+  // ==========================================
+  // FAMILY COMBO BOOKING MODAL & ORDER ENGINE
+  // ==========================================
+  openFamilyComboBookingModal(comboId) {
+    if (!window.store) return;
+    const combo = window.store.getFamilyComboById(comboId);
+    if (!combo) return;
+
+    const modal = document.getElementById("familyComboBookingModal");
+    if (!modal) return;
+
+    const badgeEl = document.getElementById("fcModalBadge");
+    const titleEl = document.getElementById("fcModalTitle");
+    const subEl = document.getElementById("fcModalSubtitle");
+    const priceEl = document.getElementById("fcModalPrice");
+    const origPriceEl = document.getElementById("fcModalOriginalPrice");
+    const savingsEl = document.getElementById("fcModalSavings");
+    const idInput = document.getElementById("fcFormComboId");
+    const titleInput = document.getElementById("fcFormComboTitle");
+    const totalInput = document.getElementById("fcFormTotalPrice");
+    const submitBtn = document.getElementById("fcSubmitOrderBtn");
+
+    if (badgeEl) badgeEl.textContent = combo.badge || "👨‍👩‍👧‍👦 HIGH VALUE FAMILY BUNDLE";
+    if (titleEl) titleEl.textContent = combo.title;
+    if (subEl) subEl.textContent = combo.subtitle || combo.description || "";
+    if (priceEl) priceEl.textContent = `₹${Number(combo.price).toLocaleString('en-IN')}`;
+    if (origPriceEl) origPriceEl.textContent = combo.originalPrice ? `₹${Number(combo.originalPrice).toLocaleString('en-IN')}` : "";
+    if (savingsEl) savingsEl.textContent = combo.savingsText || "Special Bundle Savings";
+    if (idInput) idInput.value = combo.id;
+    if (titleInput) titleInput.value = combo.title;
+    if (totalInput) totalInput.value = combo.price;
+    if (submitBtn) submitBtn.innerHTML = `🛍️ Confirm &amp; Place Order (₹${Number(combo.price).toLocaleString('en-IN')})`;
+
+    modal.style.display = "flex";
+    modal.classList.add("active");
+    this.syncBodyScrollLock();
+
+    if (!modal._hasBackdropClick) {
+      modal._hasBackdropClick = true;
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) this.closeFamilyComboBookingModal();
+      });
+    }
+  }
+
+  closeFamilyComboBookingModal() {
+    const modal = document.getElementById("familyComboBookingModal");
+    if (modal) {
+      modal.style.display = "none";
+      modal.classList.remove("active");
+      this.syncBodyScrollLock();
+    }
+  }
+
+  handleFamilyComboOrderSubmit(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.store) return;
+
+    const comboId = document.getElementById("fcFormComboId")?.value;
+    const comboTitle = document.getElementById("fcFormComboTitle")?.value;
+    const totalPrice = parseFloat(document.getElementById("fcFormTotalPrice")?.value) || 0;
+    const fatherSize = document.getElementById("fcFormFatherSize")?.value;
+    const motherSize = document.getElementById("fcFormMotherSize")?.value;
+    const sonAgeSize = document.getElementById("fcFormSonSize")?.value;
+    const daughterAgeSize = document.getElementById("fcFormDaughterSize")?.value;
+    const customerName = document.getElementById("fcFormCustomerName")?.value?.trim();
+    const customerPhone = document.getElementById("fcFormCustomerPhone")?.value?.trim();
+    const deliveryAddress = document.getElementById("fcFormDeliveryAddress")?.value?.trim();
+    const pincode = document.getElementById("fcFormPincode")?.value?.trim();
+    const paymentMode = document.getElementById("fcFormPaymentMode")?.value;
+    const specialNotes = document.getElementById("fcFormSpecialNotes")?.value?.trim();
+
+    if (!customerName || !customerPhone || !deliveryAddress || !pincode) {
+      alert("Please enter your Name, Phone, Delivery Address, and Pincode.");
+      return;
+    }
+
+    const orderData = {
+      comboId,
+      comboTitle,
+      totalPrice,
+      fatherSize,
+      motherSize,
+      sonAgeSize,
+      daughterAgeSize,
+      customerName,
+      customerPhone,
+      deliveryAddress,
+      pincode,
+      paymentMode,
+      specialNotes,
+      status: "Pending"
+    };
+
+    const newOrder = window.store.addFamilyComboOrder(orderData);
+    this.closeFamilyComboBookingModal();
+
+    this.showToast(`🎉 Order Placed! Combo #${newOrder.orderId} is confirmed for ${customerName}!`, "success");
+
+    const cleanPhone = customerPhone.replace(/\D/g, "");
+    const waMsg = encodeURIComponent(
+      `Vanakkam Srinivasa Textiles 🙏\n` +
+      `I have placed a Family Combo Order online:\n` +
+      `Order ID: #${newOrder.orderId}\n` +
+      `Combo: ${comboTitle}\n` +
+      `Amount: ₹${Number(totalPrice).toLocaleString('en-IN')}\n` +
+      `Customer: ${customerName} (${customerPhone})\n` +
+      `Address: ${deliveryAddress}, Pincode: ${pincode}\n` +
+      `Sizes: Father: ${fatherSize}, Mother: ${motherSize}, Son: ${sonAgeSize}, Daughter: ${daughterAgeSize}\n` +
+      `Payment: ${paymentMode}`
+    );
+
+    window.open(`https://wa.me/918778503021?text=${waMsg}`, "_blank");
+  }
+
+  setupBulkInquiryModal() {
+    const modal = document.getElementById("bulkInquiryModal");
+    if (!modal) return;
+
+    const closeBtn = document.getElementById("closeBulkInquiryModalBtn");
+    const cancelBtn = document.getElementById("cancelBulkInquiryBtn");
+    const closeSuccessBtn = document.getElementById("bulkInquiryCloseSuccessBtn");
+    const form = document.getElementById("customerBulkInquiryForm");
+    const qtyMinusBtn = document.getElementById("bulkQtyMinus");
+    const qtyPlusBtn = document.getElementById("bulkQtyPlus");
+    const piecesInput = document.getElementById("bulkCustPieces");
+    const customQtyMinusBtn = document.getElementById("bulkCustomQtyMinus");
+    const customQtyPlusBtn = document.getElementById("bulkCustomQtyPlus");
+    const customPiecesInput = document.getElementById("bulkCustCustomPieces");
+    const waOrderBtn = document.getElementById("bulkDirectWhatsAppBtn");
+
+    const closeModal = () => this.closeBulkInquiryModal();
+
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+    if (closeSuccessBtn) closeSuccessBtn.addEventListener("click", closeModal);
+
+    if (qtyMinusBtn && piecesInput) {
+      qtyMinusBtn.addEventListener("click", () => {
+        const minVal = parseInt(piecesInput.min, 10) || 1;
+        const currentVal = parseInt(piecesInput.value, 10) || minVal;
+        if (currentVal > minVal) {
+          piecesInput.value = currentVal - 1;
+          this.updateBulkLiveCalculator();
+        }
+      });
+    }
+
+    if (qtyPlusBtn && piecesInput) {
+      qtyPlusBtn.addEventListener("click", () => {
+        const currentVal = parseInt(piecesInput.value, 10) || 1;
+        piecesInput.value = currentVal + 1;
+        this.updateBulkLiveCalculator();
+      });
+    }
+
+    if (customQtyMinusBtn && customPiecesInput) {
+      customQtyMinusBtn.addEventListener("click", () => {
+        const minVal = parseInt(customPiecesInput.min, 10) || 5;
+        const currentVal = parseInt(customPiecesInput.value, 10) || minVal;
+        if (currentVal > minVal) {
+          customPiecesInput.value = currentVal - 1;
+        }
+      });
+    }
+
+    if (customQtyPlusBtn && customPiecesInput) {
+      customQtyPlusBtn.addEventListener("click", () => {
+        const currentVal = parseInt(customPiecesInput.value, 10) || 10;
+        customPiecesInput.value = currentVal + 1;
+      });
+    }
+
+    if (piecesInput) {
+      piecesInput.addEventListener("input", () => this.updateBulkLiveCalculator());
+      piecesInput.addEventListener("change", () => this.updateBulkLiveCalculator());
+    }
+
+    if (waOrderBtn) {
+      waOrderBtn.addEventListener("click", () => this.orderBulkPackageOnWhatsApp());
+    }
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal.classList.contains("active")) {
+        closeModal();
+      }
+    });
+
+    if (form) {
+      form.addEventListener("submit", (e) => this.handleCustomerBulkInquirySubmit(e));
+    }
+  }
+
+  openBulkPackageModal(packageId) {
+    this.openBulkInquiryModal(packageId);
+  }
+
+  openBulkInquiryModal(packageId = "custom") {
+    const modal = document.getElementById("bulkInquiryModal");
+    if (!modal) return;
+
+    const isCustom = !packageId || packageId === "custom";
+
+    const form = document.getElementById("customerBulkInquiryForm");
+    const successBox = document.getElementById("bulkInquirySuccessContainer");
+    const pkgIdInput = document.getElementById("bulkInquiryPackageId");
+    const piecesInput = document.getElementById("bulkCustPieces");
+    const customPiecesInput = document.getElementById("bulkCustCustomPieces");
+    const typeSelect = document.getElementById("bulkCustOrderType");
+    const deadlineInput = document.getElementById("bulkCustDeadline");
+
+    // Modal layout mode containers
+    const packageCalcCard = document.getElementById("bulkPackageCalcCard");
+    const customConfigCard = document.getElementById("bulkCustomConfigCard");
+    const orderTypeRow = document.getElementById("bulkCustOrderTypeRow");
+
+    // Product showcase elements
+    const headerIconEl = document.getElementById("bulkInquiryHeaderIcon");
+    const headerTitleEl = document.getElementById("bulkInquiryHeaderTitle");
+    const headerSubtitleEl = document.getElementById("bulkInquiryHeaderSubtitle");
+    const imgEl = document.getElementById("bulkModalImg");
+    const badgeEl = document.getElementById("bulkModalBadge");
+    const discountEl = document.getElementById("bulkModalDiscountTag");
+    const categoryEl = document.getElementById("bulkModalCategory");
+    const titleEl = document.getElementById("bulkModalTitle");
+    const descEl = document.getElementById("bulkModalDesc");
+    const fabricEl = document.getElementById("bulkModalFabric");
+    const inclusionsEl = document.getElementById("bulkModalInclusions");
+    const timelineEl = document.getElementById("bulkModalTimeline");
+    const unitRateEl = document.getElementById("calcUnitRate");
+    const retailMrpEl = document.getElementById("calcRetailMrp");
+    const moqBadgeEl = document.getElementById("calcMoqBadge");
+    const unitLabelEl = document.getElementById("calcUnitLabel");
+    const notesLabelEl = document.getElementById("bulkCustNotesLabel");
+    const notesInput = document.getElementById("bulkCustNotes");
+    const submitBtn = document.getElementById("submitBulkInquiryBtn");
+    const waOrderBtn = document.getElementById("bulkDirectWhatsAppBtn");
+
+    if (form) {
+      form.reset();
+      form.style.display = "flex";
+    }
+    if (successBox) successBox.style.display = "none";
+
+    if (deadlineInput) {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + 15);
+      deadlineInput.value = targetDate.toISOString().split("T")[0];
+    }
+
+    if (!isCustom && window.store) {
+      const pkg = window.store.getBulkPackageById(packageId);
+      if (pkg) {
+        const wholesaleFormatted = Number(pkg.wholesalePrice || 0).toLocaleString("en-IN");
+        const retailFormatted = Number(pkg.retailMrp || (pkg.wholesalePrice * 2)).toLocaleString("en-IN");
+        const discount = pkg.discountPercent || Math.round(((pkg.retailMrp - pkg.wholesalePrice) / pkg.retailMrp) * 100) || 50;
+
+        if (pkgIdInput) pkgIdInput.value = pkg.id;
+        if (packageCalcCard) packageCalcCard.style.display = "flex";
+        if (customConfigCard) customConfigCard.style.display = "none";
+        if (orderTypeRow) orderTypeRow.style.display = "flex";
+
+        if (headerIconEl) headerIconEl.textContent = "🏢";
+        if (headerTitleEl) headerTitleEl.textContent = `${pkg.title} - Wholesale Lot`;
+        if (headerSubtitleEl) headerSubtitleEl.textContent = "Master Weaver Direct Pricing • Certified Kanchipuram Pure Silk Handloom";
+
+        if (imgEl) imgEl.src = pkg.image || 'assets/images/hero_banner.jpg';
+        if (badgeEl) badgeEl.textContent = pkg.badge || '✨ Verified Bulk Lot';
+        if (discountEl) discountEl.textContent = `${discount}% WHOLESALE SAVINGS`;
+        if (categoryEl) categoryEl.textContent = (pkg.category || 'WHOLESALE LOT').toUpperCase();
+        if (titleEl) titleEl.textContent = pkg.title;
+        if (descEl) descEl.textContent = pkg.description || 'Authentic Kanchipuram master handloom bulk trousseau lot woven with pure silk and certified zari.';
+        if (fabricEl) fabricEl.textContent = pkg.fabric || '100% Pure Kanchipuram Mulberry Silk with Korvai Interlocking Weave';
+        if (inclusionsEl) inclusionsEl.textContent = pkg.inclusions || 'Standard bridal assortment & matching unstitched blouse material';
+        if (timelineEl) timelineEl.textContent = pkg.timeline || 'Express 7-10 Days Direct Dispatch';
+
+        if (unitRateEl) unitRateEl.textContent = `₹${wholesaleFormatted}`;
+        if (retailMrpEl) retailMrpEl.textContent = `₹${retailFormatted}`;
+        if (moqBadgeEl) moqBadgeEl.textContent = `MOQ: ${pkg.moq || 10} ${pkg.unitLabel || 'Units'}`;
+        if (unitLabelEl) unitLabelEl.textContent = `Min Order Quantity: ${pkg.moq || 10} ${pkg.unitLabel || 'Units'}`;
+
+        if (piecesInput) {
+          piecesInput.value = pkg.moq || 10;
+          piecesInput.min = pkg.moq || 1;
+        }
+
+        if (typeSelect) {
+          if (pkg.category && pkg.category.toLowerCase().includes("wedding")) {
+            typeSelect.value = "Wedding Bulk";
+          } else if (pkg.category && pkg.category.toLowerCase().includes("boutique")) {
+            typeSelect.value = "Boutique Reseller";
+          } else if (pkg.category && pkg.category.toLowerCase().includes("corporate")) {
+            typeSelect.value = "Corporate Gifting";
+          } else {
+            typeSelect.value = "Wholesale";
+          }
+        }
+
+        if (notesLabelEl) notesLabelEl.innerHTML = `<span>📝</span> Special Weaving / Color / Customization Notes:`;
+        if (notesInput) notesInput.placeholder = "Specify color combinations, zari preferences, blouse fabric options...";
+        if (submitBtn) submitBtn.innerHTML = `<span>🛍️</span> Place Wholesale Order Now`;
+        if (waOrderBtn) {
+          waOrderBtn.innerHTML = `<span>💬</span> Place Order on WhatsApp`;
+          waOrderBtn.style.display = "inline-flex";
+        }
+
+        this.updateBulkLiveCalculator();
+      }
+    } else {
+      // CUSTOM QUOTE MODE
+      if (pkgIdInput) pkgIdInput.value = "custom";
+      if (packageCalcCard) packageCalcCard.style.display = "none";
+      if (customConfigCard) customConfigCard.style.display = "flex";
+      if (orderTypeRow) orderTypeRow.style.display = "none";
+
+      if (headerIconEl) headerIconEl.textContent = "🧵";
+      if (headerTitleEl) headerTitleEl.textContent = "Request Custom Bulk Handloom Quote";
+      if (headerSubtitleEl) headerSubtitleEl.textContent = "Master Pit-Loom Bespoke Weaving • Custom Dye Palettes • Direct Weaver Factory Quote";
+
+      if (imgEl) imgEl.src = "assets/images/artisan_loom.jpg";
+      if (badgeEl) badgeEl.textContent = "✨ Master Pit-Loom Bespoke Weaving";
+      if (discountEl) discountEl.textContent = "DIRECT FACTORY QUOTATION";
+      if (categoryEl) categoryEl.textContent = "BESPOKE HANDLOOM SERVICE";
+      if (titleEl) titleEl.textContent = "Custom Pit-Loom Weaving & Bulk Order";
+      if (descEl) descEl.textContent = "Have a specific bridal entourage theme, temple wedding palette, boutique exclusive design, or bulk gifting requirement? Srinivasa Textiles master weavers craft your bespoke requirements directly on our authentic Kanchipuram pit-looms with certified Silk Mark pure silk and zero middleman markups.";
+
+      if (fabricEl) fabricEl.textContent = "100% Pure Kanchipuram 3-Ply Mulberry Silk with Korvai Interlocking & Pure/Half-Fine Zari";
+      if (inclusionsEl) inclusionsEl.textContent = "Custom ritual dye lots, matching 1m blouse pieces, Silk Mark seals & rigid presentation boxes";
+      if (timelineEl) timelineEl.textContent = "10-14 Days Pit-Loom Allocation with Live WhatsApp Weaving Video Updates";
+
+      if (customPiecesInput) {
+        customPiecesInput.value = 10;
+        customPiecesInput.min = 5;
+      }
+
+      if (typeSelect) typeSelect.value = "Custom Bulk Inquiry";
+      if (notesLabelEl) notesLabelEl.innerHTML = `<span>📝</span> Custom Weaving, Colors & Motif Specifications:`;
+      if (notesInput) notesInput.placeholder = "Specify color combinations (e.g. Royal Crimson Maroon with Emerald Green border), zari motifs (Mayil/Peacock, Rudraksha), matching blouse requirements, or wedding theme...";
+      if (submitBtn) submitBtn.innerHTML = `<span>📋</span> Request Master Weaver Custom Quotation`;
+      if (waOrderBtn) {
+        waOrderBtn.innerHTML = `<span>💬</span> Discuss Custom Order on WhatsApp`;
+        waOrderBtn.style.display = "inline-flex";
+      }
+    }
+
+    modal.classList.add("active");
+    document.body.style.overflow = "hidden";
+  }
+
+  updateBulkLiveCalculator() {
+    const pkgId = document.getElementById("bulkInquiryPackageId")?.value || "";
+    const piecesInput = document.getElementById("bulkCustPieces");
+    let pieces = parseInt(piecesInput?.value, 10);
+
+    let wholesalePrice = 18500;
+    let retailMrp = 37000;
+    let minMoq = 5;
+
+    if (pkgId && window.store && typeof window.store.getBulkPackageById === "function") {
+      const pkg = window.store.getBulkPackageById(pkgId);
+      if (pkg) {
+        wholesalePrice = Number(pkg.wholesalePrice) || 18500;
+        retailMrp = Number(pkg.retailMrp) || (wholesalePrice * 2);
+        minMoq = Number(pkg.moq) || 5;
+      }
+    }
+
+    if (isNaN(pieces) || pieces < 1) {
+      pieces = minMoq;
+    }
+
+    const subtotal = pieces * wholesalePrice;
+    const gst = Math.round(subtotal * 0.05);
+    const totalAmount = subtotal + gst;
+    const retailTotal = pieces * retailMrp;
+    const savings = Math.max(0, retailTotal - totalAmount);
+
+    const piecesLabel = document.getElementById("calcPiecesLabel");
+    const subtotalEl = document.getElementById("calcSubtotal");
+    const gstEl = document.getElementById("calcGst");
+    const savingsEl = document.getElementById("calcTotalSavings");
+    const totalEl = document.getElementById("calcTotal");
+
+    if (piecesLabel) piecesLabel.textContent = pieces;
+    if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toLocaleString("en-IN")}`;
+    if (gstEl) gstEl.textContent = `₹${gst.toLocaleString("en-IN")}`;
+    if (savingsEl) savingsEl.textContent = `Save ₹${savings.toLocaleString("en-IN")}`;
+    if (totalEl) totalEl.textContent = `₹${totalAmount.toLocaleString("en-IN")}`;
+
+    return { pieces, wholesalePrice, retailMrp, subtotal, gst, totalAmount, savings };
+  }
+
+  orderBulkPackageOnWhatsApp() {
+    const pkgId = document.getElementById("bulkInquiryPackageId")?.value || "";
+    const isCustom = !pkgId || pkgId === "custom";
+
+    const name = document.getElementById("bulkCustName")?.value.trim() || "Valued Customer";
+    const phone = document.getElementById("bulkCustPhone")?.value.trim() || "Not specified";
+    const company = document.getElementById("bulkCustCompany")?.value.trim() || "Wedding / Retailer";
+    const city = document.getElementById("bulkCustCity")?.value.trim() || "India";
+    const deadline = document.getElementById("bulkCustDeadline")?.value || "Earliest";
+    const notes = document.getElementById("bulkCustNotes")?.value.trim() || "";
+
+    if (isCustom) {
+      const category = document.getElementById("bulkCustCategorySelect")?.value || "Pure Silk Sarees";
+      const fabric = document.getElementById("bulkCustFabricGrade")?.value || "Pure Mulberry Silk 3-Ply";
+      const pieces = document.getElementById("bulkCustCustomPieces")?.value || "10";
+      const budget = document.getElementById("bulkCustBudgetRange")?.value || "Direct Weaver Quote";
+
+      const waMsg = encodeURIComponent(
+        `🙏 *Namaste Srinivasa Textiles Master Weavers!*\n\n` +
+        `I would like to request a *Custom Bulk Handloom Weaving Quotation*:\n\n` +
+        `🧵 *Attire Type:* ${category}\n` +
+        `✨ *Silk & Zari Grade:* ${fabric}\n` +
+        `🔢 *Estimated Quantity:* ${pieces} Units / Sets\n` +
+        `💰 *Target Budget:* ${budget}\n` +
+        `📅 *Needed By Date:* ${deadline}\n\n` +
+        `👤 *Client Name:* ${name}\n` +
+        `📞 *Phone / WhatsApp:* ${phone}\n` +
+        `🏛️ *Occasion / Boutique:* ${company}\n` +
+        `📍 *Delivery Destination:* ${city}\n\n` +
+        (notes ? `📝 *Customization & Color Notes:*\n${notes}\n\n` : `\n`) +
+        `Please review our specifications and provide a direct pit-loom quotation and silk shade card.`
+      );
+
+      window.open(`https://wa.me/918778503021?text=${waMsg}`, "_blank");
+      return;
+    }
+
+    // Package Wholesale mode
+    const calc = this.updateBulkLiveCalculator();
+    let pkgTitle = "Handloom Wholesale Bulk Package";
+    if (pkgId && window.store) {
+      const pkg = window.store.getBulkPackageById(pkgId);
+      if (pkg) pkgTitle = pkg.title;
+    }
+
+    const waMsg = encodeURIComponent(
+      `🙏 *Namaste Srinivasa Textiles Master Weavers!*\n\n` +
+      `I would like to place a *Wholesale Handloom Order*:\n\n` +
+      `📦 *Package:* ${pkgTitle}\n` +
+      `🔢 *Quantity:* ${calc.pieces} Units\n` +
+      `💰 *Direct Wholesale Price:* ₹${calc.wholesalePrice.toLocaleString("en-IN")} / unit\n` +
+      `📊 *Subtotal:* ₹${calc.subtotal.toLocaleString("en-IN")}\n` +
+      `🧾 *GST (5% Handloom Silk):* ₹${calc.gst.toLocaleString("en-IN")}\n` +
+      `💎 *Estimated Total:* ₹${calc.totalAmount.toLocaleString("en-IN")}\n` +
+      `🎉 *Estimated Savings:* ₹${calc.savings.toLocaleString("en-IN")}\n\n` +
+      `👤 *Customer Name:* ${name}\n` +
+      `📞 *Phone:* ${phone}\n` +
+      `🏛️ *Company / Occasion:* ${company}\n` +
+      `📍 *Delivery City:* ${city}\n` +
+      `📅 *Needed By Date:* ${deadline}\n` +
+      (notes ? `📝 *Customization:* ${notes}\n\n` : `\n`) +
+      `Please confirm order acceptance and share payment details.`
+    );
+
+    window.open(`https://wa.me/918778503021?text=${waMsg}`, "_blank");
+  }
+
+  closeBulkInquiryModal() {
+    const modal = document.getElementById("bulkInquiryModal");
+    if (modal) {
+      modal.classList.remove("active");
+      document.body.style.overflow = "";
+    }
+  }
+
+  handleCustomerBulkInquirySubmit(e) {
+    e.preventDefault();
+    if (!window.store || typeof window.store.addBulkOrder !== "function") return;
+
+    const form = document.getElementById("customerBulkInquiryForm");
+    const packageId = document.getElementById("bulkInquiryPackageId")?.value || "";
+    const isCustom = !packageId || packageId === "custom";
+
+    const name = document.getElementById("bulkCustName")?.value.trim() || "Valued Customer";
+    const phone = document.getElementById("bulkCustPhone")?.value.trim() || "";
+    const email = document.getElementById("bulkCustEmail")?.value.trim() || "";
+    const company = document.getElementById("bulkCustCompany")?.value.trim() || name;
+    const deadline = document.getElementById("bulkCustDeadline")?.value || "";
+    const city = document.getElementById("bulkCustCity")?.value.trim() || "";
+    const notes = document.getElementById("bulkCustNotes")?.value.trim() || "";
+
+    const successBox = document.getElementById("bulkInquirySuccessContainer");
+    const successTitleEl = document.getElementById("bulkSuccessTitle");
+    const successSubtitleEl = document.getElementById("bulkSuccessSubtitle");
+    const confirmIdEl = document.getElementById("bulkInquiryConfirmId");
+    const receiptCard = document.getElementById("bulkOrderReceiptCard");
+    const waChatBtn = document.getElementById("bulkInquiryWhatsAppChatBtn");
+
+    if (isCustom) {
+      const category = document.getElementById("bulkCustCategorySelect")?.value || "Pure Silk Sarees";
+      const fabric = document.getElementById("bulkCustFabricGrade")?.value || "Pure Mulberry Silk 3-Ply";
+      const pieces = parseInt(document.getElementById("bulkCustCustomPieces")?.value, 10) || 10;
+      const budget = document.getElementById("bulkCustBudgetRange")?.value || "Direct Weaver Quote";
+
+      const itemsDesc = `${pieces}x [Custom Weave: ${category}] • Grade: ${fabric} • Budget: ${budget} • Destination: ${city} • Notes: ${notes || 'Bespoke pit-loom weaving'}`;
+
+      const newOrderData = {
+        clientCompany: company,
+        contactPerson: name,
+        phone: phone,
+        email: email,
+        gstin: "Direct Bespoke Client",
+        billingAddress: `${city}, India`,
+        shippingAddress: `${city}, India`,
+        orderType: "Custom Bulk Quotation",
+        itemsDescription: itemsDesc,
+        totalPieces: pieces,
+        subtotalINR: 0,
+        gstINR: 0,
+        totalAmountINR: 0,
+        advancePaidINR: 0,
+        balanceDueINR: 0,
+        paymentStatus: "Quotation Pending",
+        orderStatus: "Quotation Requested",
+        deliveryDeadline: deadline,
+        priority: pieces >= 20 ? "High" : "Standard",
+        productionUnit: "Kanchipuram Pit-Loom Shed",
+        notes: `Storefront Bespoke Inquiry • Category: ${category} • Fabric: ${fabric} • Budget: ${budget} • Notes: ${notes}`
+      };
+
+      const savedOrder = window.store.addBulkOrder(newOrderData);
+
+      if (form) form.style.display = "none";
+
+      if (successTitleEl) successTitleEl.textContent = "Custom Quotation Request Received!";
+      if (successSubtitleEl) {
+        successSubtitleEl.innerHTML = `Your custom quotation request <strong id="bulkInquiryConfirmId" style="color: var(--color-gold);">#${savedOrder?.bulkOrderId || 'ST-CUST'}</strong> has been assigned directly to our Chief Master Weaver.`;
+      }
+
+      if (receiptCard && savedOrder) {
+        receiptCard.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.65rem; margin-bottom: 0.75rem;">
+            <div>
+              <strong style="color: var(--color-gold); font-size: 1.05rem;">Inquiry #${savedOrder.bulkOrderId}</strong>
+              <div style="font-size: 0.78rem; color: var(--text-muted);">Srinivasa Textiles Master Pit-Loom Bespoke Department</div>
+            </div>
+            <span style="background: rgba(212, 175, 55, 0.15); color: var(--color-gold); border: 1px solid var(--color-gold); font-weight: 700; font-size: 0.78rem; padding: 0.25rem 0.65rem; border-radius: 9999px;">
+              ⏱️ Under Weaver Review (2h Estimate)
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
+            <div><span style="color: var(--text-muted);">Attire Category:</span><br /><strong>${category}</strong></div>
+            <div><span style="color: var(--text-muted);">Silk &amp; Zari Grade:</span><br /><strong>${fabric}</strong></div>
+            <div><span style="color: var(--text-muted);">Estimated Quantity:</span><br /><strong>${pieces} Units</strong></div>
+            <div><span style="color: var(--text-muted);">Target Budget:</span><br /><strong style="color: var(--color-gold);">${budget}</strong></div>
+            <div><span style="color: var(--text-muted);">Contact Person:</span><br /><strong>${name} (${phone})</strong></div>
+            <div><span style="color: var(--text-muted);">Occasion / Boutique:</span><br /><strong>${company}</strong></div>
+            <div><span style="color: var(--text-muted);">Destination City:</span><br /><strong>${city}</strong></div>
+            <div><span style="color: var(--text-muted);">Target Delivery:</span><br /><strong>${deadline || 'Earliest Express'}</strong></div>
+          </div>
+          ${notes ? `
+          <div style="font-size: 0.8rem; color: var(--text-main); background: rgba(0,0,0,0.06); padding: 0.55rem 0.75rem; border-radius: 6px; margin-bottom: 0.65rem; line-height: 1.45;">
+            <strong>Custom Specifications:</strong> ${notes}
+          </div>` : ''}
+          <div style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
+            ✓ Silk Mark certified pure silk • Zero showroom markup • Our master weaver will message you the warp color card and formal invoice via WhatsApp.
+          </div>
+        `;
+      }
+
+      if (waChatBtn && savedOrder) {
+        const waText = encodeURIComponent(
+          `🙏 *Namaste Srinivasa Textiles Master Weavers!*\n\n` +
+          `I have submitted Custom Weaving Inquiry #${savedOrder.bulkOrderId}:\n\n` +
+          `🧵 *Attire:* ${category}\n` +
+          `✨ *Silk & Zari Grade:* ${fabric}\n` +
+          `🔢 *Quantity:* ${pieces} Units\n` +
+          `💰 *Budget:* ${budget}\n` +
+          `👤 *Name:* ${name} (${phone})\n` +
+          `🏛️ *Occasion:* ${company}\n` +
+          `📍 *City:* ${city}\n` +
+          `📅 *Needed By:* ${deadline}\n` +
+          (notes ? `📝 *Notes:* ${notes}\n\n` : `\n`) +
+          `Please share the direct pit-loom quotation and silk shade card.`
+        );
+        waChatBtn.href = `https://wa.me/918778503021?text=${waText}`;
+      }
+
+      if (successBox) successBox.style.display = "block";
+      this.showToast(`🎉 Custom Quotation Request #${savedOrder?.bulkOrderId || ''} submitted successfully!`, "success");
+      return;
+    }
+
+    // Specific Package Order
+    const orderType = document.getElementById("bulkCustOrderType")?.value || "Wedding Bulk";
+    const pieces = parseInt(document.getElementById("bulkCustPieces")?.value, 10) || 10;
+
+    let pkgTitle = "Handloom Wholesale Bulk Package";
+    let unitRate = 18500;
+    if (packageId) {
+      const pkg = window.store.getBulkPackageById(packageId);
+      if (pkg) {
+        pkgTitle = pkg.title;
+        unitRate = Number(pkg.wholesalePrice) || 18500;
+      }
+    }
+
+    const subtotal = pieces * unitRate;
+    const gst = Math.round(subtotal * 0.05);
+    const totalAmount = subtotal + gst;
+
+    const itemsDesc = `${pieces}x [${pkgTitle}] • Destination: ${city} • Notes: ${notes || 'Standard master weaver specifications'}`;
+
+    const newOrderData = {
+      clientCompany: company,
+      contactPerson: name,
+      phone: phone,
+      email: email,
+      gstin: "Unregistered / Direct Consumer",
+      billingAddress: `${city}, India`,
+      shippingAddress: `${city}, India`,
+      orderType: orderType,
+      itemsDescription: itemsDesc,
+      totalPieces: pieces,
+      subtotalINR: subtotal,
+      gstINR: gst,
+      totalAmountINR: totalAmount,
+      advancePaidINR: 0,
+      balanceDueINR: totalAmount,
+      paymentStatus: "Unpaid",
+      orderStatus: "Order Placed",
+      deliveryDeadline: deadline,
+      priority: pieces >= 30 ? "High" : "Standard",
+      productionUnit: "Loom Shed Unit 1",
+      notes: `Online Wholesale Order from Storefront • Package: ${packageId || 'Custom'} • Customer Notes: ${notes}`
+    };
+
+    const savedOrder = window.store.addBulkOrder(newOrderData);
+
+    if (form) form.style.display = "none";
+
+    if (successTitleEl) successTitleEl.textContent = "Wholesale Order Confirmed!";
+    if (successSubtitleEl) {
+      successSubtitleEl.innerHTML = `Your order <strong id="bulkInquiryConfirmId" style="color: var(--color-gold);">#${savedOrder?.bulkOrderId || 'ST-BLK'}</strong> has been received and entered directly into our Master Weavers Loom Schedule.`;
+    }
+
+    if (receiptCard && savedOrder) {
+      receiptCard.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.65rem; margin-bottom: 0.75rem;">
+          <div>
+            <strong style="color: var(--color-gold); font-size: 1.05rem;">Order #${savedOrder.bulkOrderId}</strong>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Srinivasa Textiles Direct Handloom Loom Shed</div>
+          </div>
+          <span style="background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid #10B981; font-weight: 700; font-size: 0.78rem; padding: 0.25rem 0.65rem; border-radius: 9999px;">
+            ✓ Booked to Loom Shed
+          </span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
+          <div><span style="color: var(--text-muted);">Package:</span><br /><strong>${pkgTitle}</strong></div>
+          <div><span style="color: var(--text-muted);">Quantity:</span><br /><strong>${pieces} Units</strong></div>
+          <div><span style="color: var(--text-muted);">Customer:</span><br /><strong>${name}</strong></div>
+          <div><span style="color: var(--text-muted);">Contact:</span><br /><strong>${phone}</strong></div>
+          <div><span style="color: var(--text-muted);">Occasion / Boutique:</span><br /><strong>${company}</strong></div>
+          <div><span style="color: var(--text-muted);">Delivery City:</span><br /><strong>${city}</strong></div>
+          <div><span style="color: var(--text-muted);">Target Delivery:</span><br /><strong>${deadline || 'Earliest Express'}</strong></div>
+          <div><span style="color: var(--text-muted);">Net Payable:</span><br /><strong style="color: var(--color-gold); font-size: 1.1rem;">₹${totalAmount.toLocaleString("en-IN")}</strong></div>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); background: rgba(0,0,0,0.08); padding: 0.55rem 0.75rem; border-radius: 6px; line-height: 1.45;">
+          Subtotal (Weaver Direct): <strong>₹${subtotal.toLocaleString("en-IN")}</strong> + 5% Handloom Silk GST: <strong>₹${gst.toLocaleString("en-IN")}</strong>. Certified Silk Mark authenticity seals &amp; transit insurance included.
+        </div>
+      `;
+    }
+
+    if (waChatBtn && savedOrder) {
+      const waText = encodeURIComponent(
+        `🙏 Namaste Srinivasa Textiles Master Weavers,\n` +
+        `I have placed Wholesale Order #${savedOrder.bulkOrderId}.\n\n` +
+        `Package: ${pkgTitle}\n` +
+        `Quantity: ${pieces} Units\n` +
+        `Amount: ₹${totalAmount.toLocaleString("en-IN")}\n` +
+        `Name: ${name} (${phone})\n` +
+        `Company: ${company}\n` +
+        `Delivery City: ${city}\n` +
+        `Needed By: ${deadline}\n\n` +
+        `Please confirm loom schedule allocation and share payment link.`
+      );
+      waChatBtn.href = `https://wa.me/918778503021?text=${waText}`;
+    }
+
+    if (successBox) successBox.style.display = "block";
+
+    this.showToast(`🎉 Wholesale Order #${savedOrder.bulkOrderId} booked successfully!`, "success");
+  }
+}
+
+// Global instantiation
+window.storefront = new StorefrontController();

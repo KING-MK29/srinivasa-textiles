@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script>
+    (function () {
+      try {
+        // Purge legacy dark theme remnants so entire website strictly defaults to light mode
+        if (localStorage.getItem("st_active_theme_v3") === "dark" || localStorage.getItem("st_user_theme_chosen") === "true") {
+          localStorage.removeItem("st_active_theme_v3");
+          localStorage.removeItem("st_user_theme_chosen");
+        }
+        var hasChosen = localStorage.getItem("st_user_theme_chosen_v4");
+        var savedTheme = localStorage.getItem("st_active_theme_v4");
+        var theme = (hasChosen === "true" && savedTheme === "dark") ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", theme);
+
+        // Clear all persistent intro locks so opening animation always plays on fresh start and refresh
+        sessionStorage.removeItem("st_intro_seen");
+        localStorage.removeItem("st_intro_seen");
+
+        // Single-use skip: ONLY skip if user just clicked "Home" internally.
+        // Consume and delete the token IMMEDIATELY so it never lingers on refresh!
+        var skipOnce = false;
+        if (sessionStorage.getItem("st_skip_intro_once") === "true") {
+          skipOnce = true;
+          sessionStorage.removeItem("st_skip_intro_once");
+        }
+
+        if (skipOnce) {
+          document.documentElement.classList.add("st-preloader-skip");
+        } else {
+          document.documentElement.classList.remove("st-preloader-skip");
+        }
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+  </script>
+
+  <title>Srinivasa Textiles | Master Weavers &amp; Complete Family Textile Store Since 1978</title>
+  <meta name="description"
+    content="Discover pure Kanchipuram silk sarees, family matching combos, kids pattu pavadai, men's silk wedding dhotis, and newborn organic cotton jhablas. 100% Silk Mark certified." />
+  <meta name="keywords"
+    content="Family matching silk sets, Kanchipuram silk saree, kids pattu pavadai, men silk dhoti shirt, baby organic muslin, Silk Mark certified, Srinivasa Textiles" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <script src="js/security.js"></script>
+
+  <!-- Instant Speculative Prefetch for Zero-Lag Store Navigation -->
+  <link rel="prefetch" href="shop.html" as="document" />
+  <link rel="prefetch" href="css/storefront.css" as="style" />
+  <link rel="prefetch" href="js/storefront.js" as="script" />
+
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/storefront.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/mobile-ui.css" />
+  <link rel="stylesheet" href="css/scroll-animations.css" />
+</head>
+
+<body class="home-page">
+
+  <div id="sitePreloader" class="site-preloader" aria-label="Loading Srinivasa Textiles" role="status">
+    <div class="preloader-curtain preloader-curtain-left"></div>
+    <div class="preloader-curtain preloader-curtain-right"></div>
+
+    <div class="preloader-backdrop-glow"></div>
+    <div class="preloader-pattern-overlay"></div>
+
+    <div class="preloader-content">
+      <div class="preloader-logo-wrap">
+        <div class="preloader-aura-ring ring-outer"></div>
+        <div class="preloader-aura-ring ring-mid"></div>
+        <div class="preloader-logo-crest">
+          <svg class="preloader-crest-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle class="svg-orbit" cx="50" cy="50" r="44" stroke="url(#preloaderGoldGrad)" stroke-width="1.5"
+              stroke-dasharray="6 4" />
+            <circle class="svg-orbit-inner" cx="50" cy="50" r="36" stroke="url(#preloaderGoldGrad)" stroke-width="1.2"
+              opacity="0.8" />
+            <polygon points="50,10 90,50 50,90 10,50" stroke="url(#preloaderGoldGrad)" stroke-width="1.5" opacity="0.6"
+              fill="none" />
+            <polygon points="50,14 86,50 50,86 14,50" stroke="url(#preloaderGoldGradLight)" stroke-width="1"
+              opacity="0.4" fill="none" />
+
+            <path class="svg-thread t1" d="M20 50 L80 50" stroke="url(#preloaderGoldGrad)" stroke-width="2"
+              stroke-linecap="round" />
+            <path class="svg-thread t2" d="M50 20 L50 80" stroke="url(#preloaderGoldGrad)" stroke-width="2"
+              stroke-linecap="round" />
+            <path class="svg-thread t3" d="M28 28 L72 72" stroke="url(#preloaderGoldGradLight)" stroke-width="1.5"
+              stroke-linecap="round" />
+            <path class="svg-thread t4" d="M72 28 L28 72" stroke="url(#preloaderGoldGradLight)" stroke-width="1.5"
+              stroke-linecap="round" />
+
+            <circle class="svg-core-pulse" cx="50" cy="50" r="14" fill="url(#preloaderCrimsonGrad)"
+              stroke="url(#preloaderGoldGrad)" stroke-width="2" />
+            <path d="M41 50 Q50 37 59 50 Q50 63 41 50 Z" fill="url(#preloaderGoldGrad)" />
+            <circle cx="50" cy="50" r="3.5" fill="#FFF2B2" />
+
+            <defs>
+              <linearGradient id="preloaderGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FFF5CF" />
+                <stop offset="50%" stop-color="#D4AF37" />
+                <stop offset="100%" stop-color="#9E781B" />
+              </linearGradient>
+              <linearGradient id="preloaderGoldGradLight" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#D4AF37" />
+                <stop offset="100%" stop-color="#FFFBE6" />
+              </linearGradient>
+              <radialGradient id="preloaderCrimsonGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#9E163E" />
+                <stop offset="100%" stop-color="#4D051B" />
+              </radialGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <div class="preloader-brand-text">
+        <h1 class="preloader-brand-title">SRINIVASA</h1>
+        <div class="preloader-brand-divider">
+          <span class="p-line"></span>
+          <span class="p-ornament">❖</span>
+          <span class="p-line"></span>
+        </div>
+        <p class="preloader-brand-sub">TEXTILES • MASTER WEAVERS</p>
+        <span class="preloader-since">ESTD 1978 • KANCHIPURAM HERITAGE</span>
+      </div>
+
+      <div class="preloader-progress-box">
+        <div class="preloader-progress-bar">
+          <div class="preloader-progress-fill" id="preloaderProgressFill"></div>
+        </div>
+        <span class="preloader-status-text" id="preloaderStatusText">Weaving Pure Heritage Silk...</span>
+      </div>
+
+      <div class="preloader-cert-badge">
+        <span class="cert-icon">✨</span>
+        <span>100% Certified Pure Silk Mark Guaranteed</span>
+      </div>
+
+      <div class="preloader-action-wrap">
+        <button class="preloader-enter-btn" id="preloaderEnterBtn" aria-label="Enter Srinivasa Textiles Store">
+          <span>ENTER STORE</span>
+          <span class="btn-arrow">➔</span>
+        </button>
+        <span class="preloader-hint-text">Click to explore pure handloom collections</span>
+      </div>
+    </div>
+  </div>
+
+  <aside class="announcement-bar" aria-label="Heritage Quote & Announcement">
+    <div class="container">
+      <div class="announcement-content">
+        <div class="top-quote-banner" id="topQuoteBanner">
+          <div class="quote-main-wrap">
+            <span class="gold-icon" aria-hidden="true">✨</span>
+            <span class="gold-quote-mark">“</span><span class="quote-text" id="topQuoteText">Every thread woven with
+              pure devotion, every saree a timeless family legacy of love &amp; tradition.</span><span
+              class="gold-quote-mark">”</span>
+          </div>
+          <span class="quote-tag">✦ Master Weavers Since 1978</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div id="storefrontView">
+
+    <header class="main-header" id="mainHeader">
+      <div class="container">
+        <div class="nav-inner">
+
+          <a href="#home" class="brand-logo" id="globalBrandLogo" aria-label="Srinivasa Textiles Home">
+            <div class="brand-symbol">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 3v18"></path>
+                <path d="M3 12h18"></path>
+                <path d="m7 7 10 10"></path>
+                <path d="m17 7-10 10"></path>
+              </svg>
+            </div>
+            <div class="brand-text">
+              <h1>SRINIVASA TEXTILES</h1>
+              <span>ESTD 1978 • KANCHIPURAM</span>
+            </div>
+          </a>
+
+          <div class="header-actions">
+
+            <button class="feedback-nav-btn" id="feedbackTriggerBtn" title="Share Your Feedback & Reviews">
+              <span data-icon="feedback" class="feedback-btn-icon"></span> Share Feedback
+            </button>
+
+            <button class="search-trigger-btn" id="searchTriggerBtn" title="Search Textiles">
+              <span data-icon="search" class="st-icon-search"></span>
+            </button>
+
+            <button class="wishlist-btn favourites-trigger-btn" id="wishlistTriggerBtn" title="Saved Favourites"
+              aria-label="Open Saved Favourites">
+              <span data-icon="favourite" class="st-icon-favourite"></span>
+              <span class="badge-count" id="headerWishlistBadge">0</span>
+            </button>
+
+            <button class="cart-btn" id="cartTriggerBtn" title="Shopping Bag">
+              <span data-icon="cart" class="st-icon-cart"></span>
+              <span class="badge-count" id="headerCartBadge">0</span>
+            </button>
+
+            <button id="themeToggleBtn" class="theme-toggle-btn" title="Current: Light Mode (Click for Dark Mode 🌙)"
+              aria-label="Toggle Theme">
+              <span class="theme-icon">
+                <svg class="theme-svg-icon theme-icon-sun" width="20" height="20" viewBox="0 0 24 24"
+                  fill="rgba(252, 211, 77, 0.2)" stroke="#FCD34D" stroke-width="2.2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="theme-svg-icon theme-icon-moon" width="20" height="20" viewBox="0 0 24 24"
+                  fill="rgba(252, 211, 77, 0.2)" stroke="#FCD34D" stroke-width="2.2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                  <path d="M19 4v3M20.5 5.5h-3" stroke-width="1.8"></path>
+                </svg>
+              </span>
+              <span class="theme-label"> Light</span>
+            </button>
+
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Departments Menu"
+              title="Browse Departments &amp; Feedback">
+              <span data-icon="menu"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero-section home-only-section" aria-label="Hero Spotlight">
+      <div class="hero-overlay"></div>
+      <div class="container">
+        <div class="hero-content">
+          <div class="hero-pill">
+            <span>✨ Master Weavers &amp; Complete Family Textile Store • Estd 1978</span>
+          </div>
+
+          <h2 class="hero-title">
+            SRINIVASA TEXTILES
+            <span class="gold-text hero-subtitle">Authentic Handlooms for the Entire Family</span>
+          </h2>
+
+          <p class="hero-desc">
+            Directly from our heritage pit-looms in Kanchipuram. Weaving royal bridal silks, coordinated family matching
+            sets, scratch-free girls' pattu pavadai, men's pure mulberry silk dhotis, and organic baby muslins for three
+            generations.
+          </p>
+
+          <div class="hero-stats-row">
+            <div class="hero-stat-item">
+              <span class="hero-stat-number">48+ Years</span>
+              <span class="hero-stat-label">Weaving Legacy</span>
+            </div>
+            <div class="hero-stat-item">
+              <span class="hero-stat-number">10,000+</span>
+              <span class="hero-stat-label">Artisan Looms</span>
+            </div>
+            <div class="hero-stat-item">
+              <span class="hero-stat-number">100% SMOI</span>
+              <span class="hero-stat-label">Certified Pure Silk</span>
+            </div>
+            <div class="hero-stat-item">
+              <span class="hero-stat-number">50,000+</span>
+              <span class="hero-stat-label">Happy Families</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mobile-fabric-grid-section" aria-label="Shop by Fabric Type">
+      <div class="section-header" style="margin-bottom: 1.25rem;">
+        <span class="section-tag" style="font-size: 0.7rem;">🧵 Master Weaver Looms</span>
+        <h3
+          style="font-family: var(--font-serif-display); font-size: 1.35rem; color: var(--color-primary); margin: 0.25rem 0;">
+          Shop by Fabric</h3>
+      </div>
+      <div class="mobile-fabric-grid">
+        <div class="mobile-fabric-item"
+          onclick="if(window.navigateToShop){window.navigateToShop('shop.html?fabric=Kanchipuram Silk');}else{window.location.href='loading.html?target=' + encodeURIComponent('shop.html?fabric=Kanchipuram Silk');}">
+          <div class="mobile-fabric-icon">👑</div>
+          <div class="mobile-fabric-name">Kanchipuram</div>
+          <div class="mobile-fabric-sub">Pure Silk Mark</div>
+        </div>
+        <div class="mobile-fabric-item"
+          onclick="if(window.navigateToShop){window.navigateToShop('shop.html?fabric=Cotton');}else{window.location.href='loading.html?target=' + encodeURIComponent('shop.html?fabric=Cotton');}">
+          <div class="mobile-fabric-icon">🌿</div>
+          <div class="mobile-fabric-name">Pure Cotton</div>
+          <div class="mobile-fabric-sub">Organic &amp; Soft</div>
+        </div>
+        <div class="mobile-fabric-item"
+          onclick="if(window.navigateToShop){window.navigateToShop('shop.html?fabric=Pure Linen');}else{window.location.href='loading.html?target=' + encodeURIComponent('shop.html?fabric=Pure Linen');}">
+          <div class="mobile-fabric-icon">🌾</div>
+          <div class="mobile-fabric-name">Pure Linen</div>
+          <div class="mobile-fabric-sub">French Flax Weave</div>
+        </div>
+        <div class="mobile-fabric-item"
+          onclick="if(window.navigateToShop){window.navigateToShop('shop.html?fabric=Banarasi Silk');}else{window.location.href='loading.html?target=' + encodeURIComponent('shop.html?fabric=Banarasi Silk');}">
+          <div class="mobile-fabric-icon">✨</div>
+          <div class="mobile-fabric-name">Banarasi Silk</div>
+          <div class="mobile-fabric-sub">Katan Gold Weave</div>
+        </div>
+        <div class="mobile-fabric-item"
+          onclick="if(window.navigateToShop){window.navigateToShop('shop.html?fabric=Tussar Silk');}else{window.location.href='loading.html?target=' + encodeURIComponent('shop.html?fabric=Tussar Silk');}">
+          <div class="mobile-fabric-icon">🍂</div>
+          <div class="mobile-fabric-name">Tussar Silk</div>
+          <div class="mobile-fabric-sub">Wild Forest Sheen</div>
+        </div>
+        <div class="mobile-fabric-item"
+          onclick="if(window.navigateToShop){window.navigateToShop('shop.html?fabric=Pure Mulberry Silk');}else{window.location.href='loading.html?target=' + encodeURIComponent('shop.html?fabric=Pure Mulberry Silk');}">
+          <div class="mobile-fabric-icon">🏛️</div>
+          <div class="mobile-fabric-name">Mulberry Silk</div>
+          <div class="mobile-fabric-sub">Heirloom Grade</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="mobile-trust-badges" aria-label="Customer Guarantees">
+      <div class="mobile-trust-badge-item">
+        <span class="mobile-trust-icon">🚚</span>
+        <strong>Free Shipping</strong>
+        <span>All India Above ₹1,999</span>
+      </div>
+      <div class="mobile-trust-badge-item">
+        <span class="mobile-trust-icon">💵</span>
+        <strong>Cash on Delivery</strong>
+        <span>Available Across India</span>
+      </div>
+      <div class="mobile-trust-badge-item">
+        <span class="mobile-trust-icon">🔄</span>
+        <strong>100% Silk Mark</strong>
+        <span>Easy Returns Assured</span>
+      </div>
+    </div>
+
+    <section class="section home-only-section"
+      style="background: var(--bg-surface); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Flagship Establishment</span>
+          <h2 class="section-title">Our Grand Heritage Showroom</h2>
+          <p class="section-subtitle">Located in the historic temple city of Kanchipuram, our multi-storey showroom
+            welcomes families from across India and worldwide.</p>
+          <div class="section-divider"><span class="section-divider-motif">✦</span></div>
+        </div>
+
+        <div class="building-showcase-grid">
+          <div class="building-media-card">
+            <img src="assets/images/textile_building.jpg"
+              alt="Srinivasa Textiles Grand Showroom Building in Kanchipuram" />
+            <div class="building-badge">
+              <strong>🏛️ Kanchipuram Flagship Showroom</strong>
+              <span>108 Raja Veedhi, Temple District • Estd 1978</span>
+            </div>
+          </div>
+
+          <div class="building-content">
+            <span class="section-tag" style="margin-bottom: 0.75rem;">Heritage Destination</span>
+            <h3
+              style="font-family: var(--font-serif-display); font-size: 1.85rem; color: var(--color-primary); margin-bottom: 1rem;">
+              Where Tradition Meets Timeless Elegance
+            </h3>
+            <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1.25rem;">
+              Step inside our iconic Dravidian architectural showroom. Designed with carved teakwood pillars,
+              air-conditioned family drape lounges, and private bridal silk consultation chambers, every visit is a
+              celebration of South Indian heritage.
+            </p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem;">
+              <div
+                style="background: var(--bg-surface-alt); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <strong style="display: block; color: var(--color-gold); font-size: 0.9rem; margin-bottom: 0.25rem;">🏰
+                  4-Storey Showroom</strong>
+                <span style="font-size: 0.775rem; color: var(--text-muted);">Dedicated floors for Women, Men, Kids &amp;
+                  Babies</span>
+              </div>
+              <div
+                style="background: var(--bg-surface-alt); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <strong
+                  style="display: block; color: var(--color-success); font-size: 0.9rem; margin-bottom: 0.25rem;">👨‍👩‍👧‍👦
+                  Family Color Lounge</strong>
+                <span style="font-size: 0.775rem; color: var(--text-muted);">Specialized lighting to test zari luster
+                  &amp; matching dyes</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 1.75rem;">
+              <a href="https://maps.google.com" target="_blank" class="btn btn-outline btn-sm"
+                style="text-decoration: none !important;">📍 Get Showroom Directions ➔</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section home-only-section" style="background: var(--bg-surface-alt);">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Master Weaver &amp; Founder</span>
+          <h2 class="section-title">Meet Our Founder &amp; Master Draper</h2>
+          <p class="section-subtitle">Dedicated to preserving the authenticity of pure pit-loom weaving and scratch-free
+            comfort for all generations.</p>
+          <div class="section-divider"><span class="section-divider-motif">✦</span></div>
+        </div>
+
+        <div class="owner-showcase-grid">
+          <div class="owner-media-box">
+            <img src="assets/images/artisan_loom.jpg" alt="Shri Srinivasa Mudaliar, Master Weaver and Founder" />
+            <div class="building-badge">
+              <strong>Shri Srinivasa Mudaliar</strong>
+              <span>Founder &amp; Master Weaver • 48 Years at the Loom</span>
+            </div>
+          </div>
+
+          <div class="owner-content">
+            <span class="section-tag" style="margin-bottom: 0.75rem;">The Founder's Promise</span>
+            <h3
+              style="font-family: var(--font-serif-display); font-size: 1.85rem; color: var(--color-primary); margin-bottom: 0.75rem;">
+              "Every thread of silk we weave carries the sanctity of our family's blessing."
+            </h3>
+
+            <div class="owner-quote-box">
+              "When I founded Srinivasa Textiles in 1978, our singular goal was to ensure that when a family dresses for
+              a wedding or milestone festival, every member—from the grandparent in pure mulberry silk to the newborn in
+              organic muslin—experiences supreme purity and scratch-free comfort."
+            </div>
+
+            <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.7;">
+              Under Shri Srinivasa's stewardship, over 10,000 artisan weaver families have been supported across
+              Kanchipuram and Arani. Every silk saree is tested for certified SMOI Silk Mark silver-tested zari purity.
+            </p>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap;">
+              <span class="cert-pill cert-pill-gold">✨ SMOI Silk Mark Certified</span>
+              <span class="cert-pill cert-pill-emerald">🛡️ Soft Cotton Inner-Lining Guarantee</span>
+              <span class="cert-pill cert-pill-emerald">🌿 GOTS Organic Newborn Muslin</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section home-only-section"
+      style="background: var(--bg-surface); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+      <div class="container">
+        <div class="heritage-story-grid">
+          <div class="heritage-media-box">
+            <img src="assets/images/kanchipuram_weave_closeup.jpg" alt="Intricate Korvai Handloom Weaving Close Up" />
+            <div class="heritage-floating-badge">
+              <strong>100% Handloom</strong>
+              <span>Korvai Interlocking Weave</span>
+            </div>
+          </div>
+
+          <div class="heritage-content">
+            <span class="section-tag">About Srinivasa Textiles</span>
+            <h2>The Heritage Craft of Kanchipuram Silk</h2>
+            <p>
+              Since 1978, the master weavers of Srinivasa Textiles have preserved ancient pit-loom techniques. Each
+              heirloom saree takes up to 28 days of meticulous craftsmanship using 3-ply twisted mulberry silk yarns and
+              genuine silver-electroplated tested gold zari.
+            </p>
+            <p>
+              Our family matching ensembles are dyed together in unified ritual dye baths, guaranteeing 100% color
+              fidelity across men's, women's, and children's festive attire.
+            </p>
+
+            <div class="heritage-pillars">
+              <div class="heritage-pillar-card">
+                <strong>🏛️ Silk Mark SMOI Certified</strong>
+                <span>Pure mulberry silk purity guaranteed by central silk board.</span>
+              </div>
+              <div class="heritage-pillar-card">
+                <strong>🛡️ Soft Cotton Inner Linings</strong>
+                <span>Zero itchiness or zari scratching for babies and children.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="explore-cta-section home-only-section" aria-label="Explore Collections & Video Shopping Banner">
+      <div class="container">
+        <div class="explore-cta-card">
+          <span class="section-tag"
+            style="background: rgba(255,255,255,0.15); color: #FFF2B2; border-color: var(--color-gold);">✨ Master
+            Weavers
+            Heritage Showroom</span>
+          <h2>Ready to Discover Our Complete Family Handloom Collections?</h2>
+          <p>
+            Step inside our digital multi-department shopping hub or connect directly with our master weavers for a
+            personalized live video shopping consultation.
+          </p>
+          <div class="explore-cta-actions"
+            style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 1.75rem;">
+            <a href="loading.html?target=shop.html"
+              onclick="event.preventDefault(); if(window.navigateToShop){window.navigateToShop('shop.html');}else{window.location.href='loading.html?target=shop.html';}"
+              class="btn btn-gold btn-lg" id="homeBottomExploreBtn"
+              style="font-weight: 800; min-width: 240px; text-decoration: none;">
+              Explore All Collections ➔
+            </a>
+            <a href="https://wa.me/918778503021?text=Hello%20Srinivasa%20Textiles,%20I%20would%20like%20to%20book%20a%20Family%20Video%20Shopping%20Consultation."
+              target="_blank" class="btn btn-outline-gold btn-lg"
+              style="font-weight: 800; min-width: 240px; border-width: 2px; text-decoration: none; border-color: var(--color-gold);">
+              <span data-icon="videoCall" class="btn-video-icon"></span> Video Shopping Call
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <h3>
+              <span class="footer-brand-logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <path d="M12 3v18"></path>
+                  <path d="M3 12h18"></path>
+                  <path d="m7 7 10 10"></path>
+                  <path d="m17 7-10 10"></path>
+                </svg>
+              </span>
+              SRINIVASA TEXTILES
+            </h3>
+            <p>Master Weavers &amp; Complete Family Textile Store Since 1978. Preserving the traditional art of Indian
+              handloom weaving for all generations.</p>
+            <div class="footer-certifications">
+              <span class="cert-pill"><span data-icon="sparkle" data-icon-size="14"></span> SMOI Silk Mark</span>
+              <span class="cert-pill"><span data-icon="leaf" data-icon-size="14"></span> GOTS Organic</span>
+              <span class="cert-pill"><span data-icon="shield" data-icon-size="14"></span> Soft Lining Guarantee</span>
+            </div>
+          </div>
+
+          <!-- Mobile Carousel Navigation Tabs -->
+          <div class="footer-carousel-nav" id="footerCarouselNav">
+            <button type="button" class="footer-nav-tab active" data-slide="0" onclick="window.storefront && window.storefront.scrollFooterSlide(0)">
+              <span>🏛️ Family Departments</span>
+            </button>
+            <button type="button" class="footer-nav-tab" data-slide="1" onclick="window.storefront && window.storefront.scrollFooterSlide(1)">
+              <span>🛎️ Customer Services</span>
+            </button>
+          </div>
+
+          <div class="footer-carousel-wrapper" id="footerCarouselWrapper">
+            <button type="button" class="footer-carousel-arrow footer-arrow-prev" id="footerArrowPrev" aria-label="Previous Footer Section" onclick="window.storefront && window.storefront.scrollFooterSlide(0)">‹</button>
+            <div class="footer-columns-scroll" id="footerColumnsScroll">
+              <div class="footer-col footer-col-card" id="footerSlide0">
+                <h4>Family Departments</h4>
+                <ul class="footer-links">
+                  <li><a href="#family-combos" onclick="window.storefront.navigateToPage('family')"><span data-icon="family"
+                        class="footer-dept-icon"></span> Family Matching Sets</a>
+                  </li>
+                  <li><a href="#women" onclick="window.storefront.navigateToPage('women')"><span data-icon="ladies"
+                        class="footer-dept-icon"></span> Ladies' Silk Sarees</a></li>
+                  <li><a href="#girls" onclick="window.storefront.navigateToPage('girls')"><span data-icon="girls"
+                        class="footer-dept-icon"></span> Girls' Pattu Pavadai (2-14Y)</a>
+                  </li>
+                  <li><a href="#boys" onclick="window.storefront.navigateToPage('boys')"><span data-icon="boys"
+                        class="footer-dept-icon"></span> Boys' Kurta Dhoti Sets (2-14Y)</a>
+                  </li>
+                  <li><a href="#men" onclick="window.storefront.navigateToPage('men')"><span data-icon="mens"
+                        class="footer-dept-icon"></span> Men's Wedding Silk Shirts</a></li>
+                  <li><a href="#infants" onclick="window.storefront.navigateToPage('infants')"><span data-icon="baby"
+                        class="footer-dept-icon"></span> Born Babies Muslin
+                      (0-2Y)</a></li>
+                </ul>
+              </div>
+
+              <div class="footer-col footer-col-card" id="footerSlide1">
+                <h4>Customer Services</h4>
+                <ul class="footer-links">
+                  <li><a href="javascript:void(0)"
+                      onclick="document.getElementById('feedbackModal').classList.add('active')"><span data-icon="feedback"
+                        class="footer-link-icon"></span> Customer Feedback &amp;
+                      Reviews</a></li>
+                  <li><a
+                      href="https://wa.me/918778503021?text=Namaste%20Srinivasa%20Textiles%2C%20I%20would%20like%20to%20inquire%20about%20Wholesale%20and%20Bulk%20Orders%20for%20Handloom%20Silk%20Sarees%20and%20Family%20Combos."
+                      target="_blank"><span data-icon="receipt" class="footer-link-icon"></span> Wholesale &amp; Bulk
+                      Orders</a></li>
+                  <li><a href="shop.html"><span data-icon="sparkle" class="footer-link-icon"></span> Track Courier Dispatch</a></li>
+                </ul>
+              </div>
+            </div>
+            <button type="button" class="footer-carousel-arrow footer-arrow-next" id="footerArrowNext" aria-label="Next Footer Section" onclick="window.storefront && window.storefront.scrollFooterSlide(1)">›</button>
+          </div>
+
+          <div class="footer-carousel-indicators" id="footerCarouselDots">
+            <button type="button" class="footer-dot active" data-index="0" aria-label="Go to Family Departments" onclick="window.storefront && window.storefront.scrollFooterSlide(0)"></button>
+            <button type="button" class="footer-dot" data-index="1" aria-label="Go to Customer Services" onclick="window.storefront && window.storefront.scrollFooterSlide(1)"></button>
+          </div>
+
+        </div>
+
+        <div class="footer-columns-swipe-hint">
+          <span>⇄ Swipe sideways to explore departments &amp; services</span>
+        </div>
+
+        <div class="footer-bottom">
+          <div>
+            <p>© 2026 Srinivasa Textiles. All Rights Reserved. Master Weavers Since 1978.</p>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">GSTIN: 33AABCS9876C1ZT | 108
+              Raja Veedhi,
+              Kanchipuram, Tamil Nadu - 631501</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+
+  <div class="mobile-nav-drawer" id="mobileNavDrawer" role="dialog" aria-modal="true">
+    <div class="mobile-nav-header">
+      <div class="mobile-nav-title">
+        <div class="brand-symbol mobile-nav-symbol">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 3v18"></path>
+            <path d="M3 12h18"></path>
+            <path d="m7 7 10 10"></path>
+            <path d="m17 7-10 10"></path>
+          </svg>
+        </div>
+        <div>
+          <h3>Srinivasa Textiles</h3>
+          <small>Handloom Master Weavers • Estd 1978</small>
+        </div>
+      </div>
+      <button class="pdp-close-btn" id="mobileNavCloseBtn" title="Close Menu">✕</button>
+    </div>
+
+    <div class="mobile-nav-body">
+      <div class="mobile-nav-section-title">✨ BROWSE DEPARTMENTS</div>
+      <ul class="mobile-dept-list">
+        <li><button class="mobile-dept-btn active" data-page="explore"><span data-icon="palace"
+              class="drawer-dept-icon"></span> All Collections (Explore)</button></li>
+        <li><button class="mobile-dept-btn highlight-combo" data-page="family"><span data-icon="family"
+              class="drawer-dept-icon"></span> Family Combos &amp; Matching Sets</button></li>
+        <li><button class="mobile-dept-btn" data-page="women"><span data-icon="ladies" class="drawer-dept-icon"></span>
+            Ladies' Sarees &amp; Ethnic</button></li>
+        <li><button class="mobile-dept-btn" data-page="girls"><span data-icon="girls" class="drawer-dept-icon"></span>
+            Girls (Pattu Pavadai 2-14Y)</button></li>
+        <li><button class="mobile-dept-btn" data-page="boys"><span data-icon="boys" class="drawer-dept-icon"></span>
+            Boys (Kurta &amp; Dhoti 2-14Y)</button></li>
+        <li><button class="mobile-dept-btn" data-page="men"><span data-icon="mens" class="drawer-dept-icon"></span>
+            Men's Silk &amp; Dhotis</button></li>
+        <li><button class="mobile-dept-btn" data-page="infants"><span data-icon="baby" class="drawer-dept-icon"></span>
+            Born Babies &amp; Infants (0-2Y)</button></li>
+      </ul>
+
+      <div class="mobile-nav-divider"></div>
+
+      <div class="mobile-nav-section-title">❤️ SAVED FAVOURITES</div>
+      <button class="mobile-drawer-action-btn favourites-trigger-btn" id="mobileWishlistBtn"
+        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <span style="display: flex; align-items: center; gap: 0.5rem;">
+          <span data-icon="favourite" class="drawer-icon-img"></span> My Saved Favourites
+        </span>
+        <span class="badge-count wishlist-count-badge" style="position: static; display: inline-flex;">0</span>
+      </button>
+
+      <div class="mobile-nav-divider"></div>
+
+      <div class="mobile-nav-section-title">🛍️ SHOPPING BAG</div>
+      <button class="mobile-drawer-action-btn" id="mobileCartBtn"
+        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <span style="display: flex; align-items: center; gap: 0.5rem;">
+          <span data-icon="cart" class="drawer-icon-img"></span> My Shopping Bag
+        </span>
+        <span class="badge-count cart-count-badge" id="mobileCartBadge"
+          style="position: static; display: inline-flex;">0</span>
+      </button>
+
+      <div class="mobile-nav-divider"></div>
+
+      <div class="mobile-nav-section-title">🌟 CUSTOMER REVIEWS &amp; FEEDBACK</div>
+      <button class="mobile-drawer-action-btn mobile-feedback-trigger-btn" id="mobileFeedbackBtn">
+        <span data-icon="feedback" class="drawer-icon-img"></span> Share Your Review &amp; Feedback
+      </button>
+
+      <div class="mobile-nav-divider"></div>
+
+      <div class="mobile-nav-section-title">🌓 DISPLAY THEME</div>
+      <button type="button" class="mobile-drawer-action-btn" id="mobileDrawerThemeBtn"
+        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <span style="display: flex; align-items: center; gap: 0.65rem;">
+          <span class="drawer-theme-icon" id="mobileDrawerThemeIcon" style="font-size: 1.15rem;">🌙</span>
+          <span id="mobileDrawerThemeLabel" style="font-weight: 700;">Dark Theme</span>
+        </span>
+        <span class="badge-count theme-status-pill" id="mobileDrawerThemeStatus"
+          style="position: static; display: inline-flex; background: rgba(212, 175, 55, 0.15); color: var(--color-gold); font-weight: 800; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--color-gold); font-size: 0.72rem;">Light</span>
+      </button>
+
+      <div class="mobile-nav-divider"></div>
+
+      <div class="mobile-nav-section-title">📍 FLAGSHIP SHOWROOM &amp; SUPPORT</div>
+      <div class="mobile-nav-info-card">
+        <strong><span data-icon="palace" data-icon-size="16"></span> Kanchipuram Showroom</strong>
+        <p>108 Raja Veedhi, Temple District, Kanchipuram - 631501</p>
+        <div style="margin-top: 0.65rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <a href="https://maps.google.com" target="_blank" class="btn btn-outline btn-xs"
+            style="text-decoration: none !important; padding: 0.35rem 0.65rem; font-size: 0.72rem;"><span
+              data-icon="mapPin" data-icon-size="12"></span> Directions</a>
+          <a href="tel:+918778503021" class="btn btn-outline btn-xs"
+            style="text-decoration: none !important; padding: 0.35rem 0.65rem; font-size: 0.72rem;"><span
+              data-icon="phone" data-icon-size="12"></span> Call Support</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-overlay" id="mobileNavOverlay"></div>
+
+  <div class="search-bar-modal" id="searchBarModal" role="dialog" aria-modal="true">
+    <div class="search-modal-container">
+      <div class="search-input-wrapper">
+        <input type="text" id="headerSearchInput"
+          placeholder="Search pure silk sarees, dhotis, kids pattu pavadai, lehengas, festive combos..."
+          autocomplete="off" />
+        <button class="search-close-btn" id="searchCloseBtn" title="Close Search">✕</button>
+      </div>
+      <div class="search-live-results" id="searchLiveResults"></div>
+    </div>
+  </div>
+
+  <div class="owner-auth-modal" id="ownerAuthModal" role="dialog" aria-modal="true">
+    <div class="owner-auth-box">
+      <button class="pdp-close-btn" id="ownerAuthCloseBtn" title="Close">✕</button>
+      <div class="owner-auth-emblem" data-icon="crown"></div>
+      <h3>Store Owner Console</h3>
+      <p class="owner-auth-subtitle">
+        Restricted Security Gateway • Handloom Master Management Hub
+      </p>
+
+      <div id="ownerAuthErrorMsg" class="owner-auth-error" style="display: none;"></div>
+
+      <div class="owner-input-group">
+        <label for="ownerUsernameInput">Owner Username / ID:</label>
+        <div class="owner-input-wrapper">
+          <span class="owner-input-icon"><span data-icon="user"></span></span>
+          <input type="text" id="ownerUsernameInput" class="owner-input-field" placeholder="Enter Owner ID"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
+            data-form-type="other" readonly onfocus="this.removeAttribute('readonly');" />
+        </div>
+      </div>
+
+      <div class="owner-input-group">
+        <label for="ownerPasswordInput">Master Security PIN / Password:</label>
+        <div class="owner-input-wrapper">
+          <span class="owner-input-icon"><span data-icon="lock"></span></span>
+          <input type="password" id="ownerPasswordInput" class="owner-input-field"
+            placeholder="Enter Security Password or PIN" autocomplete="new-password" autocorrect="off"
+            autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly
+            onfocus="this.removeAttribute('readonly');" />
+          <button type="button" id="toggleOwnerPassBtn" class="owner-pass-toggle" title="Show/Hide Password"><span
+              data-icon="eye"></span></button>
+        </div>
+      </div>
+
+      <button class="owner-submit-btn" id="ownerAuthSubmitBtn">Unlock Owner Console <span
+          data-icon="arrowRight"></span></button>
+    </div>
+  </div>
+
+  <div class="feedback-modal" id="feedbackModal" role="dialog" aria-modal="true">
+    <div class="feedback-box">
+      <button class="pdp-close-btn" id="feedbackCloseBtn" title="Close">✕</button>
+
+      <div id="feedbackFormContainer">
+        <div class="feedback-header">
+          <div class="feedback-header-icon" data-icon="feedback"></div>
+          <h3>Customer Review &amp; Feedback</h3>
+          <p>
+            Your experience matters to our master weaving family. Share your feedback on fabric purity, skin softness,
+            and weave luster.
+          </p>
+        </div>
+
+        <!-- Star Rating Widget -->
+        <div class="star-rating-widget" id="feedbackRatingWidget">
+          <label class="star-rating-label">Overall Patron Experience Rating:</label>
+
+          <div class="star-rating-selector" id="feedbackStarSelector" role="radiogroup" aria-label="Customer Experience Rating" data-svg-elevated="true">
+            <button type="button" class="star-rating-btn active" data-rating="1" role="radio" aria-checked="false" aria-label="1 Star: Disappointing / Needs Improvement" tabindex="0">
+              <svg class="star-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 2.25l2.97 6.01 6.64.97-4.8 4.68 1.13 6.61L12 17.4l-5.94 3.12 1.13-6.61-4.8-4.68 6.64-.97L12 2.25z"/>
+              </svg>
+            </button>
+            <button type="button" class="star-rating-btn active" data-rating="2" role="radio" aria-checked="false" aria-label="2 Stars: Fair / Scope for Improvement" tabindex="0">
+              <svg class="star-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 2.25l2.97 6.01 6.64.97-4.8 4.68 1.13 6.61L12 17.4l-5.94 3.12 1.13-6.61-4.8-4.68 6.64-.97L12 2.25z"/>
+              </svg>
+            </button>
+            <button type="button" class="star-rating-btn active" data-rating="3" role="radio" aria-checked="false" aria-label="3 Stars: Good / Satisfactory Experience" tabindex="0">
+              <svg class="star-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 2.25l2.97 6.01 6.64.97-4.8 4.68 1.13 6.61L12 17.4l-5.94 3.12 1.13-6.61-4.8-4.68 6.64-.97L12 2.25z"/>
+              </svg>
+            </button>
+            <button type="button" class="star-rating-btn active" data-rating="4" role="radio" aria-checked="false" aria-label="4 Stars: Very Good / Premium Handloom Quality" tabindex="0">
+              <svg class="star-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 2.25l2.97 6.01 6.64.97-4.8 4.68 1.13 6.61L12 17.4l-5.94 3.12 1.13-6.61-4.8-4.68 6.64-.97L12 2.25z"/>
+              </svg>
+            </button>
+            <button type="button" class="star-rating-btn active" data-rating="5" role="radio" aria-checked="true" aria-label="5 Stars: Masterpiece / Exceptional Pure Silk" tabindex="0">
+              <svg class="star-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 2.25l2.97 6.01 6.64.97-4.8 4.68 1.13 6.61L12 17.4l-5.94 3.12 1.13-6.61-4.8-4.68 6.64-.97L12 2.25z"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Dynamic Live Rating Feedback Response Box -->
+          <div class="rating-feedback-callout" id="ratingFeedbackCallout" aria-live="polite">
+            <div class="rating-score-pill" id="ratingScorePill">
+              <span class="rating-score-number" id="ratingScoreNumber">5.0</span>
+              <span class="rating-score-max">/ 5</span>
+            </div>
+            <div class="rating-descriptor-wrap">
+              <div class="rating-descriptor-title" id="ratingDescriptorTitle">Masterpiece Handloom! 👑</div>
+              <div class="rating-descriptor-subtitle" id="ratingDescriptorSubtitle">Exceptional pure zari weave, heirloom softness &amp; royal luster</div>
+            </div>
+          </div>
+
+          <input type="hidden" id="feedbackRatingVal" value="5" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label
+            style="font-size: 0.85rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.5rem; display: block;">Your
+            Review &amp; Weaving Feedback *</label>
+          <textarea id="feedbackCommentInput" class="form-control" rows="4"
+            placeholder="Share your experience on fabric purity, skin softness, weave luster, or festive celebration..."
+            required></textarea>
+        </div>
+
+        <button class="btn btn-gold btn-lg" id="submitFeedbackBtn" style="width: 100%;">Submit Feedback ➔</button>
+      </div>
+
+      <div id="feedbackSuccessContainer" style="display: none;" class="feedback-success-card">
+        <div class="success-icon">🎉</div>
+        <h3 style="font-family: var(--font-serif-display); color: var(--color-primary); margin-bottom: 0.5rem;">Thank
+          You, Valued Customer!</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 440px; margin: 0 auto 1.5rem;">
+          Your feedback has been received and added to our live Customer Stories. Our master weavers are deeply grateful
+          for your blessings.
+        </p>
+
+        <button class="btn btn-primary btn-sm" id="feedbackCloseSuccessBtn">Continue Exploring Collections</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="pdp-modal" id="bulkInquiryModal" role="dialog" aria-modal="true">
+    <div class="bulk-inquiry-dialog">
+      <div class="bulk-inquiry-header">
+        <div class="bulk-inquiry-header-left">
+          <div class="bulk-inquiry-icon-box" id="bulkInquiryHeaderIcon">
+            🏢
+          </div>
+          <div class="bulk-inquiry-title-wrap">
+            <h3 id="bulkInquiryHeaderTitle">Direct Handloom Wholesale &amp; Bulk Order</h3>
+            <p id="bulkInquiryHeaderSubtitle">Master Weaver Direct Pricing • Certified Kanchipuram Pure Silk Handloom
+            </p>
+          </div>
+        </div>
+        <button type="button" class="pdp-close-btn bulk-inquiry-close-btn" id="closeBulkInquiryModalBtn"
+          title="Close Inquiry Modal">✕</button>
+      </div>
+
+      <!-- MAIN MODAL GRID -->
+      <div class="bulk-modal-grid" id="bulkModalMainGrid">
+        <!-- LEFT COLUMN: Product showcase (Mode A) OR Custom Bespoke Showcase (Mode B) -->
+        <div class="bulk-modal-details-col" id="bulkModalDetailsCol">
+          <div class="bulk-modal-img-wrap">
+            <img id="bulkModalImg" src="assets/images/hero_banner.jpg" alt="Bulk Package" />
+            <span class="bulk-card-badge" id="bulkModalBadge">👑 Bridal Troupe Favorite</span>
+            <span class="bulk-card-discount-tag" id="bulkModalDiscountTag">50% WHOLESALE SAVINGS</span>
+          </div>
+
+          <div class="bulk-modal-meta">
+            <span class="bulk-card-category" id="bulkModalCategory">WEDDING TROUPE</span>
+            <h3 class="bulk-modal-product-title" id="bulkModalTitle">Grand Muhurtham Wedding Bridal Trousseau Lot</h3>
+            <p class="bulk-modal-product-desc" id="bulkModalDesc">Authentic Kanchipuram bridal silk sarees with heavy
+              contrast zari pallu and rich borders directly from our master handlooms.</p>
+          </div>
+
+          <div class="bulk-modal-specs-list" id="bulkModalSpecsList">
+            <div class="bulk-spec-item" id="bulkModalSpecFabric">
+              <span class="spec-icon">🧵</span>
+              <div><strong>Master Weave:</strong> <span id="bulkModalFabric">100% Pure Kanchipuram Mulberry Silk with
+                  Korvai Interlocking Weave</span></div>
+            </div>
+            <div class="bulk-spec-item" id="bulkModalSpecInclusions">
+              <span class="spec-icon">📦</span>
+              <div><strong>Set Inclusions:</strong> <span id="bulkModalInclusions">Assorted Bridal Palette &amp;
+                  Matching Unstitched Blouse</span></div>
+            </div>
+            <div class="bulk-spec-item" id="bulkModalSpecTimeline">
+              <span class="spec-icon">⏱️</span>
+              <div><strong>Dispatch &amp; Delivery:</strong> <span id="bulkModalTimeline">Express 7-10 Days Direct
+                  Dispatch</span></div>
+            </div>
+            <div class="bulk-spec-item">
+              <span class="spec-icon">🏛️</span>
+              <div><strong>Authenticity:</strong> <span>Certified Silk Mark Organisation of India (SMOI) 100% Pure
+                  Tested Silk</span></div>
+            </div>
+            <div class="bulk-spec-item">
+              <span class="spec-icon">🛡️</span>
+              <div><strong>Quality Assurance:</strong> <span>Zero middleman markup, weaver direct testing certificate
+                  &amp; insurance in transit</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Order / Custom Quote Form -->
+        <div class="bulk-modal-order-col">
+          <form id="customerBulkInquiryForm" class="bulk-order-form">
+            <input type="hidden" id="bulkInquiryPackageId" value="" />
+
+            <!-- PACKAGE MODE: Live Rate & Cost Calculator -->
+            <div class="bulk-live-calc-card" id="bulkPackageCalcCard" style="display: none;">
+              <div class="bulk-rates-row">
+                <div class="rate-item">
+                  <span class="rate-lbl">Direct Wholesale Rate</span>
+                  <span class="rate-val" id="calcUnitRate">₹18,500</span>
+                </div>
+                <div class="rate-item">
+                  <span class="rate-lbl">Showroom MRP</span>
+                  <span class="rate-val retail-mrp" id="calcRetailMrp">₹37,000</span>
+                </div>
+                <span class="bulk-moq-pill" id="calcMoqBadge">MOQ: 10 Sets</span>
+              </div>
+
+              <div class="bulk-qty-selector-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label for="bulkCustPieces" class="bulk-form-label" style="margin: 0; font-weight: 700;">
+                    <span>🔢</span> Order Quantity (Units):
+                  </label>
+                  <small style="color: var(--color-gold); font-size: 0.75rem;" id="calcUnitLabel">Min Order Quantity:
+                    10</small>
+                </div>
+                <div class="bulk-stepper-control">
+                  <button type="button" class="stepper-btn" id="bulkQtyMinus" title="Decrease Quantity">-</button>
+                  <input type="number" id="bulkCustPieces" class="stepper-input" min="1" value="10" />
+                  <button type="button" class="stepper-btn" id="bulkQtyPlus" title="Increase Quantity">+</button>
+                </div>
+              </div>
+
+              <div class="bulk-cost-breakdown">
+                <div class="cost-row">
+                  <span>Subtotal (<span id="calcPiecesLabel">10</span> units):</span>
+                  <strong id="calcSubtotal">₹1,85,000</strong>
+                </div>
+                <div class="cost-row">
+                  <span>GST (5% Handloom Silk):</span>
+                  <span id="calcGst">₹9,250</span>
+                </div>
+                <div class="cost-row savings-row">
+                  <span>Wholesale Savings vs Retail:</span>
+                  <span id="calcTotalSavings">Save ₹1,85,000</span>
+                </div>
+                <div class="cost-row total-row">
+                  <span>Estimated Total:</span>
+                  <span style="color: var(--color-gold);" id="calcTotal">₹1,94,250</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- CUSTOM MODE: Custom Pit-Loom Weaving Configuration Card -->
+            <div class="bulk-custom-config-card" id="bulkCustomConfigCard">
+              <div class="bulk-custom-card-header">
+                <h4 class="bulk-custom-card-title">
+                  <span>🧵</span> Pit-Loom Custom Order Specifications
+                </h4>
+                <span class="bulk-custom-quote-pill">Direct Factory Quote</span>
+              </div>
+
+              <div class="bulk-form-grid-2">
+                <div class="bulk-form-field">
+                  <label for="bulkCustCategorySelect" class="bulk-form-label">
+                    <span>🥻</span> Handloom Attire / Category 
+                  </label>
+                  <select id="bulkCustCategorySelect" class="bulk-form-select">
+                    <option value="Kanchipuram Pure Silk Bridal Sarees">👰 Kanchipuram Pure Silk Bridal Sarees (Heavy
+                      Korvai Zari)</option>
+                    <option value="Coordinated Family Matching Sets">👨‍👩‍👧‍👦 Coordinated Family Matching Sets (Mom +
+                      Dad + Kids)</option>
+                    <option value="Traditional Muhurtham Pattu Sarees">🥻 Traditional Muhurtham Pattu Sarees (Contrast
+                      Border)</option>
+                    <option value="Pure Silk Dhotis & Angavastrams">🪔 Pure Silk Dhotis & Angavastram Sets (Pattu
+                      Veshti)</option>
+                    <option value="Girls Pure Silk Pattu Pavadai">👗 Girls Pure Silk Pattu Pavadai / Langa Voni Sets
+                    </option>
+                    <option value="Boutique & Showroom Exclusive Lots">🏬 Boutique & Showroom Exclusive Weaving Lots
+                    </option>
+                    <option value="Corporate Festive & VIP Gifting">🎁 Corporate Festive & VIP Gifting Silk Sets
+                    </option>
+                    <option value="Custom Handloom Weaving">🪡 Other Custom Handloom Weaving Requirement</option>
+                  </select>
+                </div>
+
+                <div class="bulk-form-field">
+                  <label for="bulkCustFabricGrade" class="bulk-form-label">
+                    <span>⚜️</span> Silk & Zari Grade Preference *
+                  </label>
+                  <select id="bulkCustFabricGrade" class="bulk-form-select">
+                    <option value="Pure 3-Ply Silk + Pure Tested Zari">Pure Mulberry Silk 3-Ply + Pure Tested
+                      Gold/Silver Zari (Royal Heirloom)</option>
+                    <option value="Pure 3-Ply Silk + Half-Fine Zari" selected>Pure Mulberry Silk 3-Ply + Certified
+                      Half-Fine Zari (Most Popular)</option>
+                    <option value="Handloom Soft Silk">Authentic Handloom Soft Silk (Lightweight & Vibrant)</option>
+                    <option value="Handloom Cotton-Silk Blend">Premium Handloom Cotton-Silk Blend (Breathable &
+                      Budget-Friendly)</option>
+                    <option value="Master Weaver Recommendation">Master Weaver Advice: Suggest Best Option for My Budget
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="bulk-form-grid-2">
+                <div class="bulk-form-field">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label for="bulkCustCustomPieces" class="bulk-form-label" style="margin: 0;">
+                      <span>🔢</span> Estimated Quantity (Units / Sets) *
+                    </label>
+                    <small style="color: var(--color-gold); font-size: 0.72rem;">Min Warp: 10 Units</small>
+                  </div>
+                  <div class="bulk-stepper-control" style="width: 100%; justify-content: space-between;">
+                    <button type="button" class="btn-stepper" id="bulkCustomQtyMinus"
+                      title="Decrease Quantity">-</button>
+                    <input type="number" id="bulkCustCustomPieces" class="bulk-stepper-input" min="5" value="10"
+                      required style="width: 100%;" />
+                    <button type="button" class="btn-stepper" id="bulkCustomQtyPlus"
+                      title="Increase Quantity">+</button>
+                  </div>
+                </div>
+
+                <div class="bulk-form-field">
+                  <label for="bulkCustBudgetRange" class="bulk-form-label">
+                    <span>💰</span> Expected Budget Per Unit *
+                  </label>
+                  <select id="bulkCustBudgetRange" class="bulk-form-select">
+                    <option value="₹2,500 – ₹5,000 per unit">₹2,500 – ₹5,000 / unit (Economy Festive Handloom)</option>
+                    <option value="₹5,000 – ₹10,000 per unit" selected>₹5,000 – ₹10,000 / unit (Premium Silk / Half-Fine
+                      Zari)</option>
+                    <option value="₹10,000 – ₹20,000 per unit">₹10,000 – ₹20,000 / unit (Rich Traditional Korvai Bridal
+                      Silk)</option>
+                    <option value="₹20,000 – ₹45,000+ per unit">₹20,000 – ₹45,000+ / unit (Grand Royal Heritage
+                      Masterpiece)</option>
+                    <option value="Flexible / Direct Factory Quote">Flexible / Provide Best Direct Weaver Estimate
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="bulk-custom-estimate-banner">
+                <div class="bulk-custom-estimate-title">
+                  <span>📋</span> Direct Weaver Factory Quotation
+                </div>
+                <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.45;">
+                  No fixed showroom price. Our Master Craftsman will compute exact silk yarn weight, zari grams, and
+                  pit-loom weaving days to provide the best weaver-direct quotation within 2 business hours.
+                </p>
+                <div class="bulk-custom-badges-row">
+                  <span class="bulk-custom-badge-tag">✓ 100% SMOI Silk Mark</span>
+                  <span class="bulk-custom-badge-tag">✓ 0% Showroom Markup</span>
+                  <span class="bulk-custom-badge-tag">✓ Transit Insured Dispatch</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SHARED CONTACT DETAILS -->
+            <div class="bulk-form-grid-2">
+              <div class="bulk-form-field">
+                <label for="bulkCustName" class="bulk-form-label">
+                  <span>👤</span> Your Name / Contact Person *
+                </label>
+                <input type="text" id="bulkCustName" required class="bulk-form-input"
+                  placeholder="e.g. S. Vijayaraghavan" />
+              </div>
+              <div class="bulk-form-field">
+                <label for="bulkCustPhone" class="bulk-form-label">
+                  <span>📞</span> Phone / WhatsApp Number *
+                </label>
+                <input type="tel" id="bulkCustPhone" required class="bulk-form-input" placeholder="+91 98400 12345" />
+              </div>
+            </div>
+
+            <div class="bulk-form-grid-2">
+              <div class="bulk-form-field">
+                <label for="bulkCustCompany" class="bulk-form-label">
+                  <span>🏛️</span> Occasion / Boutique / Family Name 
+                </label>
+                <input type="text" id="bulkCustCompany" required class="bulk-form-input"
+                  placeholder="e.g. Vijayaraghavan Wedding Troupe or Boutique Name" />
+              </div>
+              <div class="bulk-form-field">
+                <label for="bulkCustCity" class="bulk-form-label">
+                  <span>📍</span> Delivery City / State 
+                </label>
+                <input type="text" id="bulkCustCity" required class="bulk-form-input"
+                  placeholder="e.g. Chennai, Tamil Nadu" />
+              </div>
+            </div>
+
+            <div class="bulk-form-grid-2">
+              <div class="bulk-form-field">
+                <label for="bulkCustDeadline" class="bulk-form-label">
+                  <span>📅</span> Needed By Date (Target Event Date) 
+                </label>
+                <input type="date" id="bulkCustDeadline" required class="bulk-form-input" />
+              </div>
+              <div class="bulk-form-field" id="bulkCustOrderTypeRow">
+                <label for="bulkCustOrderType" class="bulk-form-label">
+                  <span>📋</span> Order Type 
+                </label>
+                <select id="bulkCustOrderType" class="bulk-form-select">
+                  <option value="Custom Bulk Inquiry">Custom Pit-Loom Quotation</option>
+                  <option value="Wedding Bulk">Wedding Troupe / Bridal Lot</option>
+                  <option value="Wholesale">Wholesale Showroom Stock</option>
+                  <option value="Boutique Reseller">Boutique Reseller Pack</option>
+                  <option value="Corporate Gifting">Corporate Festive Gifting</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="bulk-form-field">
+              <label for="bulkCustNotes" class="bulk-form-label" id="bulkCustNotesLabel">
+                <span>📝</span> Custom Weaving, Colors &amp; Motif Specifications:
+              </label>
+              <textarea id="bulkCustNotes" rows="2" class="bulk-form-textarea"
+                placeholder="Specify color combinations (e.g. Royal Crimson Maroon with Emerald Green border), zari motifs (Mayil/Peacock, Rudraksha), matching blouse requirements..."></textarea>
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="bulk-form-actions-stack">
+              <button type="submit" class="btn btn-gold btn-md bulk-submit-order-btn" id="submitBulkInquiryBtn">
+                <span>📋</span> Request Master Weaver Custom Quotation
+              </button>
+              <button type="button" class="btn btn-outline btn-md bulk-whatsapp-order-btn" id="bulkDirectWhatsAppBtn"
+                style="border-color: #25D366; color: #25D366;">
+                <span>💬</span> Discuss Custom Order on WhatsApp
+              </button>
+            </div>
+          </form>
+
+          <!-- SUCCESS STATE CONTAINER -->
+          <div id="bulkInquirySuccessContainer" style="display: none; padding: 1.5rem 1rem;">
+            <div style="text-align: center; margin-bottom: 1.25rem;">
+              <div style="font-size: 3rem; margin-bottom: 0.5rem;" id="bulkSuccessIcon">🎉</div>
+              <h3
+                style="font-family: var(--font-serif-display); color: var(--color-gold); margin-bottom: 0.35rem; font-size: 1.4rem;"
+                id="bulkSuccessTitle">
+                Custom Quotation Request Received!
+              </h3>
+              <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 480px; margin: 0 auto; line-height: 1.5;"
+                id="bulkSuccessSubtitle">
+                Your request <strong id="bulkInquiryConfirmId" style="color: var(--color-gold);"></strong> has been
+                submitted directly to our Master Weavers Loom Schedule.
+              </p>
+            </div>
+
+            <div id="bulkOrderReceiptCard"
+              style="background: var(--bg-surface-alt); border: 1.5px solid var(--color-gold); border-radius: 10px; padding: 1rem; margin-bottom: 1.25rem; font-size: 0.88rem;">
+            </div>
+
+            <div style="display: flex; gap: 0.85rem; justify-content: center; flex-wrap: wrap;">
+              <a id="bulkInquiryWhatsAppChatBtn" href="#" target="_blank" class="btn btn-gold btn-md"
+                style="font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 0.45rem;">
+                <span>💬</span> Connect with Master Weaver on WhatsApp
+              </a>
+              <button type="button" class="btn btn-outline btn-md" id="bulkInquiryCloseSuccessBtn">
+                Close &amp; Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div class="lightbox-modal" id="lightboxModal">
+    <div class="lightbox-content">
+      <span class="lightbox-close-btn" id="lightboxCloseBtn">✕</span>
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+        alt="Fullscreen High-Res View" class="lightbox-main-img" id="lightboxMainImg" />
+    </div>
+  </div>
+
+  <div class="wishlist-drawer-overlay" id="wishlistDrawerOverlay"></div>
+  <aside class="wishlist-drawer" id="wishlistDrawer" aria-label="My Favourites">
+    <div class="wishlist-drawer-header">
+      <div style="display: flex; align-items: center; gap: 0.6rem;">
+        <span data-icon="favourite" class="drawer-header-icon"></span>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; color: var(--text-heading);">My Favourites (<span
+              id="wishlistDrawerCount">0</span>)</h3>
+          <span style="font-size: 0.725rem; color: var(--text-muted);">Saved Heirloom &amp; Family Garments</span>
+        </div>
+      </div>
+      <button class="wishlist-close-btn" id="wishlistCloseBtn" title="Close Favourites">✕</button>
+    </div>
+
+    <div class="wishlist-items-body" id="wishlistItemsBody"></div>
+
+    <div class="wishlist-drawer-footer" id="wishlistDrawerFooter">
+      <button class="btn btn-gold btn-sm" id="wishlistMoveAllToCartBtn"
+        style="width: 100%; margin-bottom: 0.6rem; font-weight: 700;">
+        <span data-icon="cart"></span> Move All Favourites to Bag
+      </button>
+      <button class="btn btn-outline btn-sm" id="wishlistClearBtn" style="width: 100%;">
+        Clear All Favourites
+      </button>
+    </div>
+  </aside>
+
+  <div class="cart-drawer-overlay" id="cartDrawerOverlay"></div>
+  <aside class="cart-drawer" id="cartDrawer" aria-label="Shopping Bag">
+    <div class="cart-drawer-header">
+      <h3><span data-icon="cart"></span> Shopping Bag (<span id="drawerItemCount">0</span>)</h3>
+      <button class="cart-close-btn" id="cartCloseBtn" title="Close Shopping Bag">✕</button>
+    </div>
+
+    <div class="free-shipping-bar">
+      <div id="freeShippingBarText">Add more to unlock FREE Express Insured Delivery</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="freeShippingProgressFill"></div>
+      </div>
+    </div>
+
+    <div class="cart-items-body" id="cartItemsBody"></div>
+
+    <div class="cart-drawer-footer">
+      <div class="coupon-input-box">
+        <input type="text" id="cartCouponInput" placeholder="ENTER A PROMO CODE (OPTIONAL)" />
+        <button class="btn btn-gold btn-sm" id="applyCouponBtn">Apply</button>
+      </div>
+      <button type="button" class="cart-view-coupons-link" id="cartViewAllCouponsBtn"
+        onclick="window.storefront && window.storefront.openCouponPopup()">
+        🏷️ View Available Coupons &amp; Offers (Left Side Panel) ➔
+      </button>
+      <div id="cartActiveCouponBox" style="display: none; margin-bottom: 0.65rem;"></div>
+
+      <div class="cart-summary-line"><span>Subtotal:</span> <strong id="cartSubtotal">₹0</strong></div>
+      <div class="cart-summary-line" id="cartDiscountLine"><span>Discount:</span> <strong id="cartDiscount">₹0</strong>
+      </div>
+      <div class="cart-summary-line"><span>Gift Wrap:</span> <strong id="cartGiftWrapAmount">₹0</strong></div>
+      <div class="cart-summary-line"><span>Estimated GST (5%):</span> <strong id="cartGst">₹0</strong></div>
+      <div class="cart-summary-line total"><span>Total Amount:</span> <strong id="cartTotal">₹0</strong></div>
+
+      <button class="btn btn-primary cart-checkout-btn" id="cartCheckoutBtn">Proceed to Express Checkout ➔</button>
+    </div>
+  </aside>
+
+  <div class="pdp-modal" id="pdpModal" role="dialog" aria-modal="true">
+    <div class="pdp-modal-content" id="pdpModalContent"></div>
+  </div>
+
+  <div class="pdp-modal" id="notifyModal" role="dialog" aria-modal="true">
+    <div class="search-modal-container notify-modal-container"
+      style="max-width: 520px; padding: 2rem 2.2rem; position: relative;">
+      <button class="pdp-close-btn" id="notifyModalCloseBtn">✕</button>
+
+      <div id="notifyFormView">
+        <div style="text-align: center; margin-bottom: 1.25rem;">
+          <div
+            style="display: inline-flex; width: 48px; height: 48px; background: rgba(212, 175, 55, 0.15); border: 1.5px solid var(--color-gold); border-radius: 50%; align-items: center; justify-content: center; font-size: 1.4rem; color: var(--color-gold); margin-bottom: 0.5rem;">
+            🔔
+          </div>
+          <h3
+            style="font-family: var(--font-serif-display); font-size: 1.35rem; color: var(--color-primary); margin: 0;">
+            Notify Me When Available</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Be the first to receive an
+            instant WhatsApp alert when this handloom piece is back on the loom.</p>
+        </div>
+
+        <div class="notify-product-card" id="notifyProductPreview"
+          style="display: flex; gap: 1rem; align-items: center; background: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 1.25rem;">
+          <img id="notifyProductImg" src="assets/images/banarasi_blue.jpg" alt="Garment"
+            style="width: 60px; height: 60px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);" />
+          <div style="flex: 1; min-width: 0;">
+            <span class="notify-sku" id="notifyProductSku"
+              style="font-size: 0.7rem; font-weight: 700; color: var(--color-gold-dark); text-transform: uppercase;">SKU:
+              ST-BAN-002</span>
+            <h4 class="notify-prod-title" id="notifyProductTitle"
+              style="font-size: 0.88rem; font-weight: 700; color: var(--text-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0.15rem 0;">
+              Varanasi Royal Katan Silk Saree</h4>
+            <div class="notify-prod-price" id="notifyProductPrice"
+              style="font-size: 0.85rem; font-weight: 800; color: var(--color-primary);">₹14,999</div>
+          </div>
+        </div>
+
+        <form id="notifyWaitlistForm">
+          <input type="hidden" id="notifyProductId" />
+
+          <div class="form-group" style="margin-bottom: 0.9rem;">
+            <label
+              style="font-size: 0.8rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.35rem;">Your
+              Full Name</label>
+            <input type="text" id="notifyCustomerName" class="form-control" placeholder="e.g. Ananya Sundaram"
+              required />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0.9rem;">
+            <label
+              style="font-size: 0.8rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.35rem;">WhatsApp
+              / Mobile Number</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <span
+                style="display: flex; align-items: center; padding: 0 0.75rem; background: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; color: var(--text-main);">🇮🇳
+                +91</span>
+              <input type="tel" id="notifyCustomerPhone" class="form-control" placeholder="98401 23456" required
+                style="flex: 1;" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label
+              style="font-size: 0.8rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.35rem;">Email
+              Address (Optional)</label>
+            <input type="email" id="notifyCustomerEmail" class="form-control" placeholder="ananya@example.com" />
+          </div>
+
+          <button type="submit" class="btn btn-gold btn-lg"
+            style="width: 100%; justify-content: center; font-weight: 800; letter-spacing: 0.05em;"
+            id="notifySubmitBtn">
+            🔔 Set Priority Restock Alert
+          </button>
+        </form>
+      </div>
+
+      <div id="notifySuccessView" style="display: none; text-align: center; padding: 1.5rem 0.5rem;">
+        <div class="notify-success-icon"
+          style="width: 64px; height: 64px; background: rgba(37, 211, 102, 0.15); border: 2px solid #25D366; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; color: #25D366; margin-bottom: 1rem;">
+          ✓
+        </div>
+        <h3 style="font-family: var(--font-serif-display); font-size: 1.4rem; color: #15803D; margin-bottom: 0.5rem;">
+          Done! Priority Alert Confirmed
+        </h3>
+        <p style="color: var(--text-main); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.25rem;">
+          Thank you, <strong id="notifyDoneCustomerName">Customer</strong>! You are now placed on our master weaver
+          priority list for <strong id="notifyDoneProdTitle" style="color: var(--color-primary);">this piece</strong>.
+        </p>
+        <div
+          style="background: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+          📲 We will send a direct WhatsApp alert to <strong id="notifyDonePhone"
+            style="color: var(--text-heading);">+91 XXXXX XXXXX</strong> as soon as fresh stock arrives from the looms.
+        </div>
+        <button class="btn btn-primary" id="notifyDoneCloseBtn" style="padding: 0.75rem 2rem;">
+          Done &amp; Continue Shopping
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="checkout-modal" id="checkoutModal" role="dialog" aria-modal="true">
+    <div class="checkout-modal-content">
+      <button class="pdp-close-btn" id="checkoutCloseBtn">✕</button>
+
+      <div class="checkout-steps-nav">
+        <div class="step-indicator active">
+          <span class="step-num">1</span>
+          <span class="step-label">
+            <span class="step-label-full">Shipping &amp; Family Address</span>
+            <span class="step-label-mobile">Shipping &amp; Address</span>
+          </span>
+        </div>
+        <div class="step-indicator active">
+          <span class="step-num">2</span>
+          <span class="step-label">
+            <span class="step-label-full">Payment &amp; Confirmation</span>
+            <span class="step-label-mobile">Payment &amp; Confirm</span>
+          </span>
+        </div>
+      </div>
+
+      <h3 style="font-size: 1.3rem; color: var(--color-primary); margin-bottom: 1rem;">Express Family Checkout</h3>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="custName" class="form-control" placeholder="e.g. Ranganathan Sundaram" required />
+        </div>
+
+        <div class="form-group">
+          <label>Mobile / WhatsApp Number</label>
+          <input type="text" id="custPhone" class="form-control" placeholder="e.g. +91 98401 23456" required />
+        </div>
+
+        <div class="form-group span-2">
+          <label>Shipping Address (with PIN Code)</label>
+          <input type="text" id="custAddress" class="form-control"
+            placeholder="e.g. Flat 4B, Heritage Towers, Anna Nagar, Chennai - 600040" required />
+        </div>
+
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="custEmail" class="form-control" placeholder="e.g. ranganathan.s@gmail.com" />
+        </div>
+
+        <div class="form-group">
+          <label>Buyer GSTIN (Optional)</label>
+          <input type="text" id="custGstin" class="form-control" placeholder="e.g. 33AAAAA0000A1Z5" />
+        </div>
+      </div>
+
+      <span class="pdp-label" style="margin-top: 1.5rem;">Select Payment Method:</span>
+      <div class="payment-method-selector">
+        <div class="payment-card-opt active" data-method="upi" data-name="UPI (GPay / PhonePe / Paytm)">
+          <span>📱</span>
+          <div><strong>UPI Instant Pay</strong><br><small style="color: var(--text-muted);">GPay, PhonePe, QR
+              Scan</small></div>
+        </div>
+      </div>
+
+      <div id="upiPaymentBox" class="upi-qr-box">
+        <div class="upi-qr-header">
+          <span class="upi-live-badge"><span class="admin-pulse-dot"></span> Live UPI QR Gateway</span>
+          <h4 style="font-size: 0.95rem; color: var(--color-primary); margin: 0.35rem 0 0.15rem 0;">Scan &amp; Pay with
+            any UPI App</h4>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">GPay • PhonePe • Paytm • BHIM • Cred • Any Banking
+            App</span>
+        </div>
+
+        <div class="upi-amount-pill">
+          <span>Payable Amount:</span>
+          <strong id="upiQrAmountDisplay">₹0</strong>
+        </div>
+
+        <a id="upiQrLink" href="upi://pay?pa=srinivasatextiles@hdfcbank&pn=Srinivasa%20Textiles&am=1&cu=INR&tn=Order_ST"
+          class="upi-qr-img-link" title="Click to Pay directly via Google Pay / Any UPI App">
+          <div class="upi-qr-img" id="upiQrContainer">
+            <div class="upi-scan-laser"></div>
+            <img id="upiQrDynamicImg" src="assets/images/upi_qr.png" alt="Srinivasa Textiles Official UPI QR Code" />
+          </div>
+        </a>
+
+        <div>
+          <span class="upi-qr-status-pill" id="upiGatewayStatusPill">
+            <span class="admin-pulse-dot"></span> Gateway Listening for Payment...
+          </span>
+        </div>
+
+        <div class="upi-supported-apps-strip">
+          <span class="upi-supported-label">Scan with Any UPI App</span>
+          <div class="upi-apps-badges">
+            <span class="upi-app-badge"><span>🔵</span> Google Pay</span>
+            <span class="upi-app-badge"><span>🟣</span> PhonePe</span>
+            <span class="upi-app-badge"><span>🔷</span> Paytm</span>
+            <span class="upi-app-badge"><span>📱</span> BHIM / Any UPI</span>
+          </div>
+        </div>
+
+        <div class="upi-id-row">
+          <span>UPI ID: <strong id="upiIdText">srinivasatextiles@hdfcbank</strong></span>
+          <button type="button" class="btn-copy-upi" id="copyUpiIdBtn" title="Copy UPI ID">📋 Copy</button>
+        </div>
+
+        <div id="paymentVerifiedBadge" class="payment-verified-banner" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span class="badge-icon">✅</span>
+            <div>
+              <strong style="color: #065F46; font-size: 0.875rem;">PAYMENT RECEIVED &amp; VERIFIED</strong>
+              <span style="display: block; font-size: 0.725rem; color: #047857;" id="verifiedTxnDetails">UPI Gateway •
+                Verified • Settled</span>
+            </div>
+          </div>
+          <div class="verified-stamp">PAID ✓</div>
+        </div>
+      </div>
+
+      <div
+        style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Total Payable:</span>
+          <h3 style="font-size: 1.4rem; color: var(--color-primary); margin: 0;" id="checkoutTotalDisplay">₹0</h3>
+        </div>
+        <div id="orderActionContainer"
+          style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+          <button class="btn btn-gold btn-lg btn-place-order-locked" id="placeOrderBtn" disabled>
+            <span>🔒</span> Check &amp; Verify Payment to Place Order
+          </button>
+          <span id="orderLockHint" style="font-size: 0.725rem; color: var(--text-muted);">
+            ⚠️ System payment check required before order placement
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pdp-modal" id="invoiceModal" role="dialog" aria-modal="true">
+    <div class="invoice-modal-content" id="invoiceModalContent"></div>
+  </div>
+
+  <div class="pdp-modal" id="familyComboBookingModal" role="dialog" aria-modal="true"
+    style="display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.8); z-index: 100005;">
+    <div
+      style="background: var(--bg-surface, #1A050D); border: 2px solid var(--color-gold, #D4AF37); border-radius: var(--radius-lg, 12px); max-width: 650px; width: 92%; max-height: 90vh; overflow-y: auto; padding: 2rem; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.7); color: var(--text-main, #FFF);">
+
+      <button type="button" class="pdp-close-btn family-combo-close-btn" onclick="window.storefront && window.storefront.closeFamilyComboBookingModal()" aria-label="Close" title="Close">✕</button>
+
+      <div style="border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+        <span class="combo-badge-tag" id="fcModalBadge" style="margin-bottom: 0.5rem; font-size: 0.7rem;">👨‍👩‍👧‍👦
+          HIGH VALUE FAMILY BUNDLE</span>
+        <h3 id="fcModalTitle"
+          style="color: var(--color-gold); font-size: 1.35rem; margin: 0 0 0.35rem 0; font-family: var(--font-serif-display);">
+          Book Coordinated Family Combo Bundle
+        </h3>
+        <p id="fcModalSubtitle" style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">
+          Harmonized ceremonial dye batch tailored for Father, Mother, Son &amp; Daughter.
+        </p>
+      </div>
+
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; background: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.3); padding: 0.85rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Special Bundle Price (All 4 Items
+            Included):</span>
+          <span id="fcModalPrice" style="font-size: 1.5rem; font-weight: 800; color: var(--color-gold);">₹58,500</span>
+          <span id="fcModalOriginalPrice"
+            style="font-size: 0.9rem; color: var(--text-muted); text-decoration: line-through; margin-left: 0.5rem;">₹72,000</span>
+        </div>
+        <span id="fcModalSavings"
+          style="font-size: 0.8rem; font-weight: 800; color: var(--color-success); background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px;">
+          Save ₹13,500
+        </span>
+      </div>
+
+      <form id="familyComboOrderForm"
+        onsubmit="window.storefront && window.storefront.handleFamilyComboOrderSubmit(event)">
+        <input type="hidden" id="fcFormComboId" value="" />
+        <input type="hidden" id="fcFormComboTitle" value="" />
+        <input type="hidden" id="fcFormTotalPrice" value="" />
+
+        <h4
+          style="font-size: 0.95rem; color: var(--color-gold); margin: 0 0 0.85rem 0; display: flex; align-items: center; gap: 0.4rem;">
+          <span>📏</span> Select Family Member Sizing &amp; Tailoring
+        </h4>
+
+        <div
+          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; background: var(--bg-surface-alt, #F3EFE9); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              👨 Father's Shirt Size *
+            </label>
+            <select id="fcFormFatherSize" class="input-field" required
+              style="width: 100%; font-size: 0.85rem; padding: 0.5rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;">
+              <option value="38 (S - Chest 38)">38 (S) - Chest 38" + 8-Muzham Dhoti</option>
+              <option value="40 (M - Chest 40)" selected>40 (M) - Chest 40" + 8-Muzham Dhoti</option>
+              <option value="42 (L - Chest 42)">42 (L) - Chest 42" + 8-Muzham Dhoti</option>
+              <option value="44 (XL - Chest 44)">44 (XL) - Chest 44" + 8-Muzham Dhoti</option>
+              <option value="46 (XXL - Chest 46)">46 (XXL) - Chest 46" + 8-Muzham Dhoti</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              ✨ Mother's Saree &amp; Blouse *
+            </label>
+            <select id="fcFormMotherSize" class="input-field" required
+              style="width: 100%; font-size: 0.85rem; padding: 0.5rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;">
+              <option value="Standard 6.3m (Unstitched Pure Zari Blouse)" selected>Standard 6.3m (Unstitched Pure Zari
+                Blouse)</option>
+              <option value="Standard 6.3m (Pre-Pleated / Ready Saree Request)">Standard 6.3m (Pre-Pleated / Ready Saree
+                Request)</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              👦 Son's Age &amp; Kurta Size *
+            </label>
+            <select id="fcFormSonSize" class="input-field" required
+              style="width: 100%; font-size: 0.85rem; padding: 0.5rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;">
+              <option value="2-4 Years (Chest 22)">2 - 4 Years (Chest 22")</option>
+              <option value="4-6 Years (Chest 24)">4 - 6 Years (Chest 24")</option>
+              <option value="6-8 Years (Chest 26)" selected>6 - 8 Years (Chest 26")</option>
+              <option value="8-10 Years (Chest 28)">8 - 10 Years (Chest 28")</option>
+              <option value="10-12 Years (Chest 30)">10 - 12 Years (Chest 30")</option>
+              <option value="12-14 Years (Chest 32)">12 - 14 Years (Chest 32")</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              👧 Daughter's Age &amp; Pavadai Size 
+            </label>
+            <select id="fcFormDaughterSize" class="input-field" required
+              style="width: 100%; font-size: 0.85rem; padding: 0.5rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;">
+              <option value="2-4 Years (Length 24)">2 - 4 Years (Skirt 24")</option>
+              <option value="4-6 Years (Length 28)" selected>4 - 6 Years (Skirt 28")</option>
+              <option value="6-8 Years (Length 32)">6 - 8 Years (Skirt 32")</option>
+              <option value="8-10 Years (Length 36)">8 - 10 Years (Skirt 36")</option>
+              <option value="10-12 Years (Length 40)">10 - 12 Years (Skirt 40")</option>
+            </select>
+          </div>
+        </div>
+
+        <h4
+          style="font-size: 0.95rem; color: var(--color-gold); margin: 0 0 0.85rem 0; display: flex; align-items: center; gap: 0.4rem;">
+          <span>📦</span> Delivery &amp; Contact Details
+        </h4>
+
+        <div
+          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              Full Name 
+            </label>
+            <input type="text" id="fcFormCustomerName" class="input-field" required
+              placeholder="e.g. Karthik &amp; Ananya Subramanian"
+              style="width: 100%; font-size: 0.85rem; padding: 0.55rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;" />
+          </div>
+
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              WhatsApp Phone Number 
+            </label>
+            <input type="tel" id="fcFormCustomerPhone" class="input-field" required pattern="[0-9]{10}" maxlength="10"
+              placeholder="10-digit mobile number"
+              style="width: 100%; font-size: 0.85rem; padding: 0.55rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;" />
+          </div>
+
+          <div style="grid-column: 1 / -1;">
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              Full Delivery Address &amp; Landmark 
+            </label>
+            <textarea id="fcFormDeliveryAddress" class="input-field" required rows="2"
+              placeholder="Flat/House No, Street, Landmark, City, State"
+              style="width: 100%; font-size: 0.85rem; padding: 0.55rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;"></textarea>
+          </div>
+
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              Postal Pincode 
+            </label>
+            <input type="text" id="fcFormPincode" class="input-field" required pattern="[0-9]{6}" maxlength="6"
+              placeholder="e.g. 600004"
+              style="width: 100%; font-size: 0.85rem; padding: 0.55rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;" />
+          </div>
+
+          <div>
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              Payment Method 
+            </label>
+            <select id="fcFormPaymentMode" class="input-field" required
+              style="width: 100%; font-size: 0.85rem; padding: 0.55rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;">
+              <option value="UPI Online (GPay / PhonePe / Paytm)" selected>📱 UPI Online (GPay / PhonePe / Paytm)
+              </option>
+              <option value="COD (Cash on Delivery)">💵 Cash on Delivery (COD)</option>
+              <option value="Direct Bank NEFT / RTGS">🏛️ Direct Bank NEFT / RTGS</option>
+            </select>
+          </div>
+
+          <div style="grid-column: 1 / -1;">
+            <label
+              style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem; color: var(--text-heading);">
+              Ceremony Date / Special Customization Note
+            </label>
+            <input type="text" id="fcFormSpecialNotes" class="input-field"
+              placeholder="e.g. Wedding on 18th Oct, please expedite delivery or gift pack."
+              style="width: 100%; font-size: 0.85rem; padding: 0.55rem; background: var(--bg-card); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 6px;" />
+          </div>
+        </div>
+
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(212, 175, 55, 0.3); padding-top: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+          <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+            🛡️ <strong>Silk Mark Certified</strong> &bull; Complimentary Heirloom Muslin Covers &bull; Free Insured
+            Express Delivery
+          </div>
+
+          <div style="display: flex; gap: 0.75rem;">
+            <button type="button" class="btn btn-outline"
+              onclick="window.storefront && window.storefront.closeFamilyComboBookingModal()">
+              Cancel
+            </button>
+            <button type="submit" id="fcSubmitOrderBtn" class="btn btn-gold btn-lg" style="font-weight: 800;">
+              🛍️ Confirm &amp; Place Order
+            </button>
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <div class="floating-coupon-pill-container" id="floatingCouponPillContainer">
+    <button type="button" class="floating-coupon-pill" id="floatingCouponPill" aria-label="View Active Coupons"
+      title="View Active Festive Coupons">
+      <span class="pill-icon" aria-hidden="true">
+        <svg class="pill-tag-svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFF2B2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+          <circle cx="7.5" cy="7.5" r="1.5" fill="#FFF2B2" stroke="none"></circle>
+        </svg>
+      </span>
+      <span class="pill-badge" id="floatingCouponCount">10</span>
+    </button>
+  </div>
+
+  <div class="coupon-popup-overlay" id="couponPopupModal" role="dialog" aria-modal="true"
+    aria-labelledby="couponPopupTitle" style="display: none;">
+    <div class="coupon-popup-backdrop" id="couponPopupBackdrop"></div>
+    <div class="coupon-popup-dialog" id="couponPopupDialog">
+      <div class="coupon-panel-drag-handle" id="couponPanelDragHandle" aria-hidden="true">
+        <span class="coupon-drag-bar"></span>
+      </div>
+
+      <div class="coupon-popup-header">
+        <div class="coupon-popup-title-area">
+          <div class="coupon-popup-icon-badge">🏷️</div>
+          <div>
+            <h3 class="coupon-popup-title" id="couponPopupTitle">Festive Offers &amp; Coupons</h3>
+            <p class="coupon-popup-subtitle">Exclusive savings on handlooms &amp; family collections</p>
+          </div>
+        </div>
+        <button type="button" class="coupon-popup-close-btn" id="couponPopupCloseBtn"
+          aria-label="Close coupons panel">✕</button>
+      </div>
+
+      <div class="coupon-panel-apply-box">
+        <div class="coupon-panel-input-wrap">
+          <span class="coupon-input-icon">🎟️</span>
+          <input type="text" id="couponPanelDirectInput" placeholder="Enter coupon or promo code..." autocomplete="off"
+            autocorrect="off" autocapitalize="characters" />
+          <button type="button" id="couponPanelDirectApplyBtn" class="coupon-panel-apply-btn">Apply</button>
+        </div>
+      </div>
+
+      <div class="coupon-panel-tabs" id="couponPanelTabs" role="tablist">
+        <button type="button" class="coupon-filter-tab active" data-filter="all">All Offers (<span
+            id="couponTabCountAll">0</span>)</button>
+        <button type="button" class="coupon-filter-tab" data-filter="flat">Flat ₹ OFF</button>
+        <button type="button" class="coupon-filter-tab" data-filter="percent">% Discount</button>
+        <button type="button" class="coupon-filter-tab" data-filter="festive">Festive Specials</button>
+      </div>
+
+      <div class="coupon-popup-meta">
+        <span class="coupon-popup-count-chip">
+          <span class="coupon-chip-dot"></span>
+          <span id="couponPopupAvailableText">Active Festive Coupons</span>
+        </span>
+        <span class="coupon-popup-hint">Tap code to copy or apply directly</span>
+      </div>
+
+      <div class="coupon-popup-body custom-scrollbar" id="couponPopupBody">
+      </div>
+
+      <div class="coupon-popup-footer">
+        <button type="button" class="coupon-popup-view-cart-btn" id="couponPopupViewCartBtn">
+          <span>🛍️ View Shopping Bag</span>
+        </button>
+        <button type="button" class="coupon-popup-view-all-btn" id="couponPopupScrollBtn">
+          <span>View Festive Showcase</span>
+          <span class="btn-arrow">→</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="whatsapp-widget-container" id="whatsappWidget">
+    <div class="whatsapp-chat-popup" id="whatsappPopup">
+      <div class="wa-header">
+        <img src="assets/images/family_matching_combo.jpg" alt="Family Concierge" class="wa-avatar" />
+        <div class="wa-header-info">
+          <h4>Srinivasa Family Concierge</h4>
+          <span>Online • Master Draper on Call</span>
+        </div>
+        <button type="button" class="wa-close-btn" id="waCloseBtn" aria-label="Close WhatsApp Concierge">✕</button>
+      </div>
+      <div class="wa-body">
+        <div class="wa-message-bubble">
+          VANAKKAM 🙏 Need help selecting matching family sets, kids sizing, or booking a video call shopping session?
+        </div>
+      </div>
+      <a href="https://wa.me/918778503021?text=Namaste,%20I%20need%20assistance%20with%20Srinivasa%20Textiles%20family%20collection."
+        target="_blank" class="wa-action-btn">
+        Chat with Master Draper
+      </a>
+    </div>
+
+    <div class="whatsapp-trigger-bubble" id="whatsappTrigger" title="Live WhatsApp Concierge">
+      💬
+      <span class="whatsapp-live-dot"></span>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-client.js"></script>
+
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile Navigation">
+    <a href="index.html" class="bottom-nav-tab active" data-tab-action="home" aria-label="Home">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path
+            d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+        </svg>
+      </span>
+      <span>Home</span>
+    </a>
+    <a href="loading.html?target=shop.html" class="bottom-nav-tab" data-tab-action="shop" aria-label="Shop"
+      onclick="if(window.navigateToShop){event.preventDefault();window.navigateToShop('shop.html');}">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <path d="M16 10a4 4 0 0 1-8 0" />
+        </svg>
+      </span>
+      <span>Shop</span>
+    </a>
+    <button type="button" class="bottom-nav-tab" data-tab-action="search" aria-label="Search">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7.5" />
+          <path d="M21 21l-4.5-4.5" />
+        </svg>
+      </span>
+      <span>Search</span>
+    </button>
+    <button type="button" class="bottom-nav-tab" data-tab-action="wishlist" aria-label="Wishlist">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path
+            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+        <span class="tab-badge" id="bottomNavWishlistBadge" style="display: none;">0</span>
+      </span>
+      <span>Wishlist</span>
+    </button>
+    <button type="button" class="bottom-nav-tab" data-tab-action="cart" aria-label="Bag">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <rect x="3" y="7" width="18" height="14" rx="2" />
+          <path d="M8 7V5a4 4 0 0 1 8 0v2" />
+        </svg>
+        <span class="tab-badge" id="bottomNavCartBadge" style="display: none;">0</span>
+      </span>
+      <span>Bag</span>
+    </button>
+  </nav>
+
+  <!-- Supabase Cloud Database & Deployment Configuration -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-client.js"></script>
+
+  <script src="js/icons.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/storefront.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/scroll-animations.js"></script>
+  <script src="js/mobile-ui.js"></script>
+</body>
+
+</html>

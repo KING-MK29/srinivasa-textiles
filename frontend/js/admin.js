@@ -1,0 +1,5975 @@
+// Owner Admin Panel Controller & Multi-Category Family Management System
+// Compliant with Complete_Family_Textile_Website_Blueprint.md
+
+class AdminController {
+  constructor() {
+    this.currentTab = "overview";
+    this.uploadedImages = [];
+    if (!window.storefront) {
+      window.storefront = {
+        showToast: (msg, type, dur) => this.showToast(msg, type, dur)
+      };
+    } else if (typeof window.storefront.showToast !== "function") {
+      window.storefront.showToast = (msg, type, dur) => this.showToast(msg, type, dur);
+    }
+    window.showToast = (msg, type, dur) => this.showToast(msg, type, dur);
+    this.init();
+  }
+
+  init() {
+    this.setupMobileSidebar();
+    this.bindEvents();
+    try { this.renderDashboardKPIs(); } catch (e) { console.error("renderDashboardKPIs error:", e); }
+    try { this.renderInventoryKPIs(); } catch (e) { console.error("renderInventoryKPIs error:", e); }
+    try { this.renderInventoryTable(); } catch (e) { console.error("renderInventoryTable error:", e); }
+    try { this.renderOrdersTable(); } catch (e) { console.error("renderOrdersTable error:", e); }
+    try { this.renderBulkPackagesSection(); } catch (e) { console.error("renderBulkPackagesSection error:", e); }
+    try { this.renderBulkOrdersSession(); } catch (e) { console.error("renderBulkOrdersSession error:", e); }
+    try { this.renderBulkOrderKPIs(); } catch (e) { console.error("renderBulkOrderKPIs error:", e); }
+    try { this.renderSubscribersTable(); } catch (e) { console.error("renderSubscribersTable error:", e); }
+    try { this.renderFeedbacksTable(); } catch (e) { console.error("renderFeedbacksTable error:", e); }
+    try { this.setupMediaUploader(); } catch (e) { console.error("setupMediaUploader error:", e); }
+    try { this.renderBulkOrdersMasterSwitch(); } catch (e) { console.error("renderBulkOrdersMasterSwitch error:", e); }
+    try { this.renderCollection01MasterSwitch(); } catch (e) { console.error("renderCollection01MasterSwitch error:", e); }
+    try { this.renderFamilyCombosTab(); } catch (e) { console.error("renderFamilyCombosTab error:", e); }
+    try { this.updateFestiveBadges(); } catch (e) { console.error("updateFestiveBadges error:", e); }
+    try { this.updateCouponMasterBadges(); } catch (e) { console.error("updateCouponMasterBadges error:", e); }
+    try { this.initFestiveCountdownPreview(); } catch (e) { console.error("initFestiveCountdownPreview error:", e); }
+    try { this.initDeptGateway(); } catch (e) { console.error("initDeptGateway error:", e); }
+
+    // Cross-tab real-time sync for Master Coupon, Bulk Orders, and Family Combos
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        const fc = new BroadcastChannel("st_festive_channel_v1");
+        fc.onmessage = (event) => {
+          if (event.data && event.data.type === "FESTIVE_CAMPAIGN_UPDATED") {
+            this.updateFestiveBadges();
+            this.updateCouponMasterBadges();
+          }
+        };
+      } catch (e) { }
+
+      try {
+        const invChannel = new BroadcastChannel("st_inventory_channel_v2");
+        invChannel.onmessage = (event) => {
+          const data = event.data;
+          if (!data) return;
+          if (data.type === "BULK_ORDERS_UPDATED") {
+            this.renderBulkOrdersSession();
+            this.renderBulkOrderKPIs();
+          } else if (data.type === "FAMILY_COMBO_ORDERS_UPDATED") {
+            this.renderFamilyCombosTab();
+            this.renderFamilyComboOrdersTable();
+          } else if (data.type === "ORDERS_UPDATED") {
+            this.renderOrdersTable();
+            this.renderDashboardKPIs();
+          } else if (data.type === "COLLECTION01_UPDATED") {
+            this.renderCollection01MasterSwitch();
+          } else if (data.type === "FAMILY_COMBOS_UPDATED") {
+            this.renderFamilyCombosTab();
+          }
+        };
+      } catch (e) { }
+    }
+
+    window.addEventListener("festiveCampaignUpdated", () => {
+      this.updateFestiveBadges();
+      this.updateCouponMasterBadges();
+    });
+
+    window.addEventListener("bulkOrdersUpdated", () => {
+      this.renderBulkOrdersSession();
+      this.renderBulkOrderKPIs();
+    });
+
+    window.addEventListener("familyComboOrdersUpdated", () => {
+      this.renderFamilyCombosTab();
+      this.renderFamilyComboOrdersTable();
+    });
+
+    window.addEventListener("ordersUpdated", () => {
+      this.renderOrdersTable();
+      this.renderDashboardKPIs();
+    });
+
+    window.addEventListener("storage", (e) => {
+      if (e.key === "st_festive_campaign_v1") {
+        this.updateFestiveBadges();
+        this.updateCouponMasterBadges();
+      } else if (e.key === "st_bulk_orders_data_v2" || e.key === "st_bulk_settings_data_v2") {
+        this.renderBulkOrdersSession();
+        this.renderBulkOrderKPIs();
+      } else if (e.key === "st_family_combo_orders_v1" || e.key === "st_family_combos_v1") {
+        this.renderFamilyCombosTab();
+        this.renderFamilyComboOrdersTable();
+      } else if (e.key === "st_orders_data_v2") {
+        this.renderOrdersTable();
+        this.renderDashboardKPIs();
+      }
+    });
+
+    // Start persistent live real-time sync engine
+    this.setupRealtimeSyncEngine();
+
+    // Ensure only the default active tab pane is displayed initially
+    try {
+      this.switchTab(this.currentTab || "overview");
+    } catch (e) {
+      console.warn("Initial switchTab error:", e);
+    }
+  }
+
+  setupRealtimeSyncEngine() {
+    if (this._realtimeTimer) clearInterval(this._realtimeTimer);
+    this._realtimeTimer = setInterval(() => {
+      if (!window.store) return;
+      try {
+        if (this.currentTab === "bulk-orders") {
+          this.renderBulkOrderKPIs();
+          const searchInput = document.getElementById("bulkOrderSearchInput");
+          if (document.activeElement !== searchInput) {
+            this.renderBulkOrdersSession();
+          }
+        } else if (this.currentTab === "family-combos") {
+          const searchInput = document.getElementById("famOrderSearchInput");
+          if (document.activeElement !== searchInput) {
+            this.renderFamilyComboOrdersTable();
+          }
+        } else if (this.currentTab === "orders") {
+          const searchInput = document.getElementById("orderSearchInput");
+          if (document.activeElement !== searchInput) {
+            this.renderOrdersTable();
+          }
+          this.renderDashboardKPIs();
+        } else if (this.currentTab === "overview") {
+          this.renderDashboardKPIs();
+        } else if (this.currentTab === "inventory") {
+          this.renderInventoryKPIs();
+        }
+      } catch (e) {
+        console.warn("[Admin Realtime Polling] notice:", e);
+      }
+    }, 2500);
+  }
+
+  setupMobileSidebar() {
+    const menuBtn = document.getElementById("adminMobileMenuBtn");
+    const drawer = document.getElementById("adminMobileNavDrawer");
+    const overlay = document.getElementById("adminMobileNavOverlay");
+    const closeBtn = document.getElementById("adminMobileNavCloseBtn");
+
+    const openDrawer = () => {
+      drawer?.classList.add("active");
+      overlay?.classList.add("active");
+      document.body.classList.add("admin-sidebar-open");
+    };
+
+    const closeDrawer = () => {
+      drawer?.classList.remove("active");
+      overlay?.classList.remove("active");
+      document.body.classList.remove("admin-sidebar-open");
+    };
+
+    if (menuBtn) {
+      menuBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openDrawer();
+      };
+    }
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeDrawer();
+      };
+    }
+    if (overlay) {
+      overlay.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeDrawer();
+      };
+    }
+
+    // Attach click listener to all tab buttons inside the mobile drawer
+    document.querySelectorAll("#adminMobileNavDrawer .mobile-dept-btn").forEach(btn => {
+      btn.onclick = (e) => {
+        const tab = btn.getAttribute("data-tab");
+        closeDrawer();
+        if (tab) this.switchTab(tab);
+      };
+    });
+
+    window.openAdminMobileMenu = openDrawer;
+    window.closeAdminMobileMenu = closeDrawer;
+    window.toggleAdminMobileMenu = () => {
+      if (drawer?.classList.contains("active")) {
+        closeDrawer();
+      } else {
+        openDrawer();
+      }
+    };
+  }
+
+  toggleMobileSidebar(open) {
+    const drawer = document.getElementById("adminMobileNavDrawer");
+    const overlay = document.getElementById("adminMobileNavOverlay");
+    if (!drawer) return;
+    const isOpen = open !== undefined ? open : !drawer.classList.contains("active");
+    if (isOpen) {
+      drawer.classList.add("active");
+      overlay?.classList.add("active");
+      document.body.classList.add("admin-sidebar-open");
+    } else {
+      drawer.classList.remove("active");
+      overlay?.classList.remove("active");
+      document.body.classList.remove("admin-sidebar-open");
+    }
+  }
+
+  closeMobileSidebar() {
+    const drawer = document.getElementById("adminMobileNavDrawer");
+    const overlay = document.getElementById("adminMobileNavOverlay");
+    if (drawer) drawer.classList.remove("active");
+    if (overlay) overlay.classList.remove("active");
+    document.body.classList.remove("admin-sidebar-open");
+  }
+
+  bindEvents() {
+    // Tab switching
+    document.querySelectorAll(".admin-menu-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        const tab = e.currentTarget.getAttribute("data-tab");
+        this.switchTab(tab);
+      });
+    });
+
+    // Reactivity
+    window.addEventListener("catalogUpdated", () => {
+      this.renderDashboardKPIs();
+      this.renderInventoryKPIs();
+      this.renderInventoryTable();
+      this.updateDeptGatewayCounts();
+    });
+
+    window.addEventListener("stockUpdated", () => {
+      this.renderDashboardKPIs();
+      this.renderInventoryKPIs();
+    });
+
+    window.addEventListener("ordersUpdated", () => {
+      this.renderDashboardKPIs();
+      this.renderOrdersTable();
+    });
+
+    window.addEventListener("subscribersUpdated", () => {
+      this.renderDashboardKPIs();
+      this.renderSubscribersTable();
+    });
+
+    window.addEventListener("feedbacksUpdated", () => {
+      this.renderDashboardKPIs();
+      this.renderFeedbacksTable();
+    });
+
+    window.addEventListener("festiveCampaignUpdated", () => {
+      this.updateFestiveBadges();
+      if (this.currentTab === "festive") {
+        this.renderFestivePanel();
+      }
+    });
+
+    window.addEventListener("collection01Updated", () => {
+      this.renderCollection01MasterSwitch();
+    });
+
+    window.addEventListener("familyCombosUpdated", () => {
+      this.renderFamilyCombosTab();
+    });
+
+    window.addEventListener("familyComboOrdersUpdated", () => {
+      this.renderFamilyCombosTab();
+    });
+
+    window.addEventListener("storage", (e) => {
+      if (e.key === "st_collection01_enabled_v2") {
+        this.renderCollection01MasterSwitch();
+      } else if (e.key === "st_family_combos_v1" || e.key === "st_family_combo_orders_v1") {
+        this.renderFamilyCombosTab();
+      }
+    });
+
+    // Feedback Filter Controls
+    const fbSearch = document.getElementById("feedbackSearchInput");
+    const fbDept = document.getElementById("feedbackDeptFilter");
+    const fbReset = document.getElementById("resetFeedbackFilterBtn");
+    const fbExport = document.getElementById("exportFeedbacksCsvBtn");
+
+    if (fbSearch) {
+      fbSearch.addEventListener("input", () => this.applyFeedbackFilters());
+    }
+    if (fbDept) {
+      fbDept.addEventListener("change", () => this.applyFeedbackFilters());
+    }
+    if (fbReset) {
+      fbReset.addEventListener("click", () => {
+        if (fbSearch) fbSearch.value = "";
+        if (fbDept) fbDept.value = "";
+        this.renderFeedbacksTable();
+      });
+    }
+    if (fbExport) {
+      fbExport.addEventListener("click", () => this.handleExportFeedbacksCSV());
+    }
+
+    // Coupon Reactivity & Controls
+    window.addEventListener("couponsUpdated", () => {
+      this.renderDashboardKPIs();
+      this.renderCouponKPIs();
+      if (this.currentTab === "coupons") {
+        this.renderCouponsTab();
+      }
+    });
+
+    const cpSearch = document.getElementById("couponSearchInput");
+    const cpStatus = document.getElementById("couponStatusFilter");
+    const cpType = document.getElementById("couponTypeFilter");
+    const cpReset = document.getElementById("resetCouponFilterBtn");
+    const cpForm = document.getElementById("adminCouponForm");
+    const cpDiscountType = document.getElementById("couponFormDiscountType");
+
+    if (cpSearch) cpSearch.addEventListener("input", () => this.renderCouponsTab());
+    if (cpStatus) cpStatus.addEventListener("change", () => this.renderCouponsTab());
+    if (cpType) cpType.addEventListener("change", () => this.renderCouponsTab());
+    if (cpReset) {
+      cpReset.addEventListener("click", () => {
+        if (cpSearch) cpSearch.value = "";
+        if (cpStatus) cpStatus.value = "ALL";
+        if (cpType) cpType.value = "ALL";
+        this.renderCouponsTab();
+      });
+    }
+    if (cpDiscountType) {
+      cpDiscountType.addEventListener("change", (e) => {
+        const valInput = document.getElementById("couponFormValue");
+        const valLabel = document.getElementById("couponValueLabel");
+        if (e.target.value === "flat") {
+          if (valLabel) valLabel.textContent = "Flat Discount Amount (₹ INR) *";
+          if (valInput) {
+            valInput.removeAttribute("max");
+            valInput.placeholder = "e.g. 500";
+          }
+        } else {
+          if (valLabel) valLabel.textContent = "Discount Percentage (% OFF) *";
+          if (valInput) {
+            valInput.setAttribute("max", "100");
+            valInput.placeholder = "e.g. 15";
+          }
+        }
+      });
+    }
+    if (cpForm) {
+      cpForm.addEventListener("submit", (e) => this.handleSaveCoupon(e));
+    }
+
+    // Add Product Form
+    const productForm = document.getElementById("adminAddProductForm");
+    if (productForm) {
+      productForm.addEventListener("submit", (e) => this.handleAddProduct(e));
+    }
+
+    // Bulk Orders & CSV Sync Event Listeners
+    window.addEventListener("bulkOrdersUpdated", () => {
+      this.renderBulkOrdersSession();
+      this.renderBulkOrderKPIs();
+      this.renderDashboardKPIs();
+    });
+
+    const importBulkCsvInput = document.getElementById("importBulkOrdersCsvInput");
+    if (importBulkCsvInput) {
+      importBulkCsvInput.addEventListener("change", (e) => this.handleImportBulkOrdersCSV(e));
+    }
+
+    const downloadBulkTemplateBtn = document.getElementById("downloadBulkOrderTemplateBtn");
+    if (downloadBulkTemplateBtn) {
+      downloadBulkTemplateBtn.addEventListener("click", () => this.handleDownloadBulkOrderTemplateCSV());
+    }
+    const downloadBulkTemplateBtn2 = document.getElementById("downloadBulkOrderTemplateBtn2");
+    if (downloadBulkTemplateBtn2) {
+      downloadBulkTemplateBtn2.addEventListener("click", () => this.handleDownloadBulkOrderTemplateCSV());
+    }
+
+    const exportBulkBtn = document.getElementById("exportBulkOrdersBtn");
+    if (exportBulkBtn) {
+      exportBulkBtn.addEventListener("click", () => this.handleExportBulkOrdersCSV());
+    }
+
+    const resetSampleBulkBtn = document.getElementById("resetSampleBulkOrdersBtn");
+    if (resetSampleBulkBtn) {
+      resetSampleBulkBtn.addEventListener("click", () => {
+        if (confirm("Reset and reload verified sample B2B bulk orders?")) {
+          window.store.resetSampleBulkOrders();
+          if (window.storefront) window.storefront.showToast("Sample wholesale bulk orders reloaded!", "info");
+        }
+      });
+    }
+
+    const toggleCatalogSyncBtn = document.getElementById("toggleCatalogSyncSectionBtn");
+    const catalogSyncContainer = document.getElementById("productCatalogSyncContainer");
+    if (toggleCatalogSyncBtn && catalogSyncContainer) {
+      toggleCatalogSyncBtn.addEventListener("click", () => {
+        const isHidden = catalogSyncContainer.style.display === "none";
+        catalogSyncContainer.style.display = isHidden ? "block" : "none";
+        toggleCatalogSyncBtn.innerHTML = isHidden ? `<span data-icon="box"></span> Master Catalog SKU Sync ▴` : `<span data-icon="box"></span> Master Catalog SKU Sync ▾`; if (window.Icons) window.Icons.init(toggleCatalogSyncBtn);
+      });
+    }
+
+    // Modal Booking Handlers
+    const openAddBulkModalBtn = document.getElementById("openAddBulkOrderModalBtn");
+    const openAddBulkModalBtn2 = document.getElementById("openAddBulkOrderModalBtn2");
+    const closeAddBulkModalBtn = document.getElementById("closeAddBulkOrderModalBtn");
+    const cancelAddBulkModalBtn = document.getElementById("cancelAddBulkOrderBtn");
+    const addBulkModal = document.getElementById("addBulkOrderModal");
+
+    const openBulkModal = () => {
+      if (addBulkModal) {
+        addBulkModal.classList.add("active");
+        const deadlineInput = document.getElementById("bulkInDeadline");
+        if (deadlineInput && !deadlineInput.value) {
+          deadlineInput.value = new Date(Date.now() + 20 * 86400000).toISOString().split("T")[0];
+        }
+      }
+    };
+    const closeBulkModal = () => {
+      if (addBulkModal) addBulkModal.classList.remove("active");
+    };
+
+    if (openAddBulkModalBtn) openAddBulkModalBtn.addEventListener("click", openBulkModal);
+    if (openAddBulkModalBtn2) openAddBulkModalBtn2.addEventListener("click", openBulkModal);
+    if (closeAddBulkModalBtn) closeAddBulkModalBtn.addEventListener("click", closeBulkModal);
+    if (cancelAddBulkModalBtn) cancelAddBulkModalBtn.addEventListener("click", closeBulkModal);
+
+    const addBulkOrderForm = document.getElementById("addBulkOrderForm");
+    if (addBulkOrderForm) {
+      addBulkOrderForm.addEventListener("submit", (e) => this.handleAddBulkOrder(e));
+    }
+
+    // New Customer Order Modal & Form Listeners
+    const openNewOrderBtn = document.getElementById("openAdminNewOrderModalBtn");
+    if (openNewOrderBtn) {
+      openNewOrderBtn.addEventListener("click", () => this.openNewOrderModal());
+    }
+    const closeNewOrderBtn = document.getElementById("closeAdminNewOrderModalBtn");
+    if (closeNewOrderBtn) {
+      closeNewOrderBtn.addEventListener("click", () => this.closeNewOrderModal());
+    }
+    const newOrderForm = document.getElementById("adminNewOrderForm");
+    if (newOrderForm) {
+      newOrderForm.addEventListener("submit", (e) => this.handleSaveNewCustomerOrder(e));
+    }
+
+    // Initialize Interactive Garment Color Pickers
+    this.initColorPickers();
+
+    // Search and Filter Listeners for Bulk Order Session
+    const bulkSearch = document.getElementById("bulkOrderSearchInput");
+    const bulkTypeFilter = document.getElementById("bulkOrderTypeFilter");
+    const bulkStatusFilter = document.getElementById("bulkOrderStatusFilter");
+
+    if (bulkSearch) bulkSearch.addEventListener("input", () => this.renderBulkOrdersSession());
+    if (bulkTypeFilter) bulkTypeFilter.addEventListener("change", () => this.renderBulkOrdersSession());
+    if (bulkStatusFilter) bulkStatusFilter.addEventListener("change", () => this.renderBulkOrdersSession());
+
+    const resetBulkBtn = document.getElementById("resetBulkOrderFilterBtn");
+    if (resetBulkBtn) {
+      resetBulkBtn.addEventListener("click", () => {
+        if (bulkSearch) bulkSearch.value = "";
+        if (bulkTypeFilter) bulkTypeFilter.value = "ALL";
+        if (bulkStatusFilter) bulkStatusFilter.value = "ALL";
+        this.renderBulkOrdersSession();
+      });
+    }
+
+    // Bulk Catalog CSV Export & Import Buttons (Preserved)
+    const exportCsvBtn = document.getElementById("exportCsvBtn");
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener("click", () => this.handleExportCSV());
+    }
+
+    const downloadTemplateBtn = document.getElementById("downloadTemplateBtn");
+    if (downloadTemplateBtn) {
+      downloadTemplateBtn.addEventListener("click", () => this.handleDownloadTemplateCSV());
+    }
+
+    const importCsvInput = document.getElementById("importCsvInput");
+    if (importCsvInput) {
+      importCsvInput.addEventListener("change", (e) => this.handleImportCSV(e));
+    }
+
+    // Real-Time Orders PDF Export & Batch Print Buttons
+    const printAllOrdersReportBtn = document.getElementById("printAllOrdersReportBtn");
+    if (printAllOrdersReportBtn) {
+      printAllOrdersReportBtn.addEventListener("click", () => this.printAllOrdersReportPDF());
+    }
+
+    const printAllInvoicesBtn = document.getElementById("printAllInvoicesBtn");
+    if (printAllInvoicesBtn) {
+      printAllInvoicesBtn.addEventListener("click", () => this.printAllGSTInvoicesPDF());
+    }
+
+    // Real-Time Inventory Control Listeners
+    const invSearch = document.getElementById("inventorySearchInput");
+    const invDept = document.getElementById("inventoryDeptFilter");
+    const invStatus = document.getElementById("inventoryStockFilter");
+    const invReset = document.getElementById("resetInventoryFilterBtn");
+    const invRestockLow = document.getElementById("quickRestockLowBtn");
+    const invResetDefault = document.getElementById("resetSampleStockBtn");
+
+    if (invSearch) invSearch.addEventListener("input", () => this.renderInventoryTable());
+    if (invDept) invDept.addEventListener("change", () => this.renderInventoryTable());
+    if (invStatus) invStatus.addEventListener("change", () => this.renderInventoryTable());
+
+    if (invReset) {
+      invReset.addEventListener("click", () => {
+        if (invSearch) invSearch.value = "";
+        if (invDept) invDept.value = "";
+        if (invStatus) invStatus.value = "";
+        this.renderInventoryTable();
+      });
+    }
+
+    if (invRestockLow) {
+      invRestockLow.addEventListener("click", () => {
+        const catalog = window.store.getAllProducts();
+        let count = 0;
+        catalog.forEach(p => {
+          if (p.stock <= (p.lowStockThreshold || 2)) {
+            window.store.updateStock(p.id, (p.stock || 0) + 5);
+            count++;
+          }
+        });
+        this.renderInventoryTable();
+        if (window.storefront) {
+          window.storefront.showToast(`Restocked +5 units for ${count} low-stock items! (Live on Website)`, "success");
+        }
+      });
+    }
+
+    if (invResetDefault) {
+      invResetDefault.addEventListener("click", () => {
+        if (confirm("Reset all products to their standard loom stock counts?")) {
+          if (typeof INITIAL_CATALOG !== "undefined") {
+            INITIAL_CATALOG.forEach(p => {
+              window.store.updateStock(p.id, p.stock);
+            });
+            this.renderInventoryTable();
+            if (window.storefront) {
+              window.storefront.showToast("Catalog stock reset to default weaver units!", "info");
+            }
+          }
+        }
+      });
+    }
+  }
+
+  switchTab(tabName) {
+    if (!tabName) return;
+    this.currentTab = tabName;
+    this.closeMobileSidebar();
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const mainContent = document.querySelector(".admin-main-content");
+    if (mainContent) mainContent.scrollTop = 0;
+
+    const normTab = (tabName === "feedback") ? "feedbacks" : tabName;
+
+    document.querySelectorAll(".admin-menu-item").forEach(item => {
+      const itemTab = item.getAttribute("data-tab");
+      const isActive = itemTab === normTab || itemTab === tabName;
+      item.classList.toggle("active", isActive);
+    });
+
+    document.querySelectorAll("#adminMobileNavDrawer .mobile-dept-btn").forEach(btn => {
+      const btnTab = btn.getAttribute("data-tab");
+      const isActive = btnTab === normTab || btnTab === tabName;
+      btn.classList.toggle("active", isActive);
+    });
+
+    document.querySelectorAll(".admin-tab-pane").forEach(pane => {
+      const paneId = pane.getAttribute("id");
+      const isActive = paneId === `adminTab-${normTab}` || paneId === `adminTab-${tabName}`;
+      pane.classList.remove("admin-tab-animating");
+      pane.classList.toggle("active", isActive);
+      if (isActive) {
+        pane.style.setProperty("display", "block", "important");
+        void pane.offsetWidth;
+        pane.classList.add("admin-tab-animating");
+      } else {
+        pane.style.setProperty("display", "none", "important");
+      }
+    });
+
+    if (normTab === "orders") {
+      this.renderOrdersTable();
+    } else if (normTab === "inventory") {
+      this.renderInventoryKPIs();
+      this.renderInventoryTable();
+    } else if (normTab === "bulk-products" || normTab === "bulk_products") {
+      this.renderBulkOrdersMasterSwitch();
+      this.renderBulkPackagesSection();
+    } else if (normTab === "bulk-orders" || normTab === "bulk_orders") {
+      this.renderBulkOrdersMasterSwitch();
+      this.renderBulkOrdersSession();
+      this.renderBulkOrderKPIs();
+    } else if (normTab === "bulk") {
+      this.switchTab("bulk-products");
+    } else if (normTab === "feedbacks" || normTab === "feedback") {
+      this.renderFeedbacksTable();
+    } else if (normTab === "subscribers") {
+      this.renderSubscribersTable();
+    } else if (normTab === "coupons") {
+      this.renderCouponsTab();
+      this.renderCouponKPIs();
+    } else if (normTab === "festive") {
+      this.renderFestivePanel();
+    } else if (normTab === "family-combos" || normTab === "family_combos") {
+      this.renderFamilyCombosTab();
+    } else if (normTab === "uploader") {
+      this.initDeptGateway();
+    } else if (normTab === "overview") {
+      this.renderDashboardKPIs();
+    }
+  }
+
+  renderDashboardKPIs() {
+    const stats = window.store.getAdminStats();
+    const feedbacks = window.store.getFeedbacks();
+
+    const revEl = document.getElementById("kpiTotalRevenue");
+    const ordersEl = document.getElementById("kpiActiveOrders");
+    const lowStockEl = document.getElementById("kpiLowStock");
+    const skusEl = document.getElementById("kpiTotalSKUs");
+    const avgRatingEl = document.getElementById("kpiAvgRating");
+    const totalFbEl = document.getElementById("kpiTotalFeedbacks");
+    const btnFbCount = document.getElementById("btnFeedbackCount");
+    const sidebarFbBadge = document.getElementById("sidebarFeedbackBadge");
+    const fbBadge = document.getElementById("feedbackCountBadge");
+    const fbAvgVal = document.getElementById("fbAvgRatingVal");
+    const fbTotalVal = document.getElementById("fbTotalSubmissionsVal");
+    const fbSoftnessVal = document.getElementById("fbSoftnessScoreVal");
+
+    if (revEl) revEl.textContent = `₹${stats.totalSalesINR.toLocaleString("en-IN")}`;
+    if (ordersEl) ordersEl.textContent = stats.activeOrdersCount;
+    if (lowStockEl) lowStockEl.textContent = stats.lowStockCount;
+    if (skusEl) skusEl.textContent = stats.totalSKUs;
+    this.renderCouponKPIs();
+
+    // Calculate rating metrics
+    const totalFeedbacks = feedbacks.length;
+    let avgRating = 5.0;
+    if (totalFeedbacks > 0) {
+      const sum = feedbacks.reduce((acc, f) => acc + (parseInt(f.rating, 10) || 5), 0);
+      avgRating = (sum / totalFeedbacks).toFixed(1);
+    }
+
+    const mobileSidebarFbBadge = document.getElementById("mobileSidebarFeedbackBadge");
+    const mobileSidebarStockBadge = document.getElementById("mobileSidebarStockBadge");
+    const sidebarStockBadge = document.getElementById("sidebarStockBadge");
+    if (sidebarStockBadge) sidebarStockBadge.textContent = `${stats.totalSKUs} SKUs`;
+    if (mobileSidebarStockBadge) mobileSidebarStockBadge.textContent = `${stats.totalSKUs} SKUs`;
+    if (sidebarFbBadge) sidebarFbBadge.textContent = `${totalFeedbacks} Reviews`;
+    if (mobileSidebarFbBadge) mobileSidebarFbBadge.textContent = `${totalFeedbacks} Reviews`;
+    if (fbBadge) fbBadge.textContent = `${totalFeedbacks} Reviews`;
+    if (btnFbCount) btnFbCount.textContent = `(${totalFeedbacks})`;
+    if (avgRatingEl) avgRatingEl.textContent = `${avgRating}`;
+    if (totalFbEl) totalFbEl.textContent = totalFeedbacks;
+    if (fbAvgVal) fbAvgVal.textContent = `${avgRating}`;
+    if (fbTotalVal) fbTotalVal.textContent = totalFeedbacks;
+  }
+
+  setupMediaUploader() {
+    const dropzone = document.getElementById("mediaDropzone");
+    const fileInput = document.getElementById("productMediaFiles");
+    const urlInput = document.getElementById("pImageURL");
+
+    if (dropzone && fileInput) {
+      dropzone.addEventListener("click", (e) => {
+        if (e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT") {
+          fileInput.click();
+        }
+      });
+
+      // Drag and Drop Events
+      ["dragenter", "dragover"].forEach(evtName => {
+        dropzone.addEventListener(evtName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.style.borderColor = "var(--color-gold)";
+          dropzone.style.background = "rgba(212, 175, 55, 0.08)";
+        });
+      });
+
+      ["dragleave", "drop"].forEach(evtName => {
+        dropzone.addEventListener(evtName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.style.borderColor = "";
+          dropzone.style.background = "";
+        });
+      });
+
+      dropzone.addEventListener("drop", (e) => {
+        const dt = e.dataTransfer;
+        const files = dt ? Array.from(dt.files) : [];
+        if (files.length > 0) {
+          this.processUploadedFiles(files);
+        }
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+          this.processUploadedFiles(files);
+        }
+      });
+    }
+
+    if (urlInput) {
+      urlInput.addEventListener("input", (e) => {
+        const val = e.target.value.trim();
+        if (val && this.uploadedImages.length === 0) {
+          this.renderMediaPreviews([val]);
+        } else if (!val && this.uploadedImages.length === 0) {
+          this.renderMediaPreviews([]);
+        }
+      });
+    }
+  }
+
+  async processUploadedFiles(files) {
+    const imageFiles = files.filter(f => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    for (const file of imageFiles) {
+      // 1. Client-side canvas compression for high-DPI crisp display & small footprint
+      const compressedDataUrl = await this.readFileAsDataURL(file);
+      if (!compressedDataUrl) continue;
+
+      let finalUrl = compressedDataUrl;
+
+      // 2. Direct Backend Upload to save clean static image file in frontend/uploads/
+      try {
+        const apiBase = (window.store && typeof window.store.getApiBase === "function")
+          ? window.store.getApiBase()
+          : "/api";
+        const res = await fetch(`${apiBase}/upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: compressedDataUrl, filename: file.name })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && json.url) {
+            finalUrl = json.url;
+          }
+        }
+      } catch (err) {
+        console.warn("[MediaUpload] Server upload fallback to compressed DataURL:", err);
+      }
+
+      this.uploadedImages.push(finalUrl);
+    }
+
+    this.renderMediaPreviews(this.uploadedImages);
+
+    if (window.storefront) {
+      window.storefront.showToast(`✨ ${imageFiles.length} photo(s) added & ready to publish!`, "success");
+    }
+  }
+
+  readFileAsDataURL(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawData = e.target.result;
+        // High quality client-side canvas compression to ensure localStorage never hits quota
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 720;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          // High quality image smoothing
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/jpeg", 0.76);
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(rawData);
+        img.src = rawData;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  renderMediaPreviews(images) {
+    const previewContainer = document.getElementById("mediaPreviewStrip");
+    if (!previewContainer) return;
+
+    if (!images || images.length === 0) {
+      previewContainer.innerHTML = "";
+      return;
+    }
+
+    previewContainer.innerHTML = images.map((imgSrc, idx) => `
+      <div class="preview-thumb">
+        <img src="${imgSrc}" alt="Product Image ${idx + 1}" />
+        <span class="tag">${idx === 0 ? "⭐ Main Cover" : `#${idx + 1}`}</span>
+        <button type="button" class="remove-img-btn" data-index="${idx}" title="Remove photo"><span data-icon="close"></span></button>
+      </div>
+    `).join("");
+
+    previewContainer.querySelectorAll(".remove-img-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const index = parseInt(btn.getAttribute("data-index"), 10);
+        if (this.uploadedImages.length > index) {
+          this.uploadedImages.splice(index, 1);
+          this.renderMediaPreviews(this.uploadedImages);
+        } else {
+          this.renderMediaPreviews([]);
+          const urlInput = document.getElementById("pImageURL");
+          if (urlInput) urlInput.value = "";
+        }
+      });
+    });
+  }
+
+  // ==========================================
+  // GENDER & DEPARTMENT CATEGORY GATEWAY (UPLOADER)
+  // ==========================================
+  getDepartmentConfigs() {
+    return {
+      "Women's Collection": {
+        key: "Women's Collection",
+        title: "Women's Collection",
+        badge: "Ladies & Adults",
+        icon: "ladies",
+        emoji: "👗",
+        ageGroup: "Adults & Teens",
+        defaultFabric: "Kanchipuram Silk",
+        defaultOccasion: "Wedding & Grand Celebration",
+        defaultSubtitle: "Pure Handloom Silk Korvai with Tested Gold Zari",
+        softLiningDefault: false,
+        organicCottonDefault: false,
+        subCategories: [
+          "Kanchipuram Silk Sarees",
+          "Banarasi Katan Silk Sarees",
+          "French Flax Linen Sarees",
+          "Chanderi Tissue Silk Sarees",
+          "Kalamkari Tussar Silk Sarees",
+          "Temple Korvai Border Sarees",
+          "Festive Silk Lehengas",
+          "Bridal Muhurtham Sarees"
+        ],
+        sizes: [
+          "Free Size (6.3m Saree with Blouse Piece)",
+          "Free Size (6.5m Saree with Stitched Blouse)",
+          "Running 6.2m Silk Saree (Unstitched)",
+          "Saree + Custom Tailored Designer Blouse"
+        ],
+        hsnCode: "50072010"
+      },
+      "Men's Collection": {
+        key: "Men's Collection",
+        title: "Men's Collection",
+        badge: "Men & Grooms",
+        icon: "mens",
+        emoji: "👔",
+        ageGroup: "Adults & Teens",
+        defaultFabric: "Kanchipuram Silk",
+        defaultOccasion: "Wedding & Grand Celebration",
+        defaultSubtitle: "Pure Mulberry Silk Dhoti with Gold Mayilkan Border",
+        softLiningDefault: false,
+        organicCottonDefault: false,
+        subCategories: [
+          "Mulberry Silk Dhotis & Angavastram",
+          "Silk Shirts & Veshti Sets",
+          "Festive Pure Silk Kurtas",
+          "Mayilkan Gold Zari Veshti",
+          "Temple Double Veshti (8 Muzham)",
+          "Wedding Muhurtham Pattu Dhoti Set"
+        ],
+        sizes: [
+          "Dhoti (Free Size 4+2 Mtrs Matching Angavastram)",
+          "Dhoti 8 Muzham Double Veshti",
+          "Shirt 38 (Medium / Chest 40 in)",
+          "Shirt 40 (Large / Chest 42 in)",
+          "Shirt 42 (XL / Chest 44 in)",
+          "Shirt 44 (XXL / Chest 46 in)"
+        ],
+        hsnCode: "52085110"
+      },
+      "Kids Wear (Girls)": {
+        key: "Kids Wear (Girls)",
+        title: "Kids Wear - Girls",
+        badge: "Girls (2 - 14 Years)",
+        icon: "girls",
+        emoji: "👧",
+        ageGroup: "2 - 14 Years",
+        defaultFabric: "Pure Silk & Cotton Lining",
+        defaultOccasion: "Birthday & Party Wear",
+        defaultSubtitle: "Pure Silk with Soft Scratch-Free Cotton Lining",
+        softLiningDefault: true,
+        organicCottonDefault: false,
+        subCategories: [
+          "Traditional Pattu Pavadai",
+          "Festive Silk Lehengas",
+          "Scratch-Free Pavadai Sets",
+          "Readymade Silk Frocks",
+          "Brocade Pavadai Sattai",
+          "Temple Festival Pattu Pavadai"
+        ],
+        sizes: [
+          "Size 20 (1-2 Yrs / 75-85 cm)",
+          "Size 22 (2-3 Yrs / 85-95 cm)",
+          "Size 24 (3-4 Yrs / 95-100 cm)",
+          "Size 26 (4-5 Yrs / 100-110 cm)",
+          "Size 28 (5-6 Yrs / 110-115 cm)",
+          "Size 30 (6-8 Yrs / 115-125 cm)",
+          "Size 32 (8-10 Yrs / 125-135 cm)",
+          "Size 34 (10-12 Yrs / 135-145 cm)",
+          "Size 36 (12-14 Yrs / 145-155 cm)"
+        ],
+        hsnCode: "62044220"
+      },
+      "Kids Wear (Boys)": {
+        key: "Kids Wear (Boys)",
+        title: "Kids Wear - Boys",
+        badge: "Boys (2 - 14 Years)",
+        icon: "boys",
+        emoji: "👦",
+        ageGroup: "2 - 14 Years",
+        defaultFabric: "Pure Silk & Cotton Lining",
+        defaultOccasion: "Wedding & Grand Celebration",
+        defaultSubtitle: "Pure Silk Shirt & Dhoti with Soft Skin Lining",
+        softLiningDefault: true,
+        organicCottonDefault: false,
+        subCategories: [
+          "Pure Silk Shirt & Dhoti Sets",
+          "Festive Kurta & Dhoti Combos",
+          "Temple Veshti Sets (Boys)",
+          "Jacquard Silk Kurtas",
+          "Boy's Angavastram & Dhoti Set"
+        ],
+        sizes: [
+          "Size 20 (1-2 Yrs)",
+          "Size 22 (2-3 Yrs / 85-95 cm)",
+          "Size 24 (3-4 Yrs)",
+          "Size 26 (4-5 Yrs / 100-110 cm)",
+          "Size 28 (5-6 Yrs)",
+          "Size 30 (6-8 Yrs / 115-125 cm)",
+          "Size 32 (8-10 Yrs)",
+          "Size 34 (10-12 Yrs / 135-145 cm)",
+          "Size 36 (12-13 Yrs)",
+          "Size 38 (13-14 Yrs / 150-160 cm)"
+        ],
+        hsnCode: "62034200"
+      },
+      "Infants & Toddlers": {
+        key: "Infants & Toddlers",
+        title: "Born Babies & Infants",
+        badge: "Infants (0 - 2 Years)",
+        icon: "baby",
+        emoji: "👶",
+        ageGroup: "0 - 2 Years",
+        defaultFabric: "100% Organic Muslin Cotton",
+        defaultOccasion: "Daily, School & Workwear",
+        defaultSubtitle: "GOTS Certified Organic Muslin with Zero Chemical Dyes",
+        softLiningDefault: true,
+        organicCottonDefault: true,
+        subCategories: [
+          "Organic Muslin Jhablas",
+          "Baby Naming Ceremony Silk Sets",
+          "Swaddle Cloth & Romper Sets",
+          "First-Birthday Pure Silk Sets",
+          "Organic Muslin Nappies & Caps"
+        ],
+        sizes: [
+          "0 - 3 Months (Newborn)",
+          "3 - 6 Months",
+          "6 - 12 Months",
+          "12 - 18 Months",
+          "18 - 24 Months"
+        ],
+        hsnCode: "62092000"
+      },
+      "Family Combos & Sets": {
+        key: "Family Combos & Sets",
+        title: "Family Combos & Sets",
+        badge: "Complete Family Pack",
+        icon: "family",
+        emoji: "👨‍👩‍👧‍👦",
+        ageGroup: "Full Family Ensemble",
+        defaultFabric: "Kanchipuram Silk & Pure Mulberry Silk",
+        defaultOccasion: "Wedding & Grand Celebration",
+        defaultSubtitle: "Grand Color-Coordinated Muhurtham Silk Family Pack",
+        softLiningDefault: true,
+        organicCottonDefault: false,
+        subCategories: [
+          "Full Family Festival Bundles (4-Piece)",
+          "Mother & Daughter Matching Sets",
+          "Father & Son Traditional Silk Duo Sets",
+          "Sibling Coordinated Combos (Boy & Girl)",
+          "Festive Trio Sets (Parents & Child)"
+        ],
+        sizes: [
+          "Complete Family Pack (4-Piece Ensemble)",
+          "Mother & Daughter Matching Duo Set",
+          "Father & Son Traditional Silk Duo Set",
+          "Sibling Matching Pair (Boy & Girl)",
+          "Mother Free Size + Daughter 4-5Y",
+          "Mother Free Size + Daughter 6-7Y",
+          "Father Size 40 + Son 4-5Y",
+          "Father Size 42 + Son 6-7Y"
+        ],
+        hsnCode: "50072010"
+      }
+    };
+  }
+
+  getDefaultSizesForDepartment(department) {
+    const configs = this.getDepartmentConfigs();
+    const cfg = configs[department] || configs["Women's Collection"];
+    return cfg.sizes;
+  }
+
+  initDeptGateway() {
+    this.updateDeptGatewayCounts();
+    const gatewayEl = document.getElementById("deptGatewayView");
+    const formViewEl = document.getElementById("deptProductFormView");
+    if (!this.selectedDept) {
+      if (gatewayEl) gatewayEl.style.display = "flex";
+      if (formViewEl) formViewEl.style.display = "none";
+    }
+    const uploaderPane = document.getElementById("adminTab-uploader");
+    if (uploaderPane && window.Icons) {
+      window.Icons.init(uploaderPane);
+    }
+  }
+
+  updateDeptGatewayCounts() {
+    if (!window.store || !window.store.catalog) return;
+    const catalog = window.store.catalog || [];
+
+    const counts = {
+      women: catalog.filter(p => p.department === "Women's Collection").length,
+      men: catalog.filter(p => p.department === "Men's Collection").length,
+      girls: catalog.filter(p => p.department === "Kids Wear (Girls)").length,
+      boys: catalog.filter(p => p.department === "Kids Wear (Boys)").length,
+      infants: catalog.filter(p => p.department === "Infants & Toddlers" || p.department === "Infants & Toddlers (0-2Y)").length,
+      family: catalog.filter(p => p.department === "Family Combos & Sets").length
+    };
+
+    const setTxt = (id, count) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = `${count} SKU${count === 1 ? '' : 's'} in Catalog`;
+    };
+
+    setTxt("deptCount-women", counts.women);
+    setTxt("deptCount-men", counts.men);
+    setTxt("deptCount-girls", counts.girls);
+    setTxt("deptCount-boys", counts.boys);
+    setTxt("deptCount-infants", counts.infants);
+    setTxt("deptCount-family", counts.family);
+  }
+
+  showDeptGateway() {
+    const gatewayEl = document.getElementById("deptGatewayView");
+    const formViewEl = document.getElementById("deptProductFormView");
+    if (gatewayEl) gatewayEl.style.display = "flex";
+    if (formViewEl) formViewEl.style.display = "none";
+    this.selectedDept = null;
+    this.updateDeptGatewayCounts();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  selectDepartment(deptKey) {
+    const configs = this.getDepartmentConfigs();
+    const cfg = configs[deptKey] || configs["Women's Collection"];
+    this.selectedDept = cfg.key;
+
+    // Toggle views
+    const gatewayEl = document.getElementById("deptGatewayView");
+    const formViewEl = document.getElementById("deptProductFormView");
+    if (gatewayEl) gatewayEl.style.display = "none";
+    if (formViewEl) formViewEl.style.display = "block";
+
+    // Update Header
+    const iconContainer = document.getElementById("activeDeptIcon");
+    const emojiEl = document.getElementById("activeDeptEmoji");
+    const titleEl = document.getElementById("activeDeptTitle");
+    const badgeEl = document.getElementById("activeDeptBadge");
+    const submitBtnText = document.getElementById("pSubmitBtnText");
+
+    if (iconContainer) {
+      iconContainer.setAttribute("data-icon", cfg.icon);
+      iconContainer.innerHTML = window.Icons ? window.Icons.get(cfg.icon, { size: 24 }) : "";
+    } else if (emojiEl) {
+      emojiEl.textContent = cfg.emoji;
+    }
+    if (titleEl) titleEl.textContent = cfg.title;
+    if (badgeEl) badgeEl.textContent = cfg.badge;
+    if (submitBtnText) submitBtnText.textContent = `Publish ${cfg.title} SKU to Live Storefront`;
+
+    // Highlight active QuickSwitch pill
+    document.querySelectorAll("#deptQuickSwitchBar .admin-dept-pill").forEach(pill => {
+      const pDept = pill.getAttribute("data-dept");
+      pill.classList.toggle("active", pDept === cfg.key);
+    });
+
+    // Populate tailored fields
+    const deptSelect = document.getElementById("pDepartment");
+    if (deptSelect) deptSelect.value = cfg.key;
+
+    const ageGroupSelect = document.getElementById("pAgeGroup");
+    if (ageGroupSelect) ageGroupSelect.value = cfg.ageGroup;
+
+    const fabricSelect = document.getElementById("pFabric");
+    if (fabricSelect) fabricSelect.value = cfg.defaultFabric;
+
+    const occasionSelect = document.getElementById("pOccasion");
+    if (occasionSelect) occasionSelect.value = cfg.defaultOccasion;
+
+    const subtitleInput = document.getElementById("pSubtitle");
+    if (subtitleInput && !subtitleInput.value.trim()) {
+      subtitleInput.value = cfg.defaultSubtitle;
+    }
+
+    const hsnInput = document.getElementById("pHSN");
+    if (hsnInput) hsnInput.value = cfg.hsnCode;
+
+    // Safety Badges
+    const softLining = document.getElementById("pSoftLiningCheckbox");
+    if (softLining) softLining.checked = cfg.softLiningDefault;
+
+    const organicCotton = document.getElementById("pOrganicCottonCheckbox");
+    if (organicCotton) organicCotton.checked = cfg.organicCottonDefault;
+
+    // Sub-Category Datalist Suggestions
+    const subCatList = document.getElementById("pSubCategorySuggestions");
+    if (subCatList) {
+      subCatList.innerHTML = cfg.subCategories.map(sc => `<option value="${sc}">`).join("");
+    }
+    const subCatInput = document.getElementById("pSubCategory");
+    if (subCatInput && !subCatInput.value.trim()) {
+      subCatInput.value = cfg.subCategories[0] || "";
+    }
+
+    // Populate Sizes
+    this.renderDepartmentSizes(cfg.sizes);
+
+    // Scroll smoothly to the form
+    window.scrollTo({ top: 120, behavior: "smooth" });
+  }
+
+  renderDepartmentSizes(sizesList) {
+    const wrap = document.getElementById("pAvailableSizesWrap");
+    if (!wrap) return;
+
+    wrap.innerHTML = sizesList.map((sz, idx) => `
+      <label class="admin-size-pill-label">
+        <input type="checkbox" name="productSizeOption" value="${sz}" ${idx < 4 ? 'checked' : ''} />
+        <span>${sz}</span>
+      </label>
+    `).join("");
+  }
+
+  handleAddProduct(e) {
+    e.preventDefault();
+
+    const title = (document.getElementById("pTitle")?.value || "").trim() || "Handcrafted Heritage Textile";
+    const subtitle = (document.getElementById("pSubtitle")?.value || "").trim();
+    const department = document.getElementById("pDepartment")?.value || "Women's Collection";
+    const subCategory = (document.getElementById("pSubCategory")?.value || "").trim() || "Ethnic Wear";
+    const ageGroup = document.getElementById("pAgeGroup")?.value || "Adults";
+    const fabric = document.getElementById("pFabric")?.value || "Kanchipuram Silk";
+    const occasion = document.getElementById("pOccasion")?.value || "Wedding & Grand Celebration";
+    const technique = (document.getElementById("pTechnique")?.value || "").trim() || "Handloom";
+    const priceINR = parseInt(document.getElementById("pPrice")?.value, 10) || 12000;
+    const mrpINR = parseInt(document.getElementById("pMRP")?.value, 10) || Math.round(priceINR * 1.3);
+    const stock = parseInt(document.getElementById("pStock")?.value, 10) || 3;
+    const hsnCode = (document.getElementById("pHSN")?.value || "").trim() || "50072010";
+    const customUrl = (document.getElementById("pImageURL")?.value || "").trim();
+    const hasSoftLining = document.getElementById("pSoftLiningCheckbox")?.checked;
+    const hasOrganicCotton = document.getElementById("pOrganicCottonCheckbox")?.checked;
+    const primaryColor = document.getElementById("pPrimaryColor")?.value || "Royal Crimson Red";
+    const customColor = (document.getElementById("pCustomColor")?.value || "").trim();
+    const chosenProductColor = customColor || primaryColor;
+
+    // Collect checked sizes
+    const checkedSizes = [];
+    document.querySelectorAll("#pAvailableSizesWrap input[type='checkbox']:checked").forEach(cb => {
+      if (cb.value) checkedSizes.push(cb.value);
+    });
+    const finalAvailableSizes = checkedSizes.length > 0 ? checkedSizes : this.getDefaultSizesForDepartment(department);
+
+    // Determine primary cover image & gallery
+    let mainImage = "";
+    if (this.uploadedImages && this.uploadedImages.length > 0) {
+      mainImage = this.uploadedImages[0];
+    } else if (customUrl) {
+      mainImage = customUrl;
+    } else {
+      const fallbacks = {
+        "Women's Collection": "assets/images/banarasi_blue.jpg",
+        "Kids Wear (Girls)": "assets/images/kids_pattu_pavadai.jpg",
+        "Kids Wear (Boys)": "assets/images/boys_kurta_dhoti.jpg",
+        "Men's Collection": "assets/images/mens_silk_dhoti.jpg",
+        "Infants & Toddlers": "assets/images/infant_organic_jhabla.jpg",
+        "Family Combos & Sets": "assets/images/family_matching_combo.jpg"
+      };
+      mainImage = fallbacks[department] || "assets/images/family_matching_combo.jpg";
+    }
+
+    const allImages = this.uploadedImages && this.uploadedImages.length > 0
+      ? [...this.uploadedImages]
+      : [mainImage];
+
+    const badges = ["Silk Mark (SMOI) Certified"];
+    const safetyBadges = [];
+    if (hasSoftLining) safetyBadges.push("Soft Inner-Lining Guarantee");
+    if (hasOrganicCotton) safetyBadges.push("100% Skin-Friendly Organic Cotton");
+
+    const deptPrefix = department.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, "") || "ST";
+    const productId = `ST-${deptPrefix}-${Date.now().toString().slice(-4)}`;
+
+    const newProduct = {
+      id: productId,
+      title: title,
+      name: title,
+      subtitle: subtitle || `${fabric} Handloom Creation`,
+      department: department,
+      subCategory: subCategory,
+      category: subCategory || "Silk Sarees",
+      ageGroup: ageGroup,
+      fabric: fabric,
+      fabricType: `100% Certified ${fabric}`,
+      warpWeft: "3-Ply Silk Warp & Weft",
+      zariType: "Pure Tested Gold Zari",
+      threadCount: "240 EPI x 140 PPI",
+      length: "Standard Sizing",
+      weight: "550g",
+      hsnCode: hsnCode,
+      gstRate: 5,
+      priceINR: priceINR,
+      price: priceINR,
+      mrpINR: mrpINR,
+      originalPriceINR: mrpINR,
+      original_price: mrpINR,
+      stock: stock,
+      stockCount: stock,
+      inStock: stock > 0,
+      lowStockThreshold: 2,
+      collections: [department, "Festive Silk 2026"],
+      occasion: occasion,
+      technique: technique,
+      availableSizes: finalAvailableSizes,
+      color: chosenProductColor,
+      colour: chosenProductColor,
+      colors: [
+        { name: chosenProductColor, hex: this.getColorHex(chosenProductColor), image: mainImage, code: "SIG-01" }
+      ],
+      mainImage: mainImage,
+      image: mainImage,
+      image_url: mainImage,
+      zoomImage: mainImage,
+      images: allImages,
+      gallery: allImages,
+      badges: badges,
+      safetyBadges: safetyBadges,
+      rating: 5.0,
+      reviewCount: 1,
+      description: `Newly added ${title} for ${department} handcrafted by Srinivasa Textiles master artisans.`,
+      careInstructions: ["Professional Dry Clean or gentle wash"],
+      createdAt: new Date().toISOString()
+    };
+
+    window.store.addProduct(newProduct);
+
+    e.target.reset();
+    this.uploadedImages = [];
+    this.renderMediaPreviews([]);
+    this.updateDeptGatewayCounts();
+
+    if (window.storefront) {
+      window.storefront.showToast(`✨ Product "${title}" published live to ${department}!`, "success");
+    }
+
+    this.renderInventoryKPIs();
+    this.renderInventoryTable();
+    this.switchTab("inventory");
+  }
+
+  renderInventoryKPIs() {
+    const stats = window.store.getInventoryStats ? window.store.getInventoryStats() : {
+      totalSKUs: 0,
+      totalStockUnits: 0,
+      inStockCount: 0,
+      lowStockCount: 0,
+      outOfStockCount: 0
+    };
+
+    const totalUnitsEl = document.getElementById("invTotalUnits");
+    const inStockEl = document.getElementById("invInStockCount");
+    const lowStockEl = document.getElementById("invLowStockCount");
+    const outOfStockEl = document.getElementById("invOutOfStockCount");
+
+    if (totalUnitsEl) totalUnitsEl.textContent = stats.totalStockUnits.toLocaleString("en-IN");
+    if (inStockEl) inStockEl.textContent = stats.inStockCount;
+    if (lowStockEl) lowStockEl.textContent = stats.lowStockCount;
+    if (outOfStockEl) outOfStockEl.textContent = stats.outOfStockCount;
+  }
+
+  renderInventoryTable() {
+    const tbody = document.getElementById("adminInventoryTableBody");
+    if (!tbody) return;
+
+    this.renderInventoryKPIs();
+
+    const searchQuery = (document.getElementById("inventorySearchInput")?.value || "").toLowerCase().trim();
+    const deptFilter = document.getElementById("inventoryDeptFilter")?.value || "";
+    const stockFilter = document.getElementById("inventoryStockFilter")?.value || "";
+
+    let catalog = window.store.getAllProducts();
+
+    if (searchQuery) {
+      catalog = catalog.filter(p => {
+        const id = (p.id || "").toLowerCase();
+        const title = (p.title || "").toLowerCase();
+        const dept = (p.department || "").toLowerCase();
+        const fabric = (p.fabric || p.fabricType || "").toLowerCase();
+        const sub = (p.subCategory || "").toLowerCase();
+        return id.includes(searchQuery) || title.includes(searchQuery) || dept.includes(searchQuery) || fabric.includes(searchQuery) || sub.includes(searchQuery);
+      });
+    }
+
+    if (deptFilter) {
+      catalog = catalog.filter(p => p.department === deptFilter);
+    }
+
+    if (stockFilter === "in-stock") {
+      catalog = catalog.filter(p => p.stock > 2);
+    } else if (stockFilter === "low-stock") {
+      catalog = catalog.filter(p => p.stock > 0 && p.stock <= (p.lowStockThreshold || 2));
+    } else if (stockFilter === "out-of-stock") {
+      catalog = catalog.filter(p => p.stock <= 0);
+    }
+
+    if (catalog.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+            <div style="margin-bottom: 0.5rem;"><span data-icon="search" data-icon-size="28"></span></div>
+            <strong style="color: var(--text-heading);">No inventory items match your search/filter</strong>
+            <p style="font-size: 0.8rem; margin-top: 0.25rem;">Try clearing your search query or resetting filters.</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = catalog.map(product => {
+      const isLowStock = product.stock > 0 && product.stock <= (product.lowStockThreshold || 2);
+      const isOutOfStock = product.stock <= 0;
+
+      return `
+        <tr data-id="${product.id}" id="inventory-row-${product.id}">
+          <td>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <img src="${product.mainImage || 'assets/images/family_matching_combo.jpg'}" alt="${product.title}" onerror="this.onerror=null;this.src='assets/images/family_matching_combo.jpg';" style="width: 46px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color);" />
+              <div>
+                <strong style="display: block; font-size: 0.875rem; color: var(--text-heading);">${product.title}</strong>
+                <span style="font-size: 0.725rem; color: var(--text-muted);">SKU: <strong style="color: var(--color-primary);">${product.id}</strong> • ${product.department}</span>
+              </div>
+            </div>
+          </td>
+          <td><strong>${product.hsnCode || "50072010"}</strong></td>
+          <td>
+            <div style="font-weight: 700; color: var(--color-primary);">${window.store.formatPrice(product.priceINR)}</div>
+            ${product.mrpINR ? `<span style="font-size: 0.725rem; text-decoration: line-through; color: var(--text-muted);">${window.store.formatPrice(product.mrpINR)}</span>` : ""}
+          </td>
+          <td>
+            <div class="admin-stock-control-box">
+              <div class="stock-stepper-row">
+                <button type="button" class="btn-stock-step btn-stock-dec" data-id="${product.id}" title="Decrease 1 unit">−</button>
+                <input type="number" class="stock-inline-edit" data-id="${product.id}" value="${product.stock}" min="0" />
+                <button type="button" class="btn-stock-step btn-stock-inc" data-id="${product.id}" title="Increase 1 unit">+</button>
+                <span class="stock-sync-indicator" id="sync-ind-${product.id}"><span data-icon="check" data-icon-size="12"></span> Live</span>
+              </div>
+              <div class="stock-quick-pills">
+                <button type="button" class="stock-pill-btn pill-zero" data-id="${product.id}" data-set="0" title="Set to 0 (Mark Sold Out on Live Website)">0 (Sold Out)</button>
+                <button type="button" class="stock-pill-btn pill-plus" data-id="${product.id}" data-add="5" title="Add 5 units">+5 Units</button>
+                <button type="button" class="stock-pill-btn pill-plus" data-id="${product.id}" data-add="10" title="Add 10 units">+10</button>
+              </div>
+            </div>
+          </td>
+          <td id="stock-badge-cell-${product.id}">
+            ${isOutOfStock ? `
+              <span class="status-badge" style="background:#FEE2E2; color:#DC2626; border: 1px solid #FCA5A5; font-weight: 700;"><span data-icon="lock" data-icon-size="12"></span> Out of Stock</span>
+            ` : isLowStock ? `
+              <span class="status-badge" style="background:#FEF3C7; color:#D97706; border: 1px solid #FCD34D; font-weight: 700;"><span data-icon="flame" data-icon-size="12"></span> Low Stock (${product.stock})</span>
+            ` : `
+              <span class="status-badge paid" style="background:#DCFCE7; color:#166534; border: 1px solid #86EFAC; font-weight: 700;"><span data-icon="check" data-icon-size="12"></span> In Stock (${product.stock})</span>
+            `}
+          </td>
+          <td>
+            <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+              <a href="shop.html" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.725rem; padding: 0.25rem 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="View on customer shop page">
+                <span data-icon="eye" data-icon-size="14">👁️</span> View
+              </a>
+              <button type="button" class="btn btn-outline btn-sm delete-prod-btn" data-id="${product.id}" style="color: #DC2626 !important; border-color: #FECDD3; font-size: 0.725rem; padding: 0.25rem 0.6rem; display: inline-flex; align-items: center; gap: 0.35rem; background: #FFF;" title="Delete SKU">
+                <span data-icon="trash" data-icon-size="14">🗑️</span> <span style="font-weight: 600;">Delete</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    this.bindInventoryRowEvents(tbody);
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(tbody);
+    }
+  }
+
+  applyLiveStockUpdate(id, newQty) {
+    const clampedQty = Math.max(0, isNaN(parseInt(newQty, 10)) ? 0 : parseInt(newQty, 10));
+    const updatedProduct = window.store.updateStock(id, clampedQty);
+    if (!updatedProduct) return;
+
+    // 1. Update the number input in the DOM
+    const input = document.querySelector(`.stock-inline-edit[data-id="${id}"]`);
+    if (input && parseInt(input.value, 10) !== clampedQty) {
+      input.value = clampedQty;
+    }
+
+    // 2. Update the status badge cell immediately
+    const badgeCell = document.getElementById(`stock-badge-cell-${id}`);
+    if (badgeCell) {
+      const isLow = clampedQty > 0 && clampedQty <= (updatedProduct.lowStockThreshold || 2);
+      const isOOS = clampedQty <= 0;
+      badgeCell.innerHTML = isOOS ? `
+        <span class="status-badge" style="background:#FEE2E2; color:#DC2626; border: 1px solid #FCA5A5; font-weight: 700;"><span data-icon="lock" data-icon-size="12"></span> Out of Stock</span>
+      ` : isLow ? `
+        <span class="status-badge" style="background:#FEF3C7; color:#D97706; border: 1px solid #FCD34D; font-weight: 700;"><span data-icon="flame" data-icon-size="12"></span> Low Stock (${clampedQty})</span>
+      ` : `
+        <span class="status-badge paid" style="background:#DCFCE7; color:#166534; border: 1px solid #86EFAC; font-weight: 700;"><span data-icon="check" data-icon-size="12"></span> In Stock (${clampedQty})</span>
+      `;
+    }
+
+    // 3. Flash the live sync indicator
+    const ind = document.getElementById(`sync-ind-${id}`);
+    if (ind) {
+      ind.classList.add("show");
+      setTimeout(() => ind.classList.remove("show"), 2200);
+    }
+
+    // 4. Update KPI counters
+    this.renderInventoryKPIs();
+    this.renderDashboardKPIs();
+
+    // 5. Toast confirmation
+    if (window.storefront && typeof window.storefront.showToast === "function") {
+      window.storefront.showToast(`SKU ${id} stock set to ${clampedQty} units (Live on Website)`, "success");
+    }
+  }
+
+  bindInventoryRowEvents(tbody) {
+    // Stepper Decrement
+    tbody.querySelectorAll(".btn-stock-dec").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const id = btn.getAttribute("data-id");
+        const prod = window.store.getProductById(id);
+        if (prod) {
+          this.applyLiveStockUpdate(id, Math.max(0, (prod.stock || 0) - 1));
+        }
+      });
+    });
+
+    // Stepper Increment
+    tbody.querySelectorAll(".btn-stock-inc").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const id = btn.getAttribute("data-id");
+        const prod = window.store.getProductById(id);
+        if (prod) {
+          this.applyLiveStockUpdate(id, (prod.stock || 0) + 1);
+        }
+      });
+    });
+
+    // Inline input change & keydown
+    tbody.querySelectorAll(".stock-inline-edit").forEach(input => {
+      input.addEventListener("change", (e) => {
+        const id = e.target.getAttribute("data-id");
+        const val = parseInt(e.target.value, 10);
+        this.applyLiveStockUpdate(id, val);
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const id = e.target.getAttribute("data-id");
+          const val = parseInt(e.target.value, 10);
+          this.applyLiveStockUpdate(id, val);
+          input.blur();
+        }
+      });
+    });
+
+    // Quick Action Pills (0 Sold Out, +5, +10)
+    tbody.querySelectorAll(".stock-pill-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const id = btn.getAttribute("data-id");
+        const prod = window.store.getProductById(id);
+        if (!prod) return;
+
+        if (btn.hasAttribute("data-set")) {
+          const targetQty = parseInt(btn.getAttribute("data-set"), 10);
+          this.applyLiveStockUpdate(id, targetQty);
+        } else if (btn.hasAttribute("data-add")) {
+          const addQty = parseInt(btn.getAttribute("data-add"), 10);
+          this.applyLiveStockUpdate(id, (prod.stock || 0) + addQty);
+        }
+      });
+    });
+
+    // Delete SKU button
+    tbody.querySelectorAll(".delete-prod-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const id = btn.getAttribute("data-id");
+        if (confirm(`Remove product ${id} permanently from catalog?`)) {
+          window.store.deleteProduct(id);
+          this.renderInventoryTable();
+          if (window.storefront) {
+            window.storefront.showToast(`Product ${id} deleted from catalog`, "warning");
+          }
+        }
+      });
+    });
+  }
+
+  handleExportCSV() {
+    const csvData = window.store.exportCatalogToCSV();
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Srinivasa_Family_Catalog_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (window.storefront) window.storefront.showToast("Exported family catalog CSV!", "success");
+  }
+
+  handleDownloadTemplateCSV() {
+    const templateContent = `SKU_ID,Title,Department,SubCategory,Age_Group,Fabric,HSN_Code,Price_INR,MRP_INR,Stock_Level,Occasion,Technique,Collections
+ST-FAM-SAMPLE,Family Festive Silk Matching Set,Family Combos & Sets,Full Family Festival Bundles,Family Set,Kanchipuram Silk,50072010,48000,58000,3,Wedding & Grand Celebration,Handloom Korvai,Family Combos;Festive Silk 2026
+ST-KDG-SAMPLE,Girls Pure Silk Pattu Pavadai,Kids Wear (Girls),Pattu Pavadai,4-5 Yrs,Pure Silk,62044220,7800,9500,5,Birthday & Party Wear,Jacquard,Kids Wear;Festive Silk 2026`;
+
+    const blob = new Blob([templateContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Srinivasa_Family_Textiles_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  handleImportCSV(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target.result;
+      const res = window.store.importCatalogFromCSV(content);
+      if (res.success) {
+        if (window.storefront) {
+          window.storefront.showToast(`Batch imported ${res.count} family SKUs successfully!`, "success");
+        }
+        this.renderInventoryTable();
+        this.renderDashboardKPIs();
+      } else {
+        alert(`Error importing CSV: ${res.message}`);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ==========================================================================
+  // BULK ORDER 2 SESSIONS & MASTER SWITCH CONTROLS
+  // ==========================================================================
+  switchBulkSubTab(subTab) {
+    const btnInquiries = document.getElementById("btnSubtabBulkInquiries");
+    const btnPackages = document.getElementById("btnSubtabBulkPackages");
+    const paneInquiries = document.getElementById("bulkSubSession-inquiries");
+    const panePackages = document.getElementById("bulkSubSession-packages");
+
+    if (subTab === "packages") {
+      if (btnInquiries) btnInquiries.classList.remove("active");
+      if (btnPackages) btnPackages.classList.add("active");
+      if (paneInquiries) paneInquiries.classList.remove("active");
+      if (panePackages) panePackages.classList.add("active");
+      this.renderBulkPackagesSection();
+    } else {
+      if (btnInquiries) btnInquiries.classList.add("active");
+      if (btnPackages) btnPackages.classList.remove("active");
+      if (paneInquiries) paneInquiries.classList.add("active");
+      if (panePackages) panePackages.classList.remove("active");
+      this.renderBulkOrdersSession();
+    }
+  }
+
+  handleMasterBulkToggle(checked) {
+    if (!window.store) return;
+    window.store.setBulkEnabled(checked);
+    this.renderBulkOrdersMasterSwitch();
+    const msg = checked
+      ? "Wholesale & Bulk Orders session is now ON (Visible on live website)!"
+      : "Wholesale & Bulk Orders session is now OFF (Removed from live website).";
+    if (window.storefront && typeof window.storefront.showToast === "function") {
+      window.storefront.showToast(msg, checked ? "success" : "warning");
+    } else {
+      alert(msg);
+    }
+  }
+
+  renderBulkOrdersMasterSwitch() {
+    if (!window.store) return;
+    const settings = window.store.getBulkSettings();
+    const isEnabled = Boolean(settings && settings.enabled !== false);
+
+    ['bulkMasterToggle', 'bulkMasterToggleProducts'].forEach(id => {
+      const toggle = document.getElementById(id);
+      if (toggle) toggle.checked = isEnabled;
+    });
+
+    ['bulkToggleStateLabel', 'bulkToggleStateLabelProducts'].forEach(id => {
+      const label = document.getElementById(id);
+      if (label) {
+        if (isEnabled) {
+          label.textContent = "SESSION ON (VISIBLE ON WEBSITE)";
+          label.style.color = "var(--color-success, #10B981)";
+        } else {
+          label.textContent = "SESSION OFF (REMOVED FROM WEBSITE)";
+          label.style.color = "#EF4444";
+        }
+      }
+    });
+
+    ['bulkMasterPillBadgeProducts', 'bulkMasterPillBadgeOrders'].forEach(id => {
+      const pill = document.getElementById(id);
+      if (pill) {
+        if (isEnabled) {
+          pill.textContent = "🟢 LIVE ON WEBSITE";
+          pill.style.background = "rgba(16, 185, 129, 0.15)";
+          pill.style.color = "#10B981";
+          pill.style.border = "1px solid rgba(16, 185, 129, 0.4)";
+        } else {
+          pill.textContent = "🔴 HIDDEN / OFF";
+          pill.style.background = "rgba(239, 68, 68, 0.15)";
+          pill.style.color = "#EF4444";
+          pill.style.border = "1px solid rgba(239, 68, 68, 0.4)";
+        }
+      }
+    });
+  }
+
+  handleMasterCollection01Toggle(checked) {
+    if (!window.store) return;
+    window.store.setCollection01Enabled(checked);
+    this.renderCollection01MasterSwitch();
+    const msg = checked
+      ? "Collection 01 (Family Matching Combos) is now ON (Visible on website)!"
+      : "Collection 01 (Family Matching Combos) is now OFF (Hidden from website).";
+    if (window.storefront && typeof window.storefront.showToast === "function") {
+      window.storefront.showToast(msg, checked ? "success" : "warning");
+    }
+  }
+
+  renderCollection01MasterSwitch() {
+    if (!window.store || typeof window.store.isCollection01Enabled !== "function") return;
+    const isLive = window.store.isCollection01Enabled();
+
+    ['collection01MasterToggle', 'collection01MasterToggleFamTab'].forEach(id => {
+      const toggle = document.getElementById(id);
+      if (toggle) toggle.checked = isLive;
+    });
+
+    ['collection01ToggleStateLabel', 'collection01ToggleStateLabelFamTab'].forEach(id => {
+      const label = document.getElementById(id);
+      if (label) {
+        if (isLive) {
+          label.textContent = "SESSION ON (VISIBLE ON WEBSITE)";
+          label.style.color = "var(--color-success, #10B981)";
+        } else {
+          label.textContent = "SESSION OFF (HIDDEN ON WEBSITE)";
+          label.style.color = "#EF4444";
+        }
+      }
+    });
+  }
+
+  // ==========================================================================
+  // DEDICATED FAMILY COMBOS & SETS CONTROLLER
+  // ==========================================================================
+  switchFamilyCombosSubTab(subTab, scrollToForm = false) {
+    const isCombos = subTab === "combos";
+    const subCombosView = document.getElementById("famSubView-combos");
+    const subOrdersView = document.getElementById("famSubView-orders");
+    const btnCombos = document.getElementById("famSubTabBtn-combos");
+    const btnOrders = document.getElementById("famSubTabBtn-orders");
+
+    if (subCombosView) subCombosView.style.display = isCombos ? "block" : "none";
+    if (subOrdersView) subOrdersView.style.display = isCombos ? "none" : "block";
+
+    if (btnCombos) {
+      btnCombos.className = isCombos ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
+      btnCombos.style.borderColor = isCombos ? "" : "rgba(212, 175, 55, 0.4)";
+      btnCombos.style.color = isCombos ? "" : "var(--text-main)";
+    }
+    if (btnOrders) {
+      btnOrders.className = !isCombos ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
+      btnOrders.style.borderColor = !isCombos ? "" : "rgba(212, 175, 55, 0.4)";
+      btnOrders.style.color = !isCombos ? "" : "var(--text-main)";
+    }
+
+    if (isCombos && scrollToForm) {
+      const formCard = document.getElementById("famComboFormCard");
+      if (formCard) formCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  renderFamilyCombosTab() {
+    if (!window.store) return;
+    const stats = typeof window.store.getFamilyComboStats === "function" ? window.store.getFamilyComboStats() : null;
+
+    const totalCombos = stats ? stats.totalCombos : (window.store.getFamilyCombos?.().length || 0);
+    const totalOrders = stats ? stats.totalOrders : (window.store.getFamilyComboOrders?.().length || 0);
+
+    const sidebarBadge = document.getElementById("sidebarFamilyCombosBadge");
+    if (sidebarBadge) sidebarBadge.textContent = `${totalCombos} Sets`;
+
+    const mobileBadge = document.getElementById("mobileSidebarFamilyCombosBadge");
+    if (mobileBadge) mobileBadge.textContent = `${totalCombos} Sets`;
+
+    const tabCombosBadge = document.getElementById("famCombosCountTabBadge");
+    if (tabCombosBadge) tabCombosBadge.textContent = totalCombos;
+
+    const tabOrdersBadge = document.getElementById("famOrdersCountTabBadge");
+    if (tabOrdersBadge) tabOrdersBadge.textContent = totalOrders;
+
+    this.renderFamilyCombosList();
+    this.renderFamilyComboOrdersTable();
+    this.renderCollection01MasterSwitch();
+    this.renderFamilyComboSettings();
+  }
+
+  // ==========================================
+  // FAMILY COMBOS AUTO-ROTATION SLIDESHOW SETTINGS
+  // ==========================================
+  renderFamilyComboSettings() {
+    if (!window.store || typeof window.store.getFamilyComboSettings !== "function") return;
+    const settings = window.store.getFamilyComboSettings();
+
+    const autoToggle = document.getElementById("famAutoRotateToggle");
+    const autoLabel = document.getElementById("famAutoRotateToggleLabel");
+    const secInput = document.getElementById("famRotationSecondsInput");
+    const pauseToggle = document.getElementById("famPauseOnHoverToggle");
+    const liveBadge = document.getElementById("famRotationLiveBadge");
+    const listSpeedText = document.getElementById("famListRotationSpeedText");
+
+    const isAuto = settings.autoRotate !== false;
+    const secs = settings.intervalSeconds || 5;
+
+    if (autoToggle) autoToggle.checked = isAuto;
+    if (autoLabel) {
+      autoLabel.textContent = isAuto ? "AUTO-ROTATION ON" : "AUTO-ROTATION OFF";
+      autoLabel.style.color = isAuto ? "var(--color-success)" : "var(--text-muted)";
+    }
+    if (secInput) secInput.value = secs;
+    if (pauseToggle) pauseToggle.checked = settings.pauseOnHover !== false;
+
+    if (liveBadge) {
+      if (isAuto) {
+        liveBadge.innerHTML = `<span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; display: inline-block;"></span> Auto-Rotating (${secs}s)`;
+        liveBadge.style.background = "rgba(16, 185, 129, 0.18)";
+        liveBadge.style.color = "#10B981";
+        liveBadge.style.borderColor = "rgba(16, 185, 129, 0.35)";
+      } else {
+        liveBadge.innerHTML = `⏸️ Slideshow Paused`;
+        liveBadge.style.background = "rgba(245, 158, 11, 0.18)";
+        liveBadge.style.color = "#F59E0B";
+        liveBadge.style.borderColor = "rgba(245, 158, 11, 0.35)";
+      }
+    }
+
+    if (listSpeedText) {
+      listSpeedText.textContent = isAuto ? `${secs}s Interval` : "Manual Arrows";
+    }
+  }
+
+  handleSaveFamilyComboSettings() {
+    if (!window.store || typeof window.store.saveFamilyComboSettings !== "function") return;
+
+    const autoToggle = document.getElementById("famAutoRotateToggle");
+    const secInput = document.getElementById("famRotationSecondsInput");
+    const pauseToggle = document.getElementById("famPauseOnHoverToggle");
+
+    const autoRotate = autoToggle ? autoToggle.checked : true;
+    let intervalSeconds = secInput ? parseInt(secInput.value) || 5 : 5;
+    if (intervalSeconds < 2) intervalSeconds = 2;
+    if (intervalSeconds > 60) intervalSeconds = 60;
+    const pauseOnHover = pauseToggle ? pauseToggle.checked : true;
+
+    window.store.saveFamilyComboSettings({ autoRotate, intervalSeconds, pauseOnHover });
+    this.renderFamilyComboSettings();
+
+    // Direct same-window update if storefront is mounted
+    if (window.storefront && typeof window.storefront.renderCollection01Section === "function") {
+      window.storefront.renderCollection01Section();
+    }
+
+    const stateDesc = autoRotate ? `Auto-rotating every ${intervalSeconds}s` : `Slideshow paused (Manual arrows only)`;
+    this.showToast(`Slideshow updated live! ${stateDesc}.`, "success");
+  }
+
+  setRotationInterval(seconds) {
+    const secInput = document.getElementById("famRotationSecondsInput");
+    if (secInput) secInput.value = seconds;
+    this.handleSaveFamilyComboSettings();
+  }
+
+  handleRotationSecondsChange(val) {
+    const sec = parseInt(val);
+    if (!isNaN(sec) && sec >= 2) {
+      clearTimeout(this._rotationDebounce);
+      this._rotationDebounce = setTimeout(() => {
+        this.handleSaveFamilyComboSettings();
+      }, 500);
+    }
+  }
+
+  // ==========================================
+  // POSTER IMAGE UPLOAD & LIVE PREVIEW ENGINE
+  // ==========================================
+  handleFamilyPosterFileUpload(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please choose a valid image file (JPG, PNG, WebP).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      const dataUrl = loadEvt.target.result;
+      const posterInput = document.getElementById("famComboFormPoster");
+      if (posterInput) posterInput.value = dataUrl;
+      this.updateFamilyPosterPreview(dataUrl);
+      this.showToast("Poster photo uploaded from device & preview ready!", "success");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  updateFamilyPosterPreview(url) {
+    const imgPreview = document.getElementById("famComboPosterImgPreview");
+    const statusPill = document.getElementById("famComboPosterStatusPill");
+    const cleanUrl = (url && url.trim()) ? url.trim() : "assets/images/family_matching_combo.jpg";
+    if (imgPreview) {
+      imgPreview.src = cleanUrl;
+    }
+    if (statusPill) {
+      statusPill.textContent = (cleanUrl.startsWith("data:") || cleanUrl.startsWith("http") || cleanUrl.startsWith("assets/")) ? "Ready" : "Checking";
+    }
+  }
+
+  applyPosterPreset(url, theme) {
+    const posterInput = document.getElementById("famComboFormPoster");
+    const themeInput = document.getElementById("famComboFormColorTheme");
+    if (posterInput) posterInput.value = url;
+    if (themeInput && theme) themeInput.value = theme;
+    this.updateFamilyPosterPreview(url);
+    this.showToast(`Preset loaded!`, "info");
+  }
+
+  // ==========================================
+  // ACTIVE FAMILY COMBOS LIST (NEAT LUXURY CARDS)
+  // ==========================================
+  renderFamilyCombosList() {
+    if (!window.store || typeof window.store.getFamilyCombos !== "function") return;
+    const combos = window.store.getFamilyCombos();
+    const container = document.getElementById("adminFamilyCombosList");
+    const countEl = document.getElementById("adminFamilyCombosListCount");
+    if (countEl) countEl.textContent = combos.length;
+    if (!container) return;
+
+    if (combos.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 8px;">
+          <span data-icon="family" data-icon-size="38" style="display:block;margin-bottom:0.5rem;"></span>
+          <h4 style="color: var(--color-gold); margin-bottom: 0.25rem;">No Family Combos Added Yet</h4>
+          <p style="font-size: 0.85rem; margin: 0;">Use the form above to publish your first grand big poster family ensemble.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = combos.map(combo => {
+      const isLive = combo.isActive !== false;
+      const statusColor = isLive ? "var(--color-success, #10B981)" : "#EF4444";
+      const statusText = isLive ? "LIVE ON WEBSITE" : "OFF (HIDDEN)";
+      const mother = combo.inclusions?.mother || "Silk Saree";
+      const father = combo.inclusions?.father || "Silk Shirt & Dhoti";
+      const daughter = combo.inclusions?.daughter || "Pattu Pavadai";
+      const son = combo.inclusions?.son || "Silk Kurta & Dhoti";
+      const poster = combo.posterImage || "assets/images/family_matching_combo.jpg";
+
+      return `
+        <div class="admin-card fam-combo-admin-card" style="border: 1.5px solid ${isLive ? 'rgba(212, 175, 55, 0.45)' : 'rgba(239, 68, 68, 0.4)'}; background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(212, 175, 55, 0.04) 100%); padding: 1.25rem; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); transition: all 0.25s ease;">
+          <div style="display: grid; grid-template-columns: minmax(220px, 260px) 1fr; gap: 1.5rem; align-items: start;" class="admin-combo-item-grid">
+            
+            <!-- NEAT, CRISP LUXURY POSTER IMAGE BOX -->
+            <div style="position: relative; width: 100%; height: 230px; border-radius: 10px; overflow: hidden; border: 2px solid rgba(212, 175, 55, 0.5); background: #0c080a; box-shadow: 0 8px 24px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+              <img src="${poster}" alt="${combo.title}"
+                style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease;"
+                onerror="this.onerror=null; this.src='assets/images/family_matching_combo.jpg';" />
+              
+              <!-- Top Badges Bar -->
+              <div style="position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">
+                <span style="background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); color: var(--color-gold); font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--color-gold);">
+                  ${combo.id}
+                </span>
+                <span style="font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 4px; ${isLive ? 'background: rgba(16, 185, 129, 0.9); color: #FFF;' : 'background: rgba(239, 68, 68, 0.9); color: #FFF;'}">
+                  ${isLive ? '<span data-icon="statusLive"></span> LIVE' : '<span data-icon="pause"></span> HIDDEN'}
+                </span>
+              </div>
+
+              <!-- Bottom Overlay Bar -->
+              <div style="position: absolute; bottom: 8px; left: 8px; right: 8px; background: rgba(0,0,0,0.82); backdrop-filter: blur(4px); padding: 5px 8px; border-radius: 5px; border: 1px solid rgba(212, 175, 55, 0.35); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.68rem; color: #FFF2B2; font-weight: 700;"><span data-icon="sparkle"></span> 4-Piece Matching Set</span>
+                <a href="${poster}" target="_blank"
+                  style="font-size: 0.68rem; color: var(--color-gold); font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;">
+                  <span data-icon="search"></span> Full View
+                </a>
+              </div>
+            </div>
+
+            <!-- DETAILS & INCLUSIONS -->
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-width: 0;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                  <div>
+                    <span style="font-size: 0.725rem; font-weight: 800; color: var(--color-gold); letter-spacing: 0.05em; text-transform: uppercase;">
+                      ${combo.badge || 'HIGH VALUE FAMILY BUNDLE'}
+                    </span>
+                    <h3 style="margin: 0.2rem 0 0.3rem 0; font-size: 1.25rem; color: #FFF; font-weight: 800; font-family: var(--font-serif-display); line-height: 1.25;">
+                      ${combo.title}
+                    </h3>
+                    <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.45;">
+                      ${combo.subtitle || combo.description || ''}
+                    </p>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem; justify-content: flex-end;">
+                      <span style="font-size: 1.45rem; font-weight: 800; color: var(--color-gold);">₹${Number(combo.price).toLocaleString('en-IN')}</span>
+                      ${combo.originalPrice ? `<span style="font-size: 0.875rem; color: var(--text-muted); text-decoration: line-through;">₹${Number(combo.originalPrice).toLocaleString('en-IN')}</span>` : ''}
+                    </div>
+                    ${combo.savingsText ? `<span style="font-size: 0.75rem; font-weight: 800; color: var(--color-success); background: rgba(16,185,129,0.12); padding: 2px 6px; border-radius: 4px; display: inline-block;">${combo.savingsText}</span>` : ''}
+                  </div>
+                </div>
+
+                <!-- 4 Inclusions Neat 2x2 Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.65rem; margin: 0.85rem 0; background: rgba(0,0,0,0.3); padding: 0.85rem; border-radius: 8px; border-left: 3.5px solid var(--color-gold);">
+                  <div style="font-size: 0.8rem; color: #EEE; display: flex; align-items: flex-start; gap: 0.4rem;">
+                    <span data-icon="ladies"></span> <div><strong style="color: var(--color-gold);">Mother:</strong> <span style="color: #DDD;">${mother}</span></div>
+                  </div>
+                  <div style="font-size: 0.8rem; color: #EEE; display: flex; align-items: flex-start; gap: 0.4rem;">
+                    <span data-icon="mens"></span> <div><strong style="color: var(--color-gold);">Father:</strong> <span style="color: #DDD;">${father}</span></div>
+                  </div>
+                  <div style="font-size: 0.8rem; color: #EEE; display: flex; align-items: flex-start; gap: 0.4rem;">
+                    <span data-icon="girls"></span> <div><strong style="color: var(--color-gold);">Daughter:</strong> <span style="color: #DDD;">${daughter}</span></div>
+                  </div>
+                  <div style="font-size: 0.8rem; color: #EEE; display: flex; align-items: flex-start; gap: 0.4rem;">
+                    <span data-icon="boys"></span> <div><strong style="color: var(--color-gold);">Son:</strong> <span style="color: #DDD;">${son}</span></div>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.85rem; font-size: 0.775rem;">
+                  <span style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 4px; color: var(--text-muted);"><span data-icon="thread"></span> ${combo.fabric || 'Pure Kanchipuram Silk'}</span>
+                  <span style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 4px; color: var(--text-muted);"><span data-icon="palette"></span> ${combo.colorTheme || 'Festive Ensemble'}</span>
+                </div>
+              </div>
+
+              <!-- Actions & Live Switch -->
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.85rem; margin-top: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <button type="button" class="btn btn-outline btn-xs" style="border-color: ${isLive ? 'var(--color-success)' : '#EF4444'}; color: ${statusColor}; font-weight: 700;"
+                    onclick="window.admin && window.admin.toggleFamilyComboLiveStatus('${combo.id}')">
+                    ${isLive ? '<span data-icon="statusLive"></span> ' + statusText : '<span data-icon="statusOff"></span> ' + statusText}
+                  </button>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">Click to pause/publish</span>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <button type="button" class="btn btn-gold btn-xs" onclick="window.admin && window.admin.editFamilyCombo('${combo.id}')"
+                    style="display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700;">
+                    <span data-icon="edit"></span> Alter / Edit
+                  </button>
+                  <button type="button" class="btn btn-outline btn-xs" onclick="window.admin && window.admin.deleteFamilyCombo('${combo.id}')"
+                    style="border-color: #EF4444; color: #EF4444; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    <span data-icon="trash"></span> Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  handleSaveFamilyCombo(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.store) return;
+
+    const id = document.getElementById("famComboFormId")?.value?.trim();
+    const title = document.getElementById("famComboFormTitle")?.value?.trim();
+    const subtitle = document.getElementById("famComboFormSubtitle")?.value?.trim();
+    const badge = document.getElementById("famComboFormBadge")?.value?.trim() || "HIGH VALUE FAMILY BUNDLE";
+    const colorTheme = document.getElementById("famComboFormColorTheme")?.value?.trim() || "Traditional Festive Harmony";
+    const originalPrice = parseFloat(document.getElementById("famComboFormOriginalPrice")?.value) || 0;
+    const price = parseFloat(document.getElementById("famComboFormPrice")?.value) || 0;
+    const fabric = document.getElementById("famComboFormFabric")?.value?.trim() || "Pure Kanchipuram Mulberry Silk 3-Ply Zari";
+    const posterImage = document.getElementById("famComboFormPoster")?.value?.trim() || "assets/images/family_matching_combo.jpg";
+    const motherItem = document.getElementById("famComboMotherItem")?.value?.trim();
+    const fatherItem = document.getElementById("famComboFatherItem")?.value?.trim();
+    const daughterItem = document.getElementById("famComboDaughterItem")?.value?.trim();
+    const sonItem = document.getElementById("famComboSonItem")?.value?.trim();
+    const description = document.getElementById("famComboFormDesc")?.value?.trim() || "";
+    const isActive = document.getElementById("famComboFormActive")?.checked !== false;
+
+    if (!title || !originalPrice || !price || !motherItem || !fatherItem || !daughterItem || !sonItem) {
+      alert("Please fill in all required fields (Title, Prices, and all 4 Family Inclusions).");
+      return;
+    }
+
+    const comboData = {
+      title,
+      subtitle,
+      badge,
+      colorTheme,
+      originalPrice,
+      price,
+      fabric,
+      posterImage,
+      inclusions: {
+        mother: motherItem,
+        father: fatherItem,
+        daughter: daughterItem,
+        son: sonItem
+      },
+      description,
+      isActive
+    };
+
+    if (id) {
+      window.store.updateFamilyCombo(id, comboData);
+      const msg = `Family Combo "${title}" updated successfully!`;
+      this.showToast(msg, "success");
+    } else {
+      window.store.addFamilyCombo(comboData);
+      const msg = `New Family Combo "${title}" published live with Big Poster!`;
+      this.showToast(msg, "success");
+    }
+
+    this.resetFamilyComboForm();
+    this.renderFamilyCombosTab();
+  }
+
+  editFamilyCombo(id) {
+    if (!window.store || !id) return;
+    const combo = window.store.getFamilyComboById(id);
+    if (!combo) return;
+
+    this.switchFamilyCombosSubTab("combos");
+
+    const idInput = document.getElementById("famComboFormId");
+    const titleInput = document.getElementById("famComboFormTitle");
+    const subInput = document.getElementById("famComboFormSubtitle");
+    const badgeInput = document.getElementById("famComboFormBadge");
+    const colorInput = document.getElementById("famComboFormColorTheme");
+    const origPriceInput = document.getElementById("famComboFormOriginalPrice");
+    const priceInput = document.getElementById("famComboFormPrice");
+    const fabricInput = document.getElementById("famComboFormFabric");
+    const posterInput = document.getElementById("famComboFormPoster");
+    const motherInput = document.getElementById("famComboMotherItem");
+    const fatherInput = document.getElementById("famComboFatherItem");
+    const daughterInput = document.getElementById("famComboDaughterItem");
+    const sonInput = document.getElementById("famComboSonItem");
+    const descInput = document.getElementById("famComboFormDesc");
+    const activeInput = document.getElementById("famComboFormActive");
+
+    if (idInput) idInput.value = combo.id;
+    if (titleInput) titleInput.value = combo.title || "";
+    if (subInput) subInput.value = combo.subtitle || "";
+    if (badgeInput) badgeInput.value = combo.badge || "";
+    if (colorInput) colorInput.value = combo.colorTheme || "";
+    if (origPriceInput) origPriceInput.value = combo.originalPrice || "";
+    if (priceInput) priceInput.value = combo.price || "";
+    if (fabricInput) fabricInput.value = combo.fabric || "";
+    if (posterInput) posterInput.value = combo.posterImage || "";
+    if (motherInput) motherInput.value = combo.inclusions?.mother || "";
+    if (fatherInput) fatherInput.value = combo.inclusions?.father || "";
+    if (daughterInput) daughterInput.value = combo.inclusions?.daughter || "";
+    if (sonInput) sonInput.value = combo.inclusions?.son || "";
+    if (descInput) descInput.value = combo.description || "";
+    if (activeInput) activeInput.checked = combo.isActive !== false;
+    this.updateFamilyPosterPreview(combo.posterImage);
+
+    const heading = document.getElementById("famComboFormHeading");
+    if (heading) heading.innerHTML = `<span data-icon="edit"></span> Alter Family Combo: <em style="color:#FFF;">${combo.title}</em>`;
+
+    const submitBtn = document.getElementById("famComboFormSubmitBtn");
+    if (submitBtn) submitBtn.innerHTML = `<span data-icon="save"></span> Save &amp; Update Combo`;
+
+    const formCard = document.getElementById("famComboFormCard");
+    if (formCard) formCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  deleteFamilyCombo(id) {
+    if (!window.store || !id) return;
+    const combo = window.store.getFamilyComboById(id);
+    const title = combo ? combo.title : "this combo";
+
+    if (!confirm(`Are you sure you want to remove "${title}" from the store and website?`)) {
+      return;
+    }
+
+    window.store.deleteFamilyCombo(id);
+    const msg = `Family Combo "${title}" removed.`;
+    this.showToast(msg, "warning");
+    this.renderFamilyCombosTab();
+  }
+
+  toggleFamilyComboLiveStatus(id) {
+    if (!window.store || !id) return;
+    const updated = window.store.toggleFamilyComboStatus(id);
+    if (updated) {
+      const msg = updated.isActive
+        ? `"${updated.title}" is now LIVE on website.`
+        : `"${updated.title}" is now HIDDEN from website.`;
+      if (window.storefront && typeof window.storefront.showToast === "function") {
+        window.storefront.showToast(msg, updated.isActive ? "success" : "info");
+      }
+      this.renderFamilyCombosTab();
+    }
+  }
+
+  resetFamilyComboForm() {
+    const form = document.getElementById("adminFamilyComboForm");
+    if (form) form.reset();
+
+    const idInput = document.getElementById("famComboFormId");
+    if (idInput) idInput.value = "";
+
+    const heading = document.getElementById("famComboFormHeading");
+    if (heading) heading.innerHTML = `<span data-icon="plus"></span> Add New Family Combo Set`;
+
+    const submitBtn = document.getElementById("famComboFormSubmitBtn");
+    if (submitBtn) submitBtn.innerHTML = `<span data-icon="plus"></span> Publish Family Combo`;
+
+    const posterInput = document.getElementById("famComboFormPoster");
+    if (posterInput) posterInput.value = "assets/images/family_matching_combo.jpg";
+
+    const fileInput = document.getElementById("famComboPosterFileInput");
+    if (fileInput) fileInput.value = "";
+
+    this.updateFamilyPosterPreview("assets/images/family_matching_combo.jpg");
+  }
+
+  renderFamilyComboOrdersTable() {
+    if (!window.store || typeof window.store.getFamilyComboOrders !== "function") return;
+    const orders = window.store.getFamilyComboOrders();
+    const stats = typeof window.store.getFamilyComboStats === "function" ? window.store.getFamilyComboStats() : null;
+
+    if (stats) {
+      const elTot = document.getElementById("famKpiTotalOrders");
+      const elPen = document.getElementById("famKpiPendingOrders");
+      const elPrg = document.getElementById("famKpiInProgressOrders");
+      const elDel = document.getElementById("famKpiDeliveredOrders");
+      const elRev = document.getElementById("famKpiRevenue");
+      if (elTot) elTot.textContent = stats.totalOrders;
+      if (elPen) elPen.textContent = stats.pendingOrders;
+      if (elPrg) elPrg.textContent = stats.inProgressOrders;
+      if (elDel) elDel.textContent = stats.deliveredOrders;
+      if (elRev) elRev.textContent = `₹${stats.totalRevenue.toLocaleString('en-IN')}`;
+    }
+
+    const tbody = document.getElementById("adminFamilyOrdersTableBody");
+    if (!tbody) return;
+
+    const searchTerm = (document.getElementById("famOrderSearchInput")?.value || "").toLowerCase().trim();
+    const statusFilter = document.getElementById("famOrderStatusFilter")?.value || "ALL";
+
+    const filtered = orders.filter(o => {
+      const matchStatus = (statusFilter === "ALL" || o.status === statusFilter);
+      const matchSearch = !searchTerm || (
+        (o.orderId && o.orderId.toLowerCase().includes(searchTerm)) ||
+        (o.customerName && o.customerName.toLowerCase().includes(searchTerm)) ||
+        (o.customerPhone && o.customerPhone.toLowerCase().includes(searchTerm)) ||
+        (o.comboTitle && o.comboTitle.toLowerCase().includes(searchTerm)) ||
+        (o.deliveryAddress && o.deliveryAddress.toLowerCase().includes(searchTerm))
+      );
+      return matchStatus && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            No customer family combo orders matching the current filter.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(o => {
+      const dateStr = o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent';
+      const cleanPhone = (o.customerPhone || "").replace(/\D/g, "");
+
+      const statusColors = {
+        "Pending": "#F59E0B",
+        "Confirmed": "#3B82F6",
+        "In Weaving / Packing": "#8B5CF6",
+        "Dispatched": "#10B981",
+        "Delivered": "#059669"
+      };
+      const currentColor = statusColors[o.status] || "var(--color-gold)";
+
+      return `
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+          <!-- Order ID & Date -->
+          <td style="vertical-align: top; padding: 1rem 0.75rem;">
+            <strong style="color: var(--color-gold); font-family: monospace; font-size: 0.95rem;">${o.orderId}</strong>
+            <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;"><span data-icon="calendar"></span> ${dateStr}</span>
+            <span style="display: inline-block; font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; background: rgba(212,175,55,0.15); color: var(--color-gold); margin-top: 0.35rem;">
+              ${o.paymentMode || 'COD'}
+            </span>
+          </td>
+
+          <!-- Customer & Contact -->
+          <td style="vertical-align: top; padding: 1rem 0.75rem;">
+            <strong style="color: var(--text-heading); font-size: 0.95rem; display: block;">${o.customerName}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+              <span data-icon="phone">📞</span> <a href="tel:${cleanPhone}" style="color: var(--color-gold); text-decoration: none;">${o.customerPhone}</a>
+            </div>
+            ${o.deliveryAddress ? `
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.35; max-width: 250px;">
+                <span data-icon="mapPin">📍</span> ${o.deliveryAddress}
+              </div>
+            ` : ''}
+          </td>
+
+          <!-- Combo Bundle -->
+          <td style="vertical-align: top; padding: 1rem 0.75rem;">
+            <strong style="color: var(--text-heading); font-size: 0.9rem; display: block;">${o.comboTitle}</strong>
+            ${o.specialNotes ? `
+              <div style="font-size: 0.75rem; color: #F59E0B; margin-top: 0.4rem; font-style: italic; background: rgba(245, 158, 11, 0.08); padding: 4px 6px; border-radius: 4px;">
+                <span data-icon="whatsapp"></span> Note: ${o.specialNotes}
+              </div>
+            ` : ''}
+          </td>
+
+          <!-- Configured Sizes -->
+          <td style="vertical-align: top; padding: 1rem 0.75rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-main);">
+            <div><span data-icon="mens">👨</span> <strong>Father:</strong> ${o.fatherSize || 'N/A'}</div>
+            <div><span data-icon="ladies">👩</span> <strong>Mother:</strong> ${o.motherSize || 'Standard Saree'}</div>
+            <div><span data-icon="boys">👦</span> <strong>Son:</strong> ${o.sonAgeSize || 'N/A'}</div>
+            <div><span data-icon="girls">👧</span> <strong>Daughter:</strong> ${o.daughterAgeSize || 'N/A'}</div>
+          </td>
+
+          <!-- Amount -->
+          <td style="vertical-align: top; padding: 1rem 0.75rem; text-align: right;">
+            <strong style="font-size: 1.05rem; color: var(--color-gold);">₹${Number(o.totalPrice || 0).toLocaleString('en-IN')}</strong>
+          </td>
+
+          <!-- Actions -->
+          <td style="vertical-align: top; padding: 1rem 0.75rem; text-align: center;">
+            <select class="admin-input" style="font-size: 0.75rem; padding: 0.35rem 0.5rem; margin-bottom: 0.5rem; width: 100%; border-color: ${currentColor}; color: ${currentColor}; font-weight: 700;"
+              onchange="window.admin && window.admin.updateFamilyComboOrderStatus('${o.orderId}', this.value)">
+              <option value="Pending" ${o.status === "Pending" ? "selected" : ""}>Pending</option>
+              <option value="Confirmed" ${o.status === "Confirmed" ? "selected" : ""}>Confirmed</option>
+              <option value="In Weaving / Packing" ${o.status === "In Weaving / Packing" ? "selected" : ""}>In Weaving</option>
+              <option value="Dispatched" ${o.status === "Dispatched" ? "selected" : ""}>Dispatched</option>
+              <option value="Delivered" ${o.status === "Delivered" ? "selected" : ""}>Delivered</option>
+            </select>
+
+            <div style="display: flex; gap: 0.35rem; justify-content: center;">
+              <button type="button" class="btn btn-outline btn-xs" style="border-color: #10B981; color: #10B981; padding: 0.25rem 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="1-Click WhatsApp Update"
+                onclick="window.admin && window.admin.handleFamilyOrderWhatsAppNotify('${o.orderId}')">
+                <span data-icon="whatsapp">💬</span> WhatsApp
+              </button>
+              <button type="button" class="btn btn-outline btn-xs delete-combo-order-btn" style="border-color: #FECDD3; color: #DC2626 !important; padding: 0.25rem 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem; background: #FFF;" title="Delete Order"
+                onclick="window.admin && window.admin.deleteFamilyComboOrder('${o.orderId}')">
+                <span data-icon="trash">🗑️</span> <span style="font-weight: 600;">Delete</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(tbody);
+    }
+  }
+
+  updateFamilyComboOrderStatus(orderId, newStatus) {
+    if (!window.store || !orderId) return;
+    window.store.updateFamilyComboOrderStatus(orderId, newStatus);
+    const msg = `Order ${orderId} status updated to: ${newStatus}`;
+    if (window.storefront && typeof window.storefront.showToast === "function") {
+      window.storefront.showToast(msg, "success");
+    }
+    this.renderFamilyComboOrdersTable();
+  }
+
+  deleteFamilyComboOrder(orderId) {
+    if (!window.store || !orderId) return;
+    if (!confirm(`Are you sure you want to delete order ${orderId}?`)) return;
+
+    window.store.deleteFamilyComboOrder(orderId);
+    const msg = `Order ${orderId} deleted.`;
+    if (window.storefront && typeof window.storefront.showToast === "function") {
+      window.storefront.showToast(msg, "warning");
+    }
+    this.renderFamilyCombosTab();
+  }
+
+  handleFamilyOrderWhatsAppNotify(orderId) {
+    if (!window.store || !orderId) return;
+    const order = window.store.getFamilyComboOrderById(orderId);
+    if (!order) return;
+
+    const phone = (order.customerPhone || "").replace(/\D/g, "");
+    if (!phone) {
+      alert("No phone number found for this customer.");
+      return;
+    }
+
+    const message = encodeURIComponent(
+      `Vanakkam ${order.customerName}\n\n` +
+      `Greetings from Srinivasa Textiles (Since 1978, Kanchipuram).\n\n` +
+      `Regarding your Family Combo Order #${order.orderId} (${order.comboTitle}):\n` +
+      `Current Status: ${order.status}\n` +
+      `Amount: ₹${Number(order.totalPrice).toLocaleString('en-IN')}\n\n` +
+      `Family Sizes: Father: ${order.fatherSize}, Mother: ${order.motherSize}, Son: ${order.sonAgeSize}, Daughter: ${order.daughterAgeSize}\n\n` +
+      `We are preparing your coordinated handloom ceremonial ensemble with highest purity and care. Feel free to reply here for any customizations!\n\n` +
+      `Srinivasa Textiles, Kanchipuram`
+    );
+
+    window.open(`https://wa.me/91${phone}?text=${message}`, "_blank");
+  }
+
+  // ==========================================================================
+  // PAGE 1: WEBSITE BULK PRODUCTS (CATALOG & ADD NEW SKU)
+  // ==========================================================================
+  generateBulkSku() {
+    const prefixes = ["BLK-KANCHI", "BLK-WEDDING", "BLK-BOUTIQUE", "BLK-FAMILY", "BLK-SILK"];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const num = Math.floor(100 + Math.random() * 900);
+    const sku = `${prefix}-${num}`;
+    const input = document.getElementById("bulkPkgSku");
+    if (input) input.value = sku;
+    return sku;
+  }
+
+  renderBulkPackagesSection() {
+    if (!window.store) return;
+    const packages = window.store.getBulkPackages() || [];
+    const container = document.getElementById("adminBulkPackagesList");
+    const activeCount = packages.filter(p => p.isActive !== false).length;
+
+    const countBadge = document.getElementById("adminBulkPackagesCountBadge");
+    if (countBadge) {
+      countBadge.textContent = `${activeCount} Active`;
+    }
+
+    const summaryBadge = document.getElementById("bulkPackagesActiveSummaryBadge");
+    if (summaryBadge) {
+      summaryBadge.textContent = `${activeCount} of ${packages.length} Bulk Products Active on Website`;
+    }
+
+    const sidebarBadge = document.getElementById("sidebarBulkProductsBadge");
+    if (sidebarBadge) {
+      sidebarBadge.textContent = `${packages.length} SKUs`;
+    }
+    const mobileSidebarBadge = document.getElementById("mobileSidebarBulkProductsBadge");
+    if (mobileSidebarBadge) {
+      mobileSidebarBadge.textContent = `${packages.length} SKUs`;
+    }
+
+    if (!container) return;
+
+    if (packages.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem; color: var(--text-muted); background: var(--bg-surface-alt); border-radius: 8px;">
+          <div style="margin-bottom: 0.5rem;"><span data-icon="box" data-icon-size="36"></span></div>
+          <h4 style="margin: 0 0 0.25rem 0; color: var(--color-primary);">No Bulk Products Created Yet</h4>
+          <p style="font-size: 0.825rem; margin: 0;">Use the form above to add your first wholesale bulk product for the website.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = packages.map(pkg => {
+      const wholesalePrice = Number(pkg.wholesalePrice || 0).toLocaleString("en-IN");
+      const retailMrp = Number(pkg.retailMrp || 0).toLocaleString("en-IN");
+      const statusBadge = pkg.isActive !== false
+        ? `<span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid #10B981; font-size: 0.72rem;"><span data-icon="statusLive"></span> Live on Website</span>`
+        : `<span class="status-badge" style="background: rgba(156, 163, 175, 0.15); color: #9CA3AF; border: 1px solid #9CA3AF; font-size: 0.72rem;"><span data-icon="pause"></span> Paused (Hidden)</span>`;
+
+      return `
+        <div class="admin-bulk-pkg-card" data-pkg-id="${pkg.id}">
+          <div style="width: 105px; height: 105px; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--border-color); background: var(--bg-surface-alt); flex-shrink: 0;">
+            <img src="${pkg.image || 'assets/images/family_matching_combo.jpg'}" alt="${pkg.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='assets/images/family_matching_combo.jpg'" />
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.35rem; flex: 1;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <span class="status-badge" style="background: rgba(212, 175, 55, 0.2); color: var(--color-gold); font-size: 0.72rem; font-weight: 800; border: 1px solid rgba(212, 175, 55, 0.4);">SKU: ${pkg.sku || pkg.id}</span>
+              <strong style="color: var(--text-heading); font-size: 1.05rem;">${pkg.title}</strong>
+              <span class="status-badge" style="background: rgba(212, 175, 55, 0.15); color: var(--color-gold); font-size: 0.7rem;">${pkg.category}</span>
+              ${pkg.badge ? `<span class="status-badge" style="background: #FEF3C7; color: #B45309; font-size: 0.7rem;">${pkg.badge}</span>` : ""}
+              ${statusBadge}
+            </div>
+
+            ${pkg.subtitle ? `<div style="font-size: 0.8rem; color: var(--color-gold); font-weight: 600;">${pkg.subtitle}</div>` : ""}
+
+            <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+              ${pkg.description || 'Authentic pure handloom wholesale package.'}
+            </p>
+
+            <div style="display: flex; gap: 1.25rem; font-size: 0.825rem; flex-wrap: wrap; margin-top: 0.25rem;">
+              <span><strong>MOQ:</strong> <span style="color: var(--color-gold); font-weight: 800;">${pkg.moq} ${pkg.unitLabel || 'Pcs'}</span></span>
+              <span><strong>Wholesale:</strong> <span style="color: var(--text-heading); font-weight: 800;">₹${wholesalePrice}</span> <span style="text-decoration: line-through; color: var(--text-muted); font-size: 0.75rem;">₹${retailMrp}</span></span>
+              <span style="color: #10B981; font-weight: 700;">${pkg.discountPercent || 50}% OFF Wholesale</span>
+              <span style="color: var(--text-muted);"><span data-icon="hourglass"></span> ${pkg.timeline || '10-14 Days'}</span>
+              ${pkg.fabric ? `<span style="color: var(--text-muted); font-size: 0.75rem;"><span data-icon="thread"></span> ${pkg.fabric}</span>` : ""}
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; justify-content: center; min-width: 150px;">
+            <button type="button" class="btn ${pkg.isActive !== false ? 'btn-outline' : 'btn-outline-gold'} btn-xs" onclick="window.admin && window.admin.handleToggleBulkPackage('${pkg.id}')">
+              ${pkg.isActive !== false ? '<span data-icon="pause"></span> Pause on Website' : '<span data-icon="statusLive"></span> Publish on Website'}
+            </button>
+            <div style="display: flex; gap: 0.35rem;">
+              <button type="button" class="btn btn-outline btn-xs" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;" onclick="window.admin && window.admin.handleEditBulkPackage('${pkg.id}')">
+                <span data-icon="edit">✏️</span> Edit
+              </button>
+              <button type="button" class="btn btn-outline btn-xs" style="color: #DC2626 !important; border-color: #FECDD3; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.3rem 0.55rem; background: #FFF;" onclick="window.admin && window.admin.handleDeleteBulkPackage('${pkg.id}')" title="Delete Bulk Product">
+                <span data-icon="trash">🗑️</span> <span style="font-weight: 600;">Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(container);
+    }
+  }
+
+  handleSaveBulkPackage(e) {
+    if (e) e.preventDefault();
+    if (!window.store) return;
+
+    const editId = document.getElementById("bulkPkgEditId")?.value?.trim();
+    const sku = document.getElementById("bulkPkgSku")?.value?.trim() || this.generateBulkSku();
+    const title = document.getElementById("bulkPkgTitle")?.value?.trim();
+    const subtitle = document.getElementById("bulkPkgSubtitle")?.value?.trim() || "";
+    const category = document.getElementById("bulkPkgCategory")?.value;
+    const badge = document.getElementById("bulkPkgBadge")?.value?.trim();
+    const occasion = document.getElementById("bulkPkgOccasion")?.value?.trim() || "";
+    const moq = parseInt(document.getElementById("bulkPkgMOQ")?.value, 10) || 15;
+    const unitLabel = document.getElementById("bulkPkgUnitLabel")?.value || "Pieces";
+    const wholesalePrice = parseFloat(document.getElementById("bulkPkgWholesalePrice")?.value) || 3500;
+    const retailMrp = parseFloat(document.getElementById("bulkPkgRetailMrp")?.value) || (wholesalePrice * 2);
+    const timeline = document.getElementById("bulkPkgTimeline")?.value?.trim() || "10-14 Working Days";
+    const availability = document.getElementById("bulkPkgAvailability")?.value || "Ready Stock";
+    const fabric = document.getElementById("bulkPkgFabric")?.value?.trim();
+    const silkMark = document.getElementById("bulkPkgSilkMark") ? document.getElementById("bulkPkgSilkMark").checked : true;
+    const desc = document.getElementById("bulkPkgDesc")?.value?.trim();
+    const inclusions = document.getElementById("bulkPkgInclusions")?.value?.trim();
+    const packaging = document.getElementById("bulkPkgPackaging")?.value || "Royal Velvet Presentation Boxes";
+    const image = document.getElementById("bulkPkgImageURL")?.value?.trim() || "assets/images/family_matching_combo.jpg";
+    const isActive = document.getElementById("bulkPkgIsActive") ? document.getElementById("bulkPkgIsActive").checked : true;
+
+    if (!title || !wholesalePrice) {
+      alert("Please enter product title and wholesale price.");
+      return;
+    }
+
+    const discountPercent = retailMrp > wholesalePrice ? Math.round(((retailMrp - wholesalePrice) / retailMrp) * 100) : 50;
+
+    const pkgData = {
+      sku,
+      title,
+      subtitle,
+      category,
+      badge,
+      occasion,
+      moq,
+      unitLabel,
+      wholesalePrice,
+      retailMrp,
+      discountPercent,
+      timeline,
+      availability,
+      fabric,
+      silkMark,
+      description: desc,
+      inclusions,
+      packaging,
+      image,
+      isActive
+    };
+
+    if (editId) {
+      window.store.updateBulkPackage(editId, pkgData);
+      if (window.storefront && typeof window.storefront.showToast === "function") {
+        window.storefront.showToast(`Updated bulk product [${sku}] "${title}" successfully!`, "success");
+      }
+    } else {
+      window.store.addBulkPackage(pkgData);
+      if (window.storefront && typeof window.storefront.showToast === "function") {
+        window.storefront.showToast(`Published bulk product [${sku}] "${title}" to website!`, "success");
+      }
+    }
+
+    this.resetBulkPackageForm();
+    this.renderBulkPackagesSection();
+  }
+
+  resetBulkPackageForm() {
+    const form = document.getElementById("adminAddBulkPackageForm");
+    if (form) form.reset();
+    const editIdInput = document.getElementById("bulkPkgEditId");
+    if (editIdInput) editIdInput.value = "";
+    const heading = document.getElementById("bulkPackageFormHeading");
+    if (heading) heading.innerHTML = `<span data-icon="plus"></span> Add New Bulk Product SKU`;
+    const btn = document.getElementById("saveBulkPkgSubmitBtn");
+    if (btn) btn.innerHTML = `<span data-icon="rocket"></span> Publish Bulk Product to Website`;
+    const imgThumb = document.getElementById("bulkPkgPreviewImg");
+    if (imgThumb) imgThumb.src = "assets/images/family_matching_combo.jpg";
+    const urlInput = document.getElementById("bulkPkgImageURL");
+    if (urlInput) urlInput.value = "assets/images/family_matching_combo.jpg";
+    this.generateBulkSku();
+    this.recalcBulkSavings();
+  }
+
+  handleEditBulkPackage(id) {
+    if (!window.store) return;
+    const pkg = window.store.getBulkPackageById(id);
+    if (!pkg) return;
+
+    const editId = document.getElementById("bulkPkgEditId");
+    if (editId) editId.value = pkg.id;
+    const sku = document.getElementById("bulkPkgSku");
+    if (sku) sku.value = pkg.sku || pkg.id || "";
+    const title = document.getElementById("bulkPkgTitle");
+    if (title) title.value = pkg.title || "";
+    const subtitle = document.getElementById("bulkPkgSubtitle");
+    if (subtitle) subtitle.value = pkg.subtitle || "";
+    const cat = document.getElementById("bulkPkgCategory");
+    if (cat) cat.value = pkg.category || "Wedding Troupe";
+    const badge = document.getElementById("bulkPkgBadge");
+    if (badge) badge.value = pkg.badge || "";
+    const occasion = document.getElementById("bulkPkgOccasion");
+    if (occasion) occasion.value = pkg.occasion || "";
+    const moq = document.getElementById("bulkPkgMOQ");
+    if (moq) moq.value = pkg.moq || 15;
+    const unit = document.getElementById("bulkPkgUnitLabel");
+    if (unit) unit.value = pkg.unitLabel || "Sets";
+    const wsPrice = document.getElementById("bulkPkgWholesalePrice");
+    if (wsPrice) wsPrice.value = pkg.wholesalePrice || 3500;
+    const mrp = document.getElementById("bulkPkgRetailMrp");
+    if (mrp) mrp.value = pkg.retailMrp || 7000;
+    const tl = document.getElementById("bulkPkgTimeline");
+    if (tl) tl.value = pkg.timeline || "10-14 Working Days";
+    const availability = document.getElementById("bulkPkgAvailability");
+    if (availability) availability.value = pkg.availability || "Ready Stock";
+    const fab = document.getElementById("bulkPkgFabric");
+    if (fab) fab.value = pkg.fabric || "";
+    const silkMark = document.getElementById("bulkPkgSilkMark");
+    if (silkMark) silkMark.checked = pkg.silkMark !== false;
+    const desc = document.getElementById("bulkPkgDesc");
+    if (desc) desc.value = pkg.description || "";
+    const inc = document.getElementById("bulkPkgInclusions");
+    if (inc) inc.value = pkg.inclusions || "";
+    const packaging = document.getElementById("bulkPkgPackaging");
+    if (packaging) packaging.value = pkg.packaging || "Royal Velvet Presentation Boxes";
+    const url = document.getElementById("bulkPkgImageURL");
+    if (url) url.value = pkg.image || "";
+    const imgThumb = document.getElementById("bulkPkgPreviewImg");
+    if (imgThumb) imgThumb.src = pkg.image || "assets/images/family_matching_combo.jpg";
+    const activeCheck = document.getElementById("bulkPkgIsActive");
+    if (activeCheck) activeCheck.checked = pkg.isActive !== false;
+
+    const heading = document.getElementById("bulkPackageFormHeading");
+    if (heading) heading.innerHTML = `<span data-icon="edit"></span> Edit Bulk Product SKU: [${pkg.sku || pkg.id}] ${pkg.title}`;
+    const btn = document.getElementById("saveBulkPkgSubmitBtn");
+    if (btn) btn.innerHTML = `<span data-icon="save"></span> Update Bulk Product`;
+
+    this.recalcBulkSavings();
+    document.getElementById("adminAddBulkPackageForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  handleToggleBulkPackage(id) {
+    if (!window.store) return;
+    const newState = window.store.toggleBulkPackageStatus(id);
+    this.renderBulkPackagesSection();
+    if (window.storefront && typeof window.storefront.showToast === "function") {
+      window.storefront.showToast(newState ? "Bulk package is now Live on website." : "Bulk package has been Paused from website.", "info");
+    }
+  }
+
+  handleDeleteBulkPackage(id) {
+    if (!window.store) return;
+    const pkg = window.store.getBulkPackageById(id);
+    if (!pkg) return;
+    if (confirm(`Are you sure you want to remove the bulk package "${pkg.title}" from the website?`)) {
+      window.store.deleteBulkPackage(id);
+      this.renderBulkPackagesSection();
+      if (window.storefront && typeof window.storefront.showToast === "function") {
+        window.storefront.showToast("Bulk package removed from website.", "warning");
+      }
+    }
+  }
+
+  recalcBulkSavings() {
+    const wholesale = parseFloat(document.getElementById("bulkPkgWholesalePrice")?.value) || 0;
+    const retail = parseFloat(document.getElementById("bulkPkgRetailMrp")?.value) || 0;
+    const badge = document.getElementById("bulkPkgSavingsBadge");
+    if (!badge) return;
+
+    if (retail > wholesale && retail > 0) {
+      const pct = Math.round(((retail - wholesale) / retail) * 100);
+      const savingsPerUnit = retail - wholesale;
+      badge.textContent = `${pct}% OFF (Save ₹${savingsPerUnit.toLocaleString("en-IN")}/unit)`;
+      badge.style.color = "#10B981";
+      badge.style.borderColor = "#10B981";
+    } else {
+      badge.textContent = "Wholesale Pricing Tier";
+      badge.style.color = "var(--color-gold)";
+      badge.style.borderColor = "var(--color-gold)";
+    }
+  }
+
+  setBulkPkgPresetImage(url) {
+    const urlInput = document.getElementById("bulkPkgImageURL");
+    const imgThumb = document.getElementById("bulkPkgPreviewImg");
+    if (urlInput) urlInput.value = url;
+    if (imgThumb) imgThumb.src = url;
+  }
+
+  handleBulkPkgImageUpload(input) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.setBulkPkgPresetImage(e.target.result);
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+
+  // ==========================================================================
+  // BULK ORDER SESSION 1: CUSTOMER INQUIRIES & MASTER LEDGER
+  // ==========================================================================
+  renderBulkOrdersSession() {
+    const tbody = document.getElementById("adminBulkOrdersTableBody");
+    if (!tbody) return;
+
+    const allOrders = window.store.getBulkOrders() || [];
+    const searchInput = document.getElementById("bulkOrderSearchInput");
+    const searchTerm = (searchInput ? searchInput.value : "").toLowerCase().trim();
+    const typeFilter = document.getElementById("bulkOrderTypeFilter")?.value || "ALL";
+    const statusFilter = document.getElementById("bulkOrderStatusFilter")?.value || "ALL";
+
+    const filtered = allOrders.filter(o => {
+      const matchSearch = !searchTerm ||
+        (o.bulkOrderId && o.bulkOrderId.toLowerCase().includes(searchTerm)) ||
+        (o.clientCompany && o.clientCompany.toLowerCase().includes(searchTerm)) ||
+        (o.contactPerson && o.contactPerson.toLowerCase().includes(searchTerm)) ||
+        (o.phone && o.phone.toLowerCase().includes(searchTerm)) ||
+        (o.email && o.email.toLowerCase().includes(searchTerm)) ||
+        (o.gstin && o.gstin.toLowerCase().includes(searchTerm));
+
+      const matchType = typeFilter === "ALL" || o.orderType === typeFilter;
+      const matchStatus = statusFilter === "ALL" || o.orderStatus === statusFilter;
+
+      return matchSearch && matchType && matchStatus;
+    });
+
+    const countBadge = document.getElementById("bulkOrdersCountBadge");
+    if (countBadge) {
+      countBadge.textContent = `${filtered.length} B2B Order${filtered.length === 1 ? "" : "s"} / Inquiries`;
+    }
+
+    const inquiriesCountBadge = document.getElementById("adminBulkInquiriesCountBadge");
+    if (inquiriesCountBadge) {
+      inquiriesCountBadge.textContent = `${allOrders.length}`;
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+            <div style="margin-bottom: 0.5rem;"><span data-icon="box" data-icon-size="38"></span></div>
+            <h4 style="margin: 0 0 0.25rem 0; color: var(--color-primary);">No Bulk Orders Found</h4>
+            <p style="font-size: 0.825rem; margin: 0 0 1rem 0;">No wholesale orders matched your search or filter criteria.</p>
+            <button type="button" class="btn btn-gold btn-sm" onclick="document.getElementById('openAddBulkOrderModalBtn')?.click()">+ Book First Bulk Order</button>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(order => {
+      const isNewInquiry = order.orderStatus === "New Inquiry";
+      const isQuoteSent = order.orderStatus === "Quote Sent";
+      const isUnderProd = order.orderStatus === "Under Production";
+      const isReady = order.orderStatus === "Ready to Ship";
+      const isDispatched = order.orderStatus === "Dispatched";
+      const isDelivered = order.orderStatus === "Delivered";
+
+      const priorityBadge = order.orderStatus === "New Inquiry"
+        ? `<span class="status-badge" style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 0.65rem; padding: 0.15rem 0.45rem; border: 1px solid #FDE68A;"><span data-icon="sparkle"></span> New Inquiry</span>`
+        : order.priority === "Urgent"
+          ? `<span class="status-badge" style="background: #FEE2E2; color: #DC2626; font-weight: 800; font-size: 0.65rem; padding: 0.15rem 0.45rem; border: 1px solid rgba(220,38,38,0.3);"><span data-icon="warning"></span> Urgent</span>`
+          : order.priority === "High Priority"
+            ? `<span class="status-badge" style="background: #FEF3C7; color: #D97706; font-weight: 700; font-size: 0.65rem; padding: 0.15rem 0.45rem; border: 1px solid rgba(217,119,6,0.3);"><span data-icon="bolt"></span> High</span>`
+            : `<span class="status-badge" style="background: var(--bg-surface-alt); color: var(--text-muted); font-size: 0.65rem; padding: 0.15rem 0.45rem; border: 1px solid var(--border-color);">Standard</span>`;
+
+      const typeBadgeStyle =
+        order.orderType === "Wholesale" ? "background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;" :
+          order.orderType === "Wedding Bulk" ? "background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A;" :
+            order.orderType === "Corporate Gifting" ? "background: #F3E8FF; color: #6D28D9; border: 1px solid #DDD6FE;" :
+              "background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0;";
+
+      const paymentBadge = order.paymentStatus === "Fully Paid"
+        ? `<span class="status-badge paid" style="font-size: 0.7rem; padding: 0.15rem 0.5rem;"><span data-icon="check"></span> Paid</span>`
+        : order.paymentStatus === "Advance Received"
+          ? `<span class="status-badge" style="background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; font-size: 0.7rem; padding: 0.15rem 0.5rem;">⏳ Advance Recd</span>`
+          : `<span class="status-badge" style="background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; font-size: 0.7rem; padding: 0.15rem 0.5rem;">Pending</span>`;
+
+      return `
+        <tr data-bulk-id="${order.bulkOrderId}">
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                <strong style="color: var(--color-primary); font-size: 0.885rem; font-family: monospace; letter-spacing: 0.02em;">${order.bulkOrderId}</strong>
+                ${priorityBadge}
+              </div>
+              <div style="font-size: 0.735rem; color: var(--text-muted); line-height: 1.35;">
+                <div><span data-icon="calendar"></span> <span style="color: var(--text-main);">Booked:</span> ${order.orderDate}</div>
+                <div style="color: var(--color-danger); font-weight: 700; margin-top: 0.15rem;"><span data-icon="target"></span> Due: ${order.deliveryDeadline}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <strong style="font-size: 0.885rem; color: var(--color-primary); line-height: 1.3;">${order.clientCompany}</strong>
+              <span style="font-size: 0.785rem; color: var(--text-main); font-weight: 600;"><span data-icon="user"></span> ${order.contactPerson}</span>
+              <span style="font-size: 0.735rem; color: var(--text-muted);"><span data-icon="phone"></span> ${order.phone}</span>
+              ${order.email ? `<span style="font-size: 0.715rem; color: var(--text-muted);"><span data-icon="mail"></span> ${order.email}</span>` : ""}
+              ${order.gstin && order.gstin !== 'URP-CUSTOMER-INQUIRY' ? `<span style="display: inline-block; font-size: 0.7rem; color: var(--text-muted); font-family: monospace; background: var(--bg-surface-alt); padding: 0.1rem 0.35rem; border-radius: 3px; border: 1px solid var(--border-color); width: fit-content; margin-top: 0.15rem;">GST: ${order.gstin}</span>` : ""}
+            </div>
+          </td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start;">
+              <span class="status-badge" style="${typeBadgeStyle} font-size: 0.72rem; padding: 0.2rem 0.55rem; white-space: nowrap;">${order.orderType}</span>
+              <span style="font-size: 0.725rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.25rem;"><span data-icon="building"></span> ${order.productionUnit || 'Kanchipuram Sheds'}</span>
+            </div>
+          </td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <strong style="font-size: 0.885rem; color: var(--color-gold);">${order.totalPieces} Pieces / Sets</strong>
+              <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${order.itemsDescription}">
+                ${order.itemsDescription}
+              </p>
+              ${(order.colour || order.color) ? `
+                <div style="margin-top: 0.2rem;">
+                  <span class="bulk-color-badge">
+                    <span class="bulk-color-dot" style="background: ${this.getColorHex(order.colour || order.color)};"></span>
+                    🎨 ${order.colour || order.color}
+                  </span>
+                </div>
+              ` : ""}
+            </div>
+          </td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <strong style="font-size: 0.95rem; color: var(--text-heading); font-weight: 800;">₹${Number(order.totalAmountINR).toLocaleString("en-IN")}</strong>
+              <div style="font-size: 0.725rem; color: var(--text-muted); line-height: 1.3;">
+                <span>Adv: ₹${Number(order.advancePaidINR || 0).toLocaleString("en-IN")}</span><br />
+                ${(order.balanceDueINR > 0) ? `<span style="color: #DC2626; font-weight: 700;">Due: ₹${Number(order.balanceDueINR).toLocaleString("en-IN")}</span>` : '<span style="color: #10B981; font-weight: 700;">Cleared</span>'}
+              </div>
+              <div style="margin-top: 0.15rem;">${paymentBadge}</div>
+            </div>
+          </td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start;">
+              <select class="bulk-status-dropdown form-control" data-id="${order.bulkOrderId}" style="font-size: 0.775rem; padding: 0.35rem 0.55rem; border-radius: var(--radius-sm); font-weight: 700; width: 100%; min-width: 140px; background: var(--bg-surface); color: var(--text-main); border: 1.5px solid var(--border-color);">
+                <option value="New Inquiry" ${isNewInquiry ? "selected" : ""}>New Inquiry</option>
+                <option value="Quote Sent" ${isQuoteSent ? "selected" : ""}>Quote Sent</option>
+                <option value="Under Production" ${isUnderProd ? "selected" : ""}>⏳ Under Production</option>
+                <option value="Ready to Ship" ${isReady ? "selected" : ""}>Ready to Ship</option>
+                <option value="Dispatched" ${isDispatched ? "selected" : ""}>Dispatched</option>
+                <option value="Delivered" ${isDelivered ? "selected" : ""}>Delivered</option>
+              </select>
+            </div>
+          </td>
+          <td style="text-align: right;">
+            <div style="display: flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline btn-xs print-bulk-invoice-btn" data-id="${order.bulkOrderId}" title="Print B2B Wholesale GST Tax Invoice" style="font-size: 0.735rem; padding: 0.3rem 0.55rem; white-space: nowrap;">
+                <span data-icon="receipt"></span> Invoice
+              </button>
+              <button type="button" class="btn btn-outline-gold btn-xs whatsapp-bulk-btn" data-id="${order.bulkOrderId}" title="Send WhatsApp Update to Client" style="font-size: 0.735rem; padding: 0.3rem 0.55rem; white-space: nowrap;">
+                <span data-icon="whatsapp"></span> WhatsApp
+              </button>
+              <button type="button" class="btn btn-outline btn-xs delete-bulk-btn" data-id="${order.bulkOrderId}" title="Delete Bulk Order" style="color: #DC2626; border-color: #FECDD3; font-size: 0.735rem; padding: 0.3rem 0.45rem;">
+                <span data-icon="trash"></span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    // Wire up row action listeners
+    tbody.querySelectorAll(".bulk-status-dropdown").forEach(select => {
+      select.addEventListener("change", (e) => {
+        const id = e.target.getAttribute("data-id");
+        const val = e.target.value;
+        this.handleBulkOrderStatusChange(id, val);
+      });
+    });
+
+    tbody.querySelectorAll(".print-bulk-invoice-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const id = e.currentTarget.getAttribute("data-id");
+        this.printBulkOrderGSTInvoice(id);
+      });
+    });
+
+    tbody.querySelectorAll(".whatsapp-bulk-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const id = e.currentTarget.getAttribute("data-id");
+        this.openWhatsAppForBulkOrder(id);
+      });
+    });
+
+    tbody.querySelectorAll(".delete-bulk-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const id = e.currentTarget.getAttribute("data-id");
+        this.handleDeleteBulkOrder(id);
+      });
+    });
+
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(tbody);
+    }
+  }
+
+  renderBulkOrderKPIs() {
+    const stats = window.store.getBulkOrderStats();
+
+    const ordersEl = document.getElementById("bulkKpiOrdersCount");
+    const piecesEl = document.getElementById("bulkKpiPiecesCount");
+    const totalValEl = document.getElementById("bulkKpiTotalValue");
+    const advSubEl = document.getElementById("bulkKpiAdvanceSub");
+    const balEl = document.getElementById("bulkKpiPendingBalance");
+    const prodSubEl = document.getElementById("bulkKpiProductionSub");
+    const sidebarBadge = document.getElementById("sidebarBulkOrdersBadge") || document.getElementById("sidebarBulkBadge");
+    const mobileSidebarBadge = document.getElementById("mobileSidebarBulkOrdersBadge");
+
+    if (ordersEl) ordersEl.textContent = `${stats.totalOrders} Active`;
+    if (piecesEl) piecesEl.textContent = `${stats.totalPieces.toLocaleString("en-IN")} Pcs`;
+    if (totalValEl) totalValEl.textContent = `₹${stats.totalValue.toLocaleString("en-IN")}`;
+    if (advSubEl) advSubEl.textContent = `₹${stats.advanceCollected.toLocaleString("en-IN")} Advance Collected`;
+    if (balEl) balEl.textContent = `₹${stats.pendingBalance.toLocaleString("en-IN")}`;
+    if (prodSubEl) prodSubEl.textContent = `${stats.activeProduction} Under Active Weaving`;
+    if (sidebarBadge) sidebarBadge.textContent = `${stats.totalOrders} B2B`;
+    if (mobileSidebarBadge) mobileSidebarBadge.textContent = `${stats.totalOrders} B2B`;
+  }
+
+  handleImportBulkOrdersCSV(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target.result;
+      const res = window.store.importBulkOrdersFromCSV(content);
+      if (res.success) {
+        if (window.storefront) {
+          window.storefront.showToast(`Batch imported ${res.count} bulk wholesale orders successfully!`, "success");
+        }
+        this.renderBulkOrdersSession();
+        this.renderBulkOrderKPIs();
+      } else {
+        alert(`Error importing Bulk Orders CSV: ${res.message}`);
+      }
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  }
+
+  handleDownloadBulkOrderTemplateCSV() {
+    const templateContent = `Bulk_Order_ID,Client_Company,Contact_Person,Phone_WhatsApp,Email,GSTIN,Billing_Shipping_Address,Order_Type,Items_Description,Total_Pieces,Total_Amount_INR,Advance_Paid_INR,Balance_Due_INR,Payment_Status,Order_Status,Order_Date,Delivery_Deadline,Priority,Production_Unit,Notes
+ST-BLK-SAMPLE-01,Madurai Meenakshi Silks,R. Sundar,919842109876,wholesale@meenakshisilks.com,33AAACM5541L1Z9,"24 South Masi Street, Madurai, Tamil Nadu - 625001",Wholesale,"45x Kanchipuram Pure Zari Silk Sarees, 20x Samanvaya Matching Family Combos",65,1850000,925000,925000,Advance Received,Under Production,2026-09-01,2026-09-28,High Priority,Loom Shed #2,Silk Mark certification on all pieces
+ST-BLK-SAMPLE-02,Sri Krishna Mandapam Wedding Troupe,V. Radhakrishnan,919789012345,troupe@krishnamandapam.org,URP-B2C-BULK,"108 Gandhi Road, Vellore, Tamil Nadu - 632004",Wedding Bulk,"30x Pithamaha Father & Son Silk Sets, 40x Mayuri Girls Pattu Pavadai Sets",70,740000,740000,0,Fully Paid,Ready to Ship,2026-09-04,2026-09-20,Urgent,Packaging Room 1,Festive gift packing with custom labels`;
+
+    const blob = new Blob([templateContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Srinivasa_Bulk_Orders_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (window.storefront) window.storefront.showToast("Bulk Orders CSV template downloaded!", "info");
+  }
+
+  handleExportBulkOrdersCSV() {
+    const csvData = window.store.exportBulkOrdersToCSV();
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Srinivasa_Bulk_Orders_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (window.storefront) window.storefront.showToast("Exported all bulk orders to CSV!", "success");
+  }
+
+  openAddBulkOrderModal() {
+    const modal = document.getElementById("addBulkOrderModal");
+    if (modal) {
+      modal.classList.add("active");
+      const deadlineInput = document.getElementById("bulkInDeadline");
+      if (deadlineInput && !deadlineInput.value) {
+        deadlineInput.value = new Date(Date.now() + 20 * 86400000).toISOString().split("T")[0];
+      }
+    }
+  }
+
+  handleAddBulkOrder(e) {
+    e.preventDefault();
+    const company = document.getElementById("bulkInCompany")?.value?.trim();
+    const contact = document.getElementById("bulkInContact")?.value?.trim();
+    const phone = document.getElementById("bulkInPhone")?.value?.trim();
+    const email = document.getElementById("bulkInEmail")?.value?.trim() || "";
+    const gstin = document.getElementById("bulkInGstin")?.value?.trim() || "URP-WHOLESALE";
+    const address = document.getElementById("bulkInAddress")?.value?.trim() || "Tamil Nadu, India";
+    const type = document.getElementById("bulkInType")?.value || "Wholesale";
+    const pieces = parseInt(document.getElementById("bulkInPieces")?.value, 10) || 10;
+    const deadline = document.getElementById("bulkInDeadline")?.value || new Date(Date.now() + 20 * 86400000).toISOString().split("T")[0];
+    const items = document.getElementById("bulkInItems")?.value?.trim() || "Handloom Pure Silk Collection";
+    const colour = document.getElementById("bulkInColor")?.value?.trim() || "Royal Crimson Red";
+    const total = parseFloat(document.getElementById("bulkInTotal")?.value) || 100000;
+    const advance = parseFloat(document.getElementById("bulkInAdvance")?.value) || 0;
+    const status = document.getElementById("bulkInStatus")?.value || "Under Production";
+
+    const newOrder = window.store.addBulkOrder({
+      clientCompany: company,
+      contactPerson: contact,
+      phone,
+      email,
+      gstin,
+      address,
+      orderType: type,
+      totalPieces: pieces,
+      deliveryDeadline: deadline,
+      itemsDescription: items,
+      colour: colour,
+      color: colour,
+      totalAmountINR: total,
+      advancePaidINR: advance,
+      orderStatus: status
+    });
+
+    document.getElementById("addBulkOrderForm")?.reset();
+    document.getElementById("addBulkOrderModal")?.classList.remove("active");
+
+    if (window.storefront) {
+      window.storefront.showToast(`✨ Bulk Order ${newOrder.bulkOrderId} booked with colour "${colour}"!`, "success");
+    }
+
+    this.renderBulkOrdersSession();
+    this.renderBulkOrderKPIs();
+  }
+
+  // =========================================================================
+  // ENTER NEW CUSTOMER ORDER SYSTEM (With Royal Silk Colour Selection)
+  // =========================================================================
+  openNewOrderModal() {
+    const modal = document.getElementById("adminNewOrderModal");
+    if (!modal) return;
+    modal.style.display = "flex";
+    modal.classList.add("active");
+
+    // Populate products dropdown
+    const select = document.getElementById("newOrdProductSelect");
+    if (select && window.store && window.store.products) {
+      select.innerHTML = window.store.products.map(p => `
+        <option value="${p.id}" data-price="${p.price}" data-title="${p.title}" data-department="${p.department}">
+          ${p.title} - ₹${Number(p.price).toLocaleString('en-IN')} (${p.department})
+        </option>
+      `).join("");
+
+      this.handleNewOrderProductChange();
+    }
+    this.calculateNewOrderTotal();
+  }
+
+  closeNewOrderModal() {
+    const modal = document.getElementById("adminNewOrderModal");
+    if (modal) {
+      modal.style.display = "none";
+      modal.classList.remove("active");
+    }
+  }
+
+  handleNewOrderProductChange() {
+    const select = document.getElementById("newOrdProductSelect");
+    if (!select) return;
+    const selectedOption = select.options[select.selectedIndex];
+    if (selectedOption) {
+      const price = parseFloat(selectedOption.getAttribute("data-price")) || 0;
+      const title = selectedOption.getAttribute("data-title") || "";
+      const priceInput = document.getElementById("newOrdPrice");
+      if (priceInput) priceInput.value = price;
+      const customTitleInput = document.getElementById("newOrdCustomTitle");
+      if (customTitleInput) customTitleInput.value = title;
+      this.calculateNewOrderTotal();
+    }
+  }
+
+  calculateNewOrderTotal() {
+    const qty = parseInt(document.getElementById("newOrdQty")?.value, 10) || 1;
+    const unitPrice = parseFloat(document.getElementById("newOrdPrice")?.value) || 0;
+    const blouse = document.getElementById("newOrdBlouse")?.value || "";
+    const blouseFee = blouse.includes("Tailored") ? 999 : 0;
+    const total = (unitPrice * qty) + (blouseFee * qty);
+    const totalEl = document.getElementById("newOrdTotalAmount");
+    if (totalEl) totalEl.value = total;
+  }
+
+  handleSaveNewCustomerOrder(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.store) return;
+
+    const custName = document.getElementById("newOrdCustName")?.value?.trim();
+    const custPhone = document.getElementById("newOrdCustPhone")?.value?.trim();
+    const custEmail = document.getElementById("newOrdCustEmail")?.value?.trim() || "";
+    const custAddress = document.getElementById("newOrdCustAddress")?.value?.trim();
+    const select = document.getElementById("newOrdProductSelect");
+    const customTitle = document.getElementById("newOrdCustomTitle")?.value?.trim();
+    const selectedOption = select?.options[select?.selectedIndex];
+    const prodTitle = customTitle || selectedOption?.getAttribute("data-title") || "Kanchipuram Pure Silk Handloom";
+    const prodId = selectedOption?.value || `ST-MAN-${Date.now().toString().slice(-4)}`;
+
+    const chosenColor = document.getElementById("newOrdColor")?.value?.trim() || "Royal Crimson Red";
+    const size = document.getElementById("newOrdSize")?.value || "Free Size (Standard 6.2M)";
+    const blouse = document.getElementById("newOrdBlouse")?.value || "Unstitched Running Blouse (Included)";
+    const qty = parseInt(document.getElementById("newOrdQty")?.value, 10) || 1;
+    const unitPrice = parseFloat(document.getElementById("newOrdPrice")?.value) || 12500;
+    const totalAmount = parseFloat(document.getElementById("newOrdTotalAmount")?.value) || (unitPrice * qty);
+    const paymentMethod = document.getElementById("newOrdPaymentMethod")?.value || "Direct UPI / QR";
+    const paymentStatus = document.getElementById("newOrdPaymentStatus")?.value || "VERIFIED";
+    const fulfillmentStatus = document.getElementById("newOrdFulfillmentStatus")?.value || "Pending Dispatch";
+
+    const newOrder = window.store.createOrder({
+      customer: {
+        name: custName,
+        phone: custPhone,
+        email: custEmail,
+        address: custAddress
+      },
+      items: [{
+        id: prodId,
+        title: prodTitle,
+        name: prodTitle,
+        price: unitPrice,
+        qty: qty,
+        size: size,
+        color: chosenColor,
+        colour: chosenColor,
+        blouse: blouse
+      }],
+      subtotalINR: totalAmount,
+      gstINR: Math.round(totalAmount * 0.05),
+      totalAmountINR: totalAmount,
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
+      fulfillmentStatus: fulfillmentStatus,
+      colour: chosenColor,
+      color: chosenColor
+    });
+
+    if (fulfillmentStatus) {
+      window.store.updateOrderStatus(newOrder.orderId, fulfillmentStatus);
+    }
+
+    this.closeNewOrderModal();
+    document.getElementById("adminNewOrderForm")?.reset();
+
+    if (window.storefront) {
+      window.storefront.showToast(`✨ Customer Order ${newOrder.orderId} booked with colour "${chosenColor}"!`, "success");
+    }
+
+    this.renderOrdersTable();
+    this.renderDashboardKPIs();
+  }
+
+  // =========================================================================
+  // INTERACTIVE SILK COLOUR PICKERS ENGINE
+  // =========================================================================
+  initColorPickers() {
+    const setupPicker = (swatchesId, dropdownId, customInputId, hiddenInputId, badgeId) => {
+      const swatchesEl = document.getElementById(swatchesId);
+      const dropdownEl = document.getElementById(dropdownId);
+      const customEl = document.getElementById(customInputId);
+      const hiddenEl = document.getElementById(hiddenInputId);
+      const badgeEl = document.getElementById(badgeId);
+
+      const updateColor = (colorName) => {
+        if (!colorName) return;
+        if (hiddenEl) hiddenEl.value = colorName;
+        if (badgeEl) badgeEl.textContent = `Selected: ${colorName}`;
+
+        // Sync dropdown
+        if (dropdownEl) {
+          const matchOption = Array.from(dropdownEl.options).find(o => o.value.toLowerCase() === colorName.toLowerCase());
+          if (matchOption) {
+            dropdownEl.value = matchOption.value;
+          } else {
+            dropdownEl.value = "Custom Shade";
+          }
+        }
+
+        // Sync swatches
+        if (swatchesEl) {
+          swatchesEl.querySelectorAll(".admin-color-chip").forEach(chip => {
+            const chipName = chip.getAttribute("data-color-name");
+            if (chipName && chipName.toLowerCase() === colorName.toLowerCase()) {
+              chip.classList.add("active");
+            } else {
+              chip.classList.remove("active");
+            }
+          });
+        }
+      };
+
+      if (swatchesEl) {
+        swatchesEl.querySelectorAll(".admin-color-chip").forEach(chip => {
+          chip.addEventListener("click", () => {
+            const colorName = chip.getAttribute("data-color-name");
+            if (colorName === "Custom Shade") {
+              if (customEl) {
+                customEl.focus();
+                if (customEl.value.trim()) updateColor(customEl.value.trim());
+              }
+            } else {
+              updateColor(colorName);
+            }
+          });
+        });
+      }
+
+      if (dropdownEl) {
+        dropdownEl.addEventListener("change", (e) => {
+          const val = e.target.value;
+          if (val === "Custom Shade") {
+            if (customEl) {
+              customEl.focus();
+              if (customEl.value.trim()) updateColor(customEl.value.trim());
+            }
+          } else {
+            updateColor(val);
+          }
+        });
+      }
+
+      if (customEl) {
+        customEl.addEventListener("input", (e) => {
+          const val = e.target.value.trim();
+          if (val) {
+            updateColor(val);
+          }
+        });
+      }
+    };
+
+    // 1. Bulk Order Color Picker
+    setupPicker("bulkColorSwatches", "bulkInColorDropdown", "bulkInColorCustom", "bulkInColor", "bulkSelectedColorLabel");
+
+    // 2. New Customer Order Color Picker
+    setupPicker("newOrdColorSwatches", "newOrdColorDropdown", "newOrdColorCustom", "newOrdColor", "newOrdSelectedColorBadge");
+  }
+
+  getColorHex(colorName) {
+    if (!colorName) return "#7A0C2E";
+    const lower = colorName.toLowerCase();
+    if (lower.includes("crimson") || lower.includes("red") || lower.includes("maroon")) return "#7A0C2E";
+    if (lower.includes("gold") || lower.includes("yellow") || lower.includes("mustard") || lower.includes("haldi")) return "#D4AF37";
+    if (lower.includes("green") || lower.includes("emerald")) return "#0F766E";
+    if (lower.includes("navy") || lower.includes("blue") || lower.includes("cyan") || lower.includes("rama")) return "#1E3A8A";
+    if (lower.includes("pink") || lower.includes("magenta") || lower.includes("rani")) return "#BE185D";
+    if (lower.includes("violet") || lower.includes("purple")) return "#6B21A8";
+    if (lower.includes("orange") || lower.includes("coral")) return "#F97316";
+    if (lower.includes("white") || lower.includes("ivory") || lower.includes("cream")) return "#F8FAFC";
+    return "#D4AF37";
+  }
+
+  handleBulkOrderStatusChange(bulkOrderId, newStatus) {
+    const success = window.store.updateBulkOrderStatus(bulkOrderId, newStatus);
+    if (success) {
+      if (window.storefront) {
+        window.storefront.showToast(`Updated ${bulkOrderId} status to: ${newStatus}`, "info");
+      }
+      this.renderBulkOrderKPIs();
+    }
+  }
+
+  handleDeleteBulkOrder(bulkOrderId) {
+    if (confirm(`Are you sure you want to delete bulk order ${bulkOrderId}?`)) {
+      window.store.deleteBulkOrder(bulkOrderId);
+      if (window.storefront) {
+        window.storefront.showToast(`Bulk order ${bulkOrderId} deleted.`, "warning");
+      }
+      this.renderBulkOrdersSession();
+      this.renderBulkOrderKPIs();
+    }
+  }
+
+  openWhatsAppForBulkOrder(bulkOrderId) {
+    const order = window.store.getBulkOrderById(bulkOrderId);
+    if (!order) return;
+
+    const rawPhone = (order.phone || "").replace(/[^0-9]/g, "");
+    const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+
+    const msg = encodeURIComponent(
+      `*Namaste ${order.contactPerson || order.clientCompany}*,
+Greetings from *Srinivasa Textiles (Master Weavers Since 1978)*.
+
+Here is the current status of your Wholesale Bulk Order:
+*Bulk Order ID:* ${order.bulkOrderId}
+*Order Category:* ${order.orderType}
+*Items:* ${order.itemsDescription}
+*Garment Colour / Palette:* ${order.colour || order.color || "Royal Crimson Red"}
+*Total Volume:* ${order.totalPieces} Units
+⏳ *Production Status:* ${order.orderStatus}
+*Target Delivery Date:* ${order.deliveryDeadline}
+*Total Order Value:* ₹${Number(order.totalAmountINR).toLocaleString("en-IN")}
+*Advance Received:* ₹${Number(order.advancePaidINR || 0).toLocaleString("en-IN")}
+${order.balanceDueINR > 0 ? `*Balance Due:* ₹${Number(order.balanceDueINR).toLocaleString("en-IN")}` : "*Payment Status:* Fully Cleared"}
+
+Our master weaving artisan team is ensuring strict Silk Mark certified handloom quality. Please feel free to reply here for any dispatch coordination.
+
+Warm regards,
+*Srinivasa Textiles Weaving Mansion, Kanchipuram*`
+    );
+
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, "_blank");
+  }
+
+  printBulkOrderGSTInvoice(bulkOrderId) {
+    const order = window.store.getBulkOrderById(bulkOrderId);
+    if (!order) {
+      alert("Bulk order not found.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print B2B GST Invoices.");
+      return;
+    }
+
+    const invoiceNo = `B2B-INV-${order.bulkOrderId.replace("ST-BLK-", "")}`;
+    const subtotal = order.subtotalINR || Math.round(order.totalAmountINR / 1.05);
+    const gstTotal = order.gstINR || (order.totalAmountINR - subtotal);
+    const cgst = Math.round(gstTotal / 2);
+    const sgst = gstTotal - cgst;
+    const totalAmount = order.totalAmountINR;
+    const advancePaid = order.advancePaidINR || 0;
+    const balanceDue = order.balanceDueINR || Math.max(0, totalAmount - advancePaid);
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>B2B Wholesale GST Tax Invoice - ${order.bulkOrderId}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4; margin: 15mm; }
+          body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1E293B; margin: 0; padding: 20px; font-size: 13px; line-height: 1.5; }
+          .invoice-card { max-width: 800px; margin: 0 auto; border: 2px solid #D4AF37; padding: 25px; border-radius: 8px; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #D4AF37; padding-bottom: 15px; margin-bottom: 20px; }
+          .brand-title { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800; color: #7A0C2E; margin: 0; }
+          .brand-sub { font-size: 11px; color: #64748B; margin-top: 2px; }
+          .inv-title { text-align: right; }
+          .inv-title h2 { font-family: 'Cinzel', serif; font-size: 20px; color: #7A0C2E; margin: 0; }
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+          .box { background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 6px; }
+          .box h4 { margin: 0 0 6px 0; color: #7A0C2E; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th { background: #7A0C2E; color: #FFF; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
+          td { padding: 9px 10px; border-bottom: 1px solid #E2E8F0; font-size: 12px; }
+          .totals-table { width: 340px; margin-left: auto; margin-bottom: 20px; }
+          .totals-table td { padding: 5px 8px; }
+          .totals-table .grand { font-size: 14px; font-weight: 800; color: #7A0C2E; border-top: 2px solid #D4AF37; }
+          .bank-box { background: #FFFDF7; border: 1px dashed #D4AF37; padding: 10px 14px; border-radius: 6px; font-size: 11px; }
+          .footer { margin-top: 25px; border-top: 1px solid #E2E8F0; padding-top: 15px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .seal-stamp { border: 1.5px dashed #7A0C2E; padding: 8px 14px; text-align: center; border-radius: 6px; font-family: 'Cinzel', serif; color: #7A0C2E; font-weight: 700; font-size: 11px; }
+          @media print {
+            .no-print { display: none; }
+            body { padding: 0; }
+            .invoice-card { border: none; padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="text-align: center; margin-bottom: 15px;">
+          <button onclick="window.print()" style="background: #7A0C2E; color: #FFF; border: none; padding: 8px 20px; font-weight: 700; border-radius: 4px; cursor: pointer; font-size: 14px;"><span data-icon="printer"></span> Print / Save as PDF</button>
+        </div>
+        <div class="invoice-card">
+          <div class="header">
+            <div>
+              <h1 class="brand-title">SRINIVASA TEXTILES</h1>
+              <div class="brand-sub">Master Weavers & Pure Silk Family Handloom Store Since 1978</div>
+              <div style="font-size: 11px; color: #475569; margin-top: 4px;">
+                108 Raja Veedhi, Kanchipuram, Tamil Nadu - 631501<br>
+                <strong>GSTIN:</strong> 33AABCS9876C1ZT | <strong>Phone:</strong> +91 8778503021 | <strong>Email:</strong> wholesale@srinivasatextiles.com
+              </div>
+            </div>
+            <div class="inv-title">
+              <h2>TAX INVOICE</h2>
+              <div style="font-size: 11px; color: #64748B; margin-top: 4px;">
+                <strong>Invoice No:</strong> ${invoiceNo}<br>
+                <strong>Date:</strong> ${order.orderDate}<br>
+                <strong>Bulk Order Ref:</strong> ${order.bulkOrderId}<br>
+                <strong>Category:</strong> ${order.orderType}
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="box">
+              <h4>Billed & Shipped To (Buyer)</h4>
+              <strong style="font-size: 13px; color: #1E293B;">${order.clientCompany}</strong><br>
+              <strong>Attn:</strong> ${order.contactPerson}<br>
+              <strong>Phone:</strong> ${order.phone}<br>
+              ${order.email ? `<strong>Email:</strong> ${order.email}<br>` : ""}
+              <strong>Address:</strong> ${order.address}<br>
+              <strong>Buyer GSTIN:</strong> ${order.gstin || "URP (Unregistered Dealer)"}
+            </div>
+            <div class="box">
+              <h4>Dispatch & Production Details</h4>
+              <strong>Production Shed:</strong> ${order.productionUnit || 'Loom Shed #3'}<br>
+              <strong>Target Delivery Deadline:</strong> ${order.deliveryDeadline}<br>
+              <strong>Current Status:</strong> ${order.orderStatus}<br>
+              <strong>Priority:</strong> ${order.priority || 'Standard'}<br>
+              <strong>Place of Supply:</strong> Tamil Nadu (State Code: 33)<br>
+              <strong>Notes:</strong> ${order.notes || 'Strict Silk Mark certified batch'}
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 35px;">#</th>
+                <th>Description of Goods & Fabrics</th>
+                <th>HSN Code</th>
+                <th style="text-align: center;">Qty (Units)</th>
+                <th style="text-align: right;">Taxable Value (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>
+                  <strong>${order.itemsDescription}</strong>
+                  <div style="font-size: 10px; color: #64748B;">100% Pure Tested Silk with Silk Mark SMOI Guarantee. Master weaver loom batch.</div>
+                </td>
+                <td>50072010</td>
+                <td style="text-align: center;"><strong>${order.totalPieces}</strong></td>
+                <td style="text-align: right;"><strong>₹${subtotal.toLocaleString("en-IN")}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="totals-table">
+            <tr>
+              <td>Subtotal (Taxable Amount):</td>
+              <td style="text-align: right;">₹${subtotal.toLocaleString("en-IN")}</td>
+            </tr>
+            <tr>
+              <td>CGST @ 2.5%:</td>
+              <td style="text-align: right;">₹${cgst.toLocaleString("en-IN")}</td>
+            </tr>
+            <tr>
+              <td>SGST @ 2.5%:</td>
+              <td style="text-align: right;">₹${sgst.toLocaleString("en-IN")}</td>
+            </tr>
+            <tr class="grand">
+              <td>Total Wholesale Amount:</td>
+              <td style="text-align: right;">₹${totalAmount.toLocaleString("en-IN")}</td>
+            </tr>
+            <tr style="color: #047857; font-weight: 600;">
+              <td>Advance Received:</td>
+              <td style="text-align: right;">₹${advancePaid.toLocaleString("en-IN")}</td>
+            </tr>
+            <tr style="color: #DC2626; font-weight: 700; font-size: 13px;">
+              <td>Balance Payable:</td>
+              <td style="text-align: right;">₹${balanceDue.toLocaleString("en-IN")}</td>
+            </tr>
+          </table>
+
+          <div class="bank-box">
+            <strong>Direct Wholesale RTGS / NEFT Banking Settlement:</strong><br>
+            Bank: State Bank of India (Kanchipuram Main Branch) | A/C Name: Srinivasa Textiles Heritage Handlooms<br>
+            A/C No: 3389102455912 | IFSC: SBIN0000843 | UPI ID: srinivasatextiles@sbi
+          </div>
+
+          <div class="footer">
+            <div style="font-size: 10px; color: #64748B; max-width: 440px;">
+              * Goods once produced under bespoke wholesale specification are inspected for pure silk testing. Interest @ 18% p.a. charged on overdue balance beyond delivery date. Subject to Kanchipuram jurisdiction.
+            </div>
+            <div class="seal-stamp">
+              SRINIVASA TEXTILES<br>
+              <span style="font-size: 9px; font-weight: 400;">Authorized Signatory</span>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  renderOrdersTable() {
+    const tbody = document.getElementById("adminOrdersTableBody");
+    if (!tbody) return;
+
+    const orders = window.store.orders || [];
+
+    tbody.innerHTML = orders.map(order => {
+      const upiRef = order.upi_ref_no || order.transactionId || "";
+      const isPendingVerification = order.paymentStatus === "PENDING_VERIFICATION";
+      const isVerified = order.paymentStatus === "VERIFIED" || order.paymentStatus === "Paid Verified" || order.paymentStatus === "Paid";
+
+      return `
+      <tr data-order-id="${order.orderId}">
+        <td>
+          <strong style="color: var(--color-primary);">${order.orderId}</strong>
+          <span style="display: block; font-size: 0.725rem; color: var(--text-muted);">${order.date}</span>
+          ${order.giftWrap ? `<span class="badge-safety" style="margin-top: 0.2rem; display:inline-block;"><span data-icon="gift" data-icon-size="12"></span> Gift Wrapped</span>` : ""}
+        </td>
+        <td>
+          <strong>${order.customer ? (order.customer.name || order.customer_name) : "Customer"}</strong>
+          <span style="display: block; font-size: 0.725rem; color: var(--text-muted);"><span data-icon="phone" data-icon-size="12"></span> ${order.customer ? (order.customer.phone || order.mobile_number) : "N/A"}</span>
+          <span style="display: block; font-size: 0.7rem; color: var(--text-muted); max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${order.customer ? (order.customer.address || order.shipping_address) : ""}">${order.customer ? (order.customer.address || order.shipping_address) : ""}</span>
+        </td>
+        <td>
+          <div style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.35rem;">
+            ${(order.items || order.cart_items || []).map(i => {
+              const col = i.color || i.colour || order.colour || order.color;
+              return `
+                <div style="line-height: 1.35;">
+                  <strong>${i.qty || 1}x ${i.title || i.name}</strong>
+                  <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.15rem; flex-wrap: wrap;">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-surface-alt); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color);">${i.size || "Standard"}</span>
+                    ${col ? `
+                      <span class="bulk-color-badge" style="font-size: 0.72rem; padding: 0.1rem 0.45rem;">
+                        <span class="bulk-color-dot" style="background: ${this.getColorHex(col)};"></span> 🎨 ${col}
+                      </span>
+                    ` : ""}
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </td>
+        <td><strong>₹${(order.totalAmountINR || order.total_amount || 0).toLocaleString("en-IN")}</strong></td>
+        <td>
+          ${isPendingVerification ? `
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <span class="status-badge" style="background: rgba(245, 158, 11, 0.18); color: var(--color-warning); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">
+                <span data-icon="clock" data-icon-size="12"></span> PENDING_VERIFICATION
+              </span>
+              ${upiRef ? `<span style="font-size: 0.7rem; font-family: monospace; color: var(--color-primary); font-weight: 700;">Ref: ${upiRef}</span>` : ""}
+              <button class="btn btn-sm approve-pay-btn" data-order-id="${order.orderId}" style="background: #10B981; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); border: none; cursor: pointer; margin-top: 0.15rem;">
+                <span data-icon="check" data-icon-size="12"></span> Approve Payment
+              </button>
+            </div>
+          ` : isVerified ? `
+            <span class="status-badge paid" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); font-weight: 700; display: inline-block;">
+              <span data-icon="check" data-icon-size="12"></span> VERIFIED
+            </span>
+            ${upiRef ? `<span style="display: block; font-size: 0.685rem; font-family: monospace; color: var(--text-muted); margin-top: 0.15rem;">Ref: ${upiRef}</span>` : ""}
+            <span style="display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem;">${order.paymentMethod || "Direct UPI"}</span>
+          ` : `
+            <span class="status-badge" style="background: rgba(239, 68, 68, 0.15); color: var(--color-danger);">
+              ${order.paymentStatus}
+            </span>
+          `}
+        </td>
+        <td>
+          <select class="form-control order-status-select" data-order-id="${order.orderId}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+            <option value="Pending Dispatch" ${order.fulfillmentStatus === "Pending Dispatch" ? "selected" : ""}>Pending Dispatch</option>
+            <option value="Packed" ${order.fulfillmentStatus === "Packed" ? "selected" : ""}>Packed</option>
+            <option value="Dispatched" ${order.fulfillmentStatus === "Dispatched" ? "selected" : ""}>Dispatched</option>
+            <option value="Delivered" ${order.fulfillmentStatus === "Delivered" ? "selected" : ""}>Delivered</option>
+          </select>
+        </td>
+        <td>
+          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+            <button class="btn btn-outline btn-sm gen-invoice-btn" data-order-id="${order.orderId}" title="Print official GST Invoice PDF"><span data-icon="printer" data-icon-size="14"></span> PDF Invoice</button>
+            ${order.customer && (order.customer.phone || order.mobile_number) ? `
+              <a href="tel:${order.customer.phone || order.mobile_number}" class="btn btn-sm btn-outline" style="padding: 0.25rem 0.5rem; text-decoration: none;" title="Call Customer"><span data-icon="phone"></span> Call</a>
+              <a href="https://wa.me/91${(order.customer.phone || order.mobile_number || '').replace(/[^0-9]/g, '').slice(-10)}?text=Namaste%20${encodeURIComponent(order.customer.name || 'Customer')}%2C%20regarding%20your%20Srinivasa%20Textiles%20Order%20%23${order.orderId}..." target="_blank" class="btn btn-sm btn-outline" style="padding: 0.25rem 0.5rem; color: #25D366; border-color: #25D366; text-decoration: none;" title="WhatsApp Customer"><span data-icon="whatsapp"></span> Chat</a>
+            ` : ""}
+          </div>
+        </td>
+      </tr>
+      `;
+    }).join("");
+
+    tbody.querySelectorAll(".approve-pay-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const orderId = e.target.getAttribute("data-order-id");
+        window.store.updateOrder(orderId, { paymentStatus: "VERIFIED" });
+        if (window.supabaseService) {
+          await window.supabaseService.updatePaymentStatus(orderId, "VERIFIED");
+        }
+        this.renderOrdersTable();
+        this.renderDashboardKPIs();
+        if (window.storefront) window.storefront.showToast(`Payment approved for order ${orderId}!`, "success");
+      });
+    });
+
+    tbody.querySelectorAll(".order-status-select").forEach(select => {
+      select.addEventListener("change", async (e) => {
+        const orderId = e.target.getAttribute("data-order-id");
+        const status = e.target.value;
+        window.store.updateOrderStatus(orderId, status);
+        if (window.supabaseService) {
+          await window.supabaseService.updateOrderStatus(orderId, status);
+        }
+        if (window.storefront) window.storefront.showToast(`Order ${orderId} status updated to "${status}"`, "info");
+      });
+    });
+
+    tbody.querySelectorAll(".gen-invoice-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const orderId = e.target.getAttribute("data-order-id");
+        this.openGSTInvoiceModal(orderId);
+      });
+    });
+
+    const countBadge = document.getElementById("orderPdfCountBadge");
+    if (countBadge) {
+      countBadge.textContent = `${orders.length} Real-Time Orders Active`;
+    }
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(tbody);
+    }
+  }
+
+  printAllOrdersReportPDF() {
+    const orders = window.store.orders || [];
+    const totalSales = orders.reduce((sum, o) => sum + (o.totalAmountINR || 0), 0);
+    const currentDate = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups in your browser to generate and print PDF reports.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Srinivasa Textiles - Real-Time Orders Ledger Report</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; color: #111; font-size: 13px; line-height: 1.4; }
+          .header { border-bottom: 2px solid #D4AF37; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+          .brand-title { font-size: 22px; font-weight: 800; color: #7A0C2E; letter-spacing: 0.05em; }
+          .brand-sub { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700; margin-top: 2px; }
+          .report-meta { text-align: right; font-size: 11px; color: #555; }
+          .kpi-row { display: flex; gap: 15px; margin-bottom: 20px; }
+          .kpi-box { flex: 1; border: 1px solid #ddd; background: #fafafa; border-radius: 6px; padding: 10px 14px; }
+          .kpi-label { font-size: 11px; color: #666; text-transform: uppercase; font-weight: 700; }
+          .kpi-val { font-size: 18px; font-weight: 800; color: #7A0C2E; margin-top: 3px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+          th { background: #7A0C2E; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
+          td { border-bottom: 1px solid #eee; padding: 9px 10px; vertical-align: top; }
+          tr:nth-child(even) td { background: #fdfaf7; }
+          .order-id { font-weight: 700; color: #7A0C2E; }
+          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+          .badge-paid { background: #ECFDF5; color: #047857; }
+          .badge-status { background: #FEF3C7; color: #78350F; }
+          .footer { border-top: 1px solid #ddd; padding-top: 10px; font-size: 11px; color: #777; display: flex; justify-content: space-between; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="brand-title">SRINIVASA TEXTILES</div>
+            <div class="brand-sub">Master Weavers Since 1978 • Kanchipuram Heritage</div>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">GSTIN: 33AABCS9876C1ZT | Central Silk Mark (SMOI) Verified</div>
+          </div>
+          <div class="report-meta">
+            <div style="font-size: 14px; font-weight: 800; color: #111;">REAL-TIME ORDERS LEDGER (PDF)</div>
+            <div>Generated: ${currentDate}</div>
+            <div>Status: Live Stream Active</div>
+          </div>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-box">
+            <div class="kpi-label">Total Real-Time Orders</div>
+            <div class="kpi-val">${orders.length} Orders</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Total Sales Volume</div>
+            <div class="kpi-val">₹${totalSales.toLocaleString("en-IN")}</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Dispatched / Completed</div>
+            <div class="kpi-val">${orders.filter(o => o.fulfillmentStatus === "Dispatched" || o.fulfillmentStatus === "Delivered").length} / ${orders.length}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Order ID & Date</th>
+              <th>Customer & Contact</th>
+              <th>Items Ordered & SKUs</th>
+              <th>Payment Status</th>
+              <th>Fulfillment & Courier</th>
+              <th style="text-align: right;">Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orders.map((ord, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>
+                  <span class="order-id">${ord.orderId}</span><br>
+                  <span style="font-size: 10px; color: #666;">${ord.date}</span>
+                </td>
+                <td>
+                  <strong>${ord.customer ? ord.customer.name : "N/A"}</strong><br>
+                  <span style="font-size: 11px; color: #555;"><span data-icon="phone"></span> ${ord.customer ? ord.customer.phone : "N/A"}</span><br>
+                  <span style="font-size: 10px; color: #777;">${ord.customer ? ord.customer.address : ""}</span>
+                </td>
+                <td>
+                  ${(ord.items || []).map(i => `• ${i.qty}x ${i.title} (${i.size || 'Standard'})`).join('<br>')}
+                </td>
+                <td>
+                  <span class="badge badge-paid">${ord.paymentStatus || 'Paid Verified'}</span><br>
+                  <span style="font-size: 10px; color: #666;">${ord.paymentMethod || 'Online UPI'}</span>
+                </td>
+                <td>
+                  <span class="badge badge-status">${ord.fulfillmentStatus || 'Pending'}</span><br>
+                  <span style="font-size: 10px; color: #555;">${ord.courier || 'BlueDart Express'}: ${ord.trackingNumber || 'Pending'}</span>
+                </td>
+                <td style="text-align: right; font-weight: 800; font-size: 13px;">
+                  ₹${(ord.totalAmountINR || 0).toLocaleString("en-IN")}
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <span>Official Real-Time Operational Ledger Document • Srinivasa Textiles Admin Console</span>
+          <span>Page 1 of 1 • System Generated</span>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  printAllGSTInvoicesPDF() {
+    const orders = window.store.orders || [];
+    if (orders.length === 0) {
+      alert("No active customer orders found to print invoices.");
+      return;
+    }
+
+    const currentDate = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    // Master Total Calculations across ALL bills
+    const totalBillsCount = orders.length;
+    let totalGrossAmount = 0;
+    let totalDiscountAmount = 0;
+    let totalTaxableAmount = 0;
+    let totalCGST = 0;
+    let totalSGST = 0;
+    let totalShippingAmount = 0;
+    let totalGiftWrapAmount = 0;
+    let grandTotalRevenue = 0;
+
+    const invoiceEntries = orders.map((order, idx) => {
+      const subtotal = order.subtotalINR || (order.items || []).reduce((acc, it) => acc + (it.totalINR || (it.unitPriceINR * it.qty)), 0);
+      const discount = order.discountINR || 0;
+      const taxable = Math.max(0, subtotal - discount);
+      const cgst = Math.round(taxable * 0.025);
+      const sgst = Math.round(taxable * 0.025);
+      const gstTotal = order.gstINR || (cgst + sgst);
+      const shipping = order.shippingINR || 0;
+      const giftWrap = order.giftWrap ? (order.giftWrapINR || 150) : 0;
+      const finalAmount = order.totalAmountINR || (taxable + cgst + sgst + shipping + giftWrap);
+
+      totalGrossAmount += subtotal;
+      totalDiscountAmount += discount;
+      totalTaxableAmount += taxable;
+      totalCGST += cgst;
+      totalSGST += sgst;
+      totalShippingAmount += shipping;
+      totalGiftWrapAmount += giftWrap;
+      grandTotalRevenue += finalAmount;
+
+      return {
+        ...order,
+        subtotal,
+        discount,
+        taxable,
+        cgst,
+        sgst,
+        gstTotal,
+        shipping,
+        giftWrap,
+        finalAmount,
+        invoiceNo: `INV-${(order.orderId || '').replace("ST-ORD-", "") || (idx + 101)}`
+      };
+    });
+
+    const totalCombinedGST = totalCGST + totalSGST;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups in your browser to generate and print PDF invoices.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Srinivasa Textiles - Master Consolidated Invoices & Tax Ledger</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; color: #111; font-size: 12px; line-height: 1.4; background: #fff; }
+
+          .master-header { border-bottom: 2.5px solid #7A0C2E; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .brand-title { font-size: 24px; font-weight: 900; color: #7A0C2E; letter-spacing: 0.04em; }
+          .brand-sub { font-size: 11px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; margin-top: 2px; }
+          .meta-box { text-align: right; font-size: 11px; color: #444; }
+          .report-badge { display: inline-block; background: #7A0C2E; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
+
+          .summary-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+          .kpi-stat-card { border: 1.5px solid #E2E8F0; background: #FAF9F6; border-radius: 6px; padding: 10px 12px; }
+          .kpi-stat-card.highlight { background: #FDF2F4; border-color: #7A0C2E; }
+          .kpi-stat-label { font-size: 10px; color: #64748B; text-transform: uppercase; font-weight: 700; }
+          .kpi-stat-card.highlight .kpi-stat-label { color: #7A0C2E; }
+          .kpi-stat-val { font-size: 17px; font-weight: 900; color: #0F172A; margin-top: 2px; }
+          .kpi-stat-card.highlight .kpi-stat-val { color: #7A0C2E; }
+
+          .section-heading { font-size: 14px; font-weight: 800; color: #7A0C2E; border-bottom: 1.5px solid #CBD5E1; padding-bottom: 5px; margin: 18px 0 10px 0; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11.5px; }
+          th { background: #7A0C2E; color: #fff; padding: 8px 9px; text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+          td { border-bottom: 1px solid #E2E8F0; padding: 8px 9px; vertical-align: top; }
+          tr:nth-child(even) td { background: #FAF8F5; }
+          .total-row td { background: #F1F5F9 !important; font-weight: 800; font-size: 12px; border-top: 2px solid #7A0C2E; border-bottom: 2px solid #7A0C2E; }
+
+          /* Individual Invoice Styling */
+          .invoice-page { page-break-before: always; padding-top: 15px; border-top: 2px dashed #CBD5E1; margin-top: 30px; }
+          .inv-head-grid { display: flex; justify-content: space-between; border-bottom: 2px solid #7A0C2E; padding-bottom: 10px; margin-bottom: 14px; }
+          .inv-buyer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #FAF9F6; border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; }
+          .inv-total-box { margin-left: auto; width: 320px; border: 1.5px solid #7A0C2E; border-radius: 6px; background: #FFFDF9; padding: 10px 14px; margin-bottom: 15px; }
+          .inv-total-row { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 4px; color: #475569; }
+          .inv-total-row.grand { font-size: 14px; font-weight: 900; color: #7A0C2E; border-top: 1.5px solid #7A0C2E; padding-top: 6px; margin-top: 6px; }
+
+          .btn-print-floating { position: fixed; top: 15px; right: 15px; background: #7A0C2E; color: #fff; border: 1.5px solid #D4AF37; padding: 10px 20px; border-radius: 6px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); z-index: 9999; font-size: 13px; }
+
+          @media print {
+            body { padding: 0; }
+            .btn-print-floating { display: none !important; }
+            .invoice-page { page-break-before: always; border-top: none; margin-top: 0; padding-top: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <button class="btn-print-floating" onclick="window.print()"><span data-icon="printer"></span> Print Master PDF / Save</button>
+
+        <!-- =================================================================
+             PAGE 1: MASTER CONSOLIDATED FINANCIAL CALCULATION LEDGER
+             ================================================================= -->
+        <div class="master-header">
+          <div>
+            <div class="brand-title">SRINIVASA TEXTILES</div>
+            <div class="brand-sub">Master Weavers & Pure Silk Family Store • Since 1978</div>
+            <div style="font-size: 11px; color: #475569; margin-top: 4px;">
+              108 Raja Veedhi, Kanchipuram, Tamil Nadu - 631501, India | Phone: +91 8778503021
+            </div>
+            <div style="font-size: 11px; font-weight: 700; color: #7A0C2E; margin-top: 2px;">
+              GSTIN: 33AABCS9876C1ZT | State Code: 33 (Tamil Nadu) | Silk Mark (SMOI) Certified
+            </div>
+          </div>
+          <div class="meta-box">
+            <div class="report-badge">MASTER GST INVOICES &amp; FINANCIAL LEDGER</div>
+            <div><strong>Report Date:</strong> ${currentDate}</div>
+            <div><strong>Total Active Bills:</strong> ${totalBillsCount} Invoices</div>
+            <div style="color: #047857; font-weight: 700;"><span data-icon="check"></span> 100% Tax Compliant</div>
+          </div>
+        </div>
+
+        <!-- 8-KPI MASTER SUMMARY CALCULATION GRID -->
+        <div class="summary-kpi-grid">
+          <div class="kpi-stat-card">
+            <div class="kpi-stat-label">Total Bills Count</div>
+            <div class="kpi-stat-val">${totalBillsCount} Invoices</div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-stat-label">Gross Value of All Bills</div>
+            <div class="kpi-stat-val">₹${totalGrossAmount.toLocaleString("en-IN")}</div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-stat-label">Total Discounts Given</div>
+            <div class="kpi-stat-val" style="color: #059669;">-₹${totalDiscountAmount.toLocaleString("en-IN")}</div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-stat-label">Total Taxable Value</div>
+            <div class="kpi-stat-val">₹${totalTaxableAmount.toLocaleString("en-IN")}</div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-stat-label">Total CGST (2.5%)</div>
+            <div class="kpi-stat-val">₹${totalCGST.toLocaleString("en-IN")}</div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-stat-label">Total SGST (2.5%)</div>
+            <div class="kpi-stat-val">₹${totalSGST.toLocaleString("en-IN")}</div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-stat-label">Total Combined GST (5%)</div>
+            <div class="kpi-stat-val">₹${totalCombinedGST.toLocaleString("en-IN")}</div>
+          </div>
+          <div class="kpi-stat-card highlight">
+            <div class="kpi-stat-label">GRAND TOTAL BILLS REVENUE</div>
+            <div class="kpi-stat-val">₹${grandTotalRevenue.toLocaleString("en-IN")}</div>
+          </div>
+        </div>
+
+        <!-- CONSOLIDATED INVOICES CALCULATION TABLE -->
+        <div class="section-heading">
+          <span><span data-icon="chart"></span> Master Invoices Calculation Breakdown</span>
+          <span style="font-size: 11px; font-weight: 600; color: #475569;">Consolidated Sales, GST &amp; Revenue</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Invoice No &amp; Date</th>
+              <th>Customer / Consignee</th>
+              <th>Items &amp; SKU</th>
+              <th>Payment &amp; Ref</th>
+              <th style="text-align: right;">Taxable (₹)</th>
+              <th style="text-align: right;">CGST 2.5%</th>
+              <th style="text-align: right;">SGST 2.5%</th>
+              <th style="text-align: right;">Discount</th>
+              <th style="text-align: right;">Net Total (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoiceEntries.map((inv, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>
+                  <strong style="color: #7A0C2E;">${inv.invoiceNo}</strong><br>
+                  <span style="font-size: 10px; color: #64748B;">${inv.date}</span>
+                </td>
+                <td>
+                  <strong>${inv.customer ? inv.customer.name : "Customer"}</strong><br>
+                  <span style="font-size: 10.5px; color: #475569;"><span data-icon="phone"></span> ${inv.customer ? inv.customer.phone : "N/A"}</span>
+                  ${inv.customer && inv.customer.gstin ? `<br><span style="font-size: 10px; color: #7A0C2E; font-weight: 700;">GSTIN: ${inv.customer.gstin}</span>` : ""}
+                </td>
+                <td>
+                  ${(inv.items || []).map(i => `• ${i.qty}x ${i.title} (${i.size || 'Std'})`).join('<br>')}
+                </td>
+                <td>
+                  <span style="font-weight: 700; color: #047857;">${inv.paymentStatus || 'VERIFIED'}</span><br>
+                  <span style="font-size: 10px; color: #64748B;">${inv.paymentMethod || 'UPI'}${inv.upiRefNo ? ` (${inv.upiRefNo})` : ''}</span>
+                </td>
+                <td style="text-align: right; font-weight: 600;">₹${inv.taxable.toLocaleString("en-IN")}</td>
+                <td style="text-align: right;">₹${inv.cgst.toLocaleString("en-IN")}</td>
+                <td style="text-align: right;">₹${inv.sgst.toLocaleString("en-IN")}</td>
+                <td style="text-align: right; color: ${inv.discount > 0 ? '#059669' : '#94A3B8'}; font-weight: ${inv.discount > 0 ? '700' : 'normal'};">
+                  ${inv.discount > 0 ? `-₹${inv.discount.toLocaleString("en-IN")}` : '₹0'}
+                </td>
+                <td style="text-align: right; font-weight: 900; color: #7A0C2E; font-size: 12.5px;">
+                  ₹${inv.finalAmount.toLocaleString("en-IN")}
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="5" style="text-align: right; text-transform: uppercase; letter-spacing: 0.05em;">
+                MASTER CONSOLIDATED TOTALS (${totalBillsCount} BILLS):
+              </td>
+              <td style="text-align: right;">₹${totalTaxableAmount.toLocaleString("en-IN")}</td>
+              <td style="text-align: right;">₹${totalCGST.toLocaleString("en-IN")}</td>
+              <td style="text-align: right;">₹${totalSGST.toLocaleString("en-IN")}</td>
+              <td style="text-align: right; color: #059669;">-₹${totalDiscountAmount.toLocaleString("en-IN")}</td>
+              <td style="text-align: right; color: #7A0C2E; font-size: 13.5px;">₹${grandTotalRevenue.toLocaleString("en-IN")}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="font-size: 10.5px; color: #64748B; display: flex; justify-content: space-between; border-top: 1px solid #CBD5E1; padding-top: 8px;">
+          <span>Official Cumulative Financial Report • Srinivasa Textiles Kanchipuram Hub</span>
+          <span>Individual Invoices detailed on subsequent pages <span data-icon="arrowRight"></span></span>
+        </div>
+
+        <!-- =================================================================
+             INDIVIDUAL FULL-PAGE OFFICIAL GST TAX INVOICES FOR EACH ORDER
+             ================================================================= -->
+        ${invoiceEntries.map((inv, idx) => `
+          <div class="invoice-page">
+            <div class="inv-head-grid">
+              <div>
+                <div class="brand-title">SRINIVASA TEXTILES</div>
+                <div class="brand-sub">Master Weavers & Pure Silk Family Store Since 1978</div>
+                <div style="font-size: 10.5px; color: #475569; margin-top: 2px;">
+                  108 Raja Veedhi, Kanchipuram, Tamil Nadu - 631501 | GSTIN: 33AABCS9876C1ZT
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div class="report-badge">ORIGINAL TAX INVOICE</div>
+                <div style="font-size: 12px; font-weight: 800; color: #7A0C2E; margin-top: 3px;">Invoice No: ${inv.invoiceNo}</div>
+                <div style="font-size: 11px; color: #475569;">Date: ${inv.date}</div>
+                <div style="font-size: 11px; color: #475569;">Payment: ${inv.paymentMethod} (${inv.paymentStatus || 'Verified'})</div>
+              </div>
+            </div>
+
+            <div class="inv-buyer-grid">
+              <div>
+                <strong style="color: #7A0C2E; text-transform: uppercase; font-size: 10.5px;">Billed To / Consignee:</strong>
+                <div style="font-size: 12px; font-weight: 800; margin-top: 2px;">${inv.customer ? inv.customer.name : "Customer"}</div>
+                <div style="color: #334155; font-size: 11px; margin-top: 2px;">${inv.customer ? inv.customer.address : "N/A"}</div>
+                <div style="color: #334155; font-size: 11px; margin-top: 2px;">
+                  <strong>Mobile:</strong> ${inv.customer ? inv.customer.phone : "N/A"} | <strong>Email:</strong> ${(inv.customer && inv.customer.email) || "N/A"}
+                </div>
+                ${inv.customer && inv.customer.gstin ? `<div style="color: #7A0C2E; font-weight: 700; font-size: 11px; margin-top: 2px;">Buyer GSTIN: ${inv.customer.gstin}</div>` : ""}
+              </div>
+              <div>
+                <strong style="color: #7A0C2E; text-transform: uppercase; font-size: 10.5px;">Logistics &amp; Dispatch:</strong>
+                <div style="font-size: 11.5px; margin-top: 2px;"><strong>Courier Partner:</strong> ${inv.courier || "BlueDart Express"}</div>
+                <div style="font-size: 11.5px; margin-top: 2px;"><strong>AWB Tracking:</strong> ${inv.trackingNumber || 'Pending Generation'}</div>
+                <div style="font-size: 11.5px; margin-top: 2px;"><strong>Fulfillment Status:</strong> ${inv.fulfillmentStatus || 'Processing'}</div>
+                ${inv.giftWrap ? `<div style="color: #047857; font-weight: 700; font-size: 10.5px; margin-top: 3px;"><span data-icon="gift"></span> Festive Gift Wrap Included</div>` : ""}
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item Description &amp; Specifications</th>
+                  <th>HSN/SAC</th>
+                  <th>Qty</th>
+                  <th style="text-align: right;">Unit Rate (₹)</th>
+                  <th style="text-align: right;">CGST (2.5%)</th>
+                  <th style="text-align: right;">SGST (2.5%)</th>
+                  <th style="text-align: right;">Total Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(inv.items || []).map((it, itemIdx) => {
+      const itTaxable = it.totalINR || (it.unitPriceINR * it.qty);
+      const itCgst = Math.round(itTaxable * 0.025);
+      const itSgst = Math.round(itTaxable * 0.025);
+      const itTotal = itTaxable + itCgst + itSgst;
+      return `
+                    <tr>
+                      <td>${itemIdx + 1}</td>
+                      <td>
+                        <strong>${it.title}</strong>
+                        <div style="font-size: 10px; color: #64748B;">Size: ${it.size || "Standard"} • Color: ${it.color} • Silk Mark SMOI</div>
+                      </td>
+                      <td>${it.hsnCode || "50072010"}</td>
+                      <td>${it.qty}</td>
+                      <td style="text-align: right;">₹${(it.unitPriceINR).toLocaleString("en-IN")}</td>
+                      <td style="text-align: right;">₹${itCgst.toLocaleString("en-IN")}</td>
+                      <td style="text-align: right;">₹${itSgst.toLocaleString("en-IN")}</td>
+                      <td style="text-align: right; font-weight: 700;">₹${itTotal.toLocaleString("en-IN")}</td>
+                    </tr>
+                  `;
+    }).join("")}
+              </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px;">
+              <div style="max-width: 320px; font-size: 10.5px; color: #64748B; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px 12px; background: #FAF9F6;">
+                <strong style="color: #7A0C2E; display: block; margin-bottom: 2px;">Declaration &amp; Warranty:</strong>
+                We declare that this invoice shows the actual price of pure handloom silk goods described and that all particulars are true and authentic.
+              </div>
+
+              <div class="inv-total-box">
+                <div class="inv-total-row"><span>Subtotal Taxable:</span> <span>₹${inv.taxable.toLocaleString("en-IN")}</span></div>
+                ${inv.discount > 0 ? `<div class="inv-total-row" style="color: #059669; font-weight: 700;"><span>Discount (${inv.couponCode || 'Custom'}):</span> <span>-₹${inv.discount.toLocaleString("en-IN")}</span></div>` : ""}
+                <div class="inv-total-row"><span>CGST (2.5%):</span> <span>₹${inv.cgst.toLocaleString("en-IN")}</span></div>
+                <div class="inv-total-row"><span>SGST (2.5%):</span> <span>₹${inv.sgst.toLocaleString("en-IN")}</span></div>
+                ${inv.shipping > 0 ? `<div class="inv-total-row"><span>Express Insured Shipping:</span> <span>+₹${inv.shipping.toLocaleString("en-IN")}</span></div>` : `<div class="inv-total-row" style="color: #047857;"><span>Shipping:</span> <span>FREE Express Insured</span></div>`}
+                <div class="inv-total-row grand">
+                  <span>Grand Total:</span>
+                  <span>₹${inv.finalAmount.toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 25px; border-top: 1px solid #E2E8F0; padding-top: 12px;">
+              <div style="font-size: 10px; color: #64748B;">
+                <div><strong>Central Silk Board SMOI Reg:</strong> SMOI/TN/78-980</div>
+                <div>Computer generated official tax invoice • Valid without signature</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-family: var(--font-serif-display, serif); font-size: 14px; font-weight: 800; color: #7A0C2E;">SRINIVASA TEXTILES</div>
+                <div style="font-size: 10px; color: #64748B; margin-top: 2px;">Authorized Master Weaver Signatory</div>
+              </div>
+            </div>
+          </div>
+        `).join("")}
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  printAllShippingLabelsPDF() {
+    const orders = window.store.orders || [];
+    if (orders.length === 0) {
+      alert("No active orders found to print shipping labels.");
+      return;
+    }
+
+    const currentDate = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups in your browser to print shipping labels.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Srinivasa Textiles - Batch Courier Shipping Labels</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #000; font-size: 12px; background: #fff; }
+          .manifest-header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+          .manifest-title { font-size: 20px; font-weight: 800; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 11px; }
+          th { background: #000; color: #fff; padding: 6px 8px; text-align: left; }
+          td { border-bottom: 1px solid #ddd; padding: 6px 8px; }
+
+          .label-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+          .shipping-label-card { border: 2px solid #000; padding: 15px; border-radius: 4px; background: #fff; page-break-inside: avoid; margin-bottom: 15px; }
+          .label-top { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+          .label-courier { font-size: 15px; font-weight: 900; }
+          .label-badge { background: #000; color: #fff; font-weight: 800; font-size: 10px; padding: 2px 6px; }
+          .barcode-line { height: 36px; background: repeating-linear-gradient(90deg, #000 0, #000 2px, transparent 2px, transparent 4px, #000 4px, #000 7px, transparent 7px, transparent 9px); margin: 8px 0 4px; }
+          .btn-print-floating { position: fixed; top: 15px; right: 15px; background: #000; color: #fff; padding: 10px 18px; border-radius: 6px; font-weight: 800; cursor: pointer; z-index: 9999; }
+          @media print {
+            body { padding: 0; }
+            .btn-print-floating { display: none !important; }
+            .page-break { page-break-before: always; }
+          }
+        </style>
+      </head>
+      <body>
+        <button class="btn-print-floating" onclick="window.print()"><span data-icon="printer"></span> Print All Shipping Labels</button>
+
+        <div class="manifest-header">
+          <div>
+            <div class="manifest-title">SRINIVASA TEXTILES • COURIER DISPATCH MANIFEST</div>
+            <div style="font-size: 11px; color: #555;">Kanchipuram Master Weavers Logistics Center | Total Shipments: ${orders.length} Packages</div>
+          </div>
+          <div style="text-align: right; font-size: 11px;">
+            <div><strong>Dispatch Date:</strong> ${currentDate}</div>
+            <div><strong>Status:</strong> Ready for Pickup</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Order ID</th>
+              <th>Consignee / Customer</th>
+              <th>Contact Phone</th>
+              <th>Destination Address</th>
+              <th>Courier</th>
+              <th>AWB Number</th>
+              <th>Declared Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orders.map((o, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td><strong>${o.orderId}</strong></td>
+                <td><strong>${o.customer ? o.customer.name : "Customer"}</strong></td>
+                <td>${o.customer ? o.customer.phone : "N/A"}</td>
+                <td>${o.customer ? o.customer.address : "N/A"}</td>
+                <td><strong>${o.courier || 'BlueDart Express'}</strong></td>
+                <td style="font-family: monospace; font-weight: 700;">${o.trackingNumber || 'Pending'}</td>
+                <td>₹${(o.totalAmountINR || 0).toLocaleString("en-IN")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+
+        <div class="manifest-title" style="font-size: 16px; margin-bottom: 12px; border-bottom: 1.5px solid #000; padding-bottom: 4px;">
+          <span data-icon="box"></span> Individual Shipping Labels (${orders.length} Packages)
+        </div>
+
+        <div class="label-grid">
+          ${orders.map(o => `
+            <div class="shipping-label-card">
+              <div class="label-top">
+                <div class="label-courier">${(o.courier || "BLUEDART EXPRESS").toUpperCase()}</div>
+                <div class="label-badge">EXPRESS AIR</div>
+              </div>
+              <div class="barcode-line"></div>
+              <div style="text-align: center; font-family: monospace; font-size: 11px; font-weight: 700; margin-bottom: 8px;">AWB: ${o.trackingNumber || 'BLU-9840-7890'}</div>
+              <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 11px;">
+                <div style="font-size: 9px; font-weight: 700; text-transform: uppercase;">Deliver To:</div>
+                <div style="font-size: 13px; font-weight: 800; margin-top: 1px;">${o.customer ? o.customer.name : "Customer"}</div>
+                <div style="margin-top: 2px;">${o.customer ? o.customer.address : "N/A"}</div>
+                <div style="margin-top: 2px;"><strong>Mobile:</strong> ${o.customer ? o.customer.phone : "N/A"}</div>
+                <div style="margin-top: 4px; font-size: 10px; color: #333;"><strong>Order:</strong> ${o.orderId} • Pre-Paid Silk Parcel</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  openGSTInvoiceModal(orderId, isEditMode = false) {
+    const order = window.store.orders.find(o => o.orderId === orderId);
+    if (!order) return;
+
+    const modal = document.getElementById("invoiceModal");
+    const container = document.getElementById("invoiceModalContent");
+    if (!modal || !container) return;
+
+    const subtotal = order.subtotalINR || 0;
+    const discount = order.discountINR || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const cgst = Math.round(taxableAmount * 0.025);
+    const sgst = Math.round(taxableAmount * 0.025);
+    const totalTax = cgst + sgst;
+    const finalAmount = taxableAmount + totalTax + (order.shippingINR || 0);
+
+    const waOrderMsg = encodeURIComponent(`Namaste ${order.customer ? order.customer.name : "Customer"}! Here is your official GST Tax Invoice from Srinivasa Textiles for Order #${order.orderId} (Total: ₹${finalAmount.toLocaleString("en-IN")}). Courier: ${order.courier || 'BlueDart Express'} (AWB: ${order.trackingNumber}).`);
+    const waLink = `https://wa.me/${(order.customer && order.customer.phone ? order.customer.phone.replace(/[^0-9]/g, '') : '918778503021')}?text=${waOrderMsg}`;
+
+    if (isEditMode) {
+      // RENDER EDIT MODE
+      container.innerHTML = `
+        <button class="pdp-close-btn" id="invoiceCloseBtn" aria-label="Close Invoice" style="top: 1rem; right: 1rem;">✕</button>
+
+        <div style="border-bottom: 2px solid var(--color-gold); padding-bottom: 0.75rem; margin-bottom: 1.25rem;">
+          <h3 style="font-family: var(--font-serif-display); font-size: 1.3rem; color: var(--color-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <span data-icon="edit"></span> Edit GST Tax Invoice &amp; Customer Order Details
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Modify invoice fields, consignee info, shipping partner, and tracking number.</p>
+        </div>
+
+        <form id="adminEditInvoiceForm">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Customer / Consignee Name *</label>
+              <input type="text" id="editCustName" class="form-control" value="${order.customer ? order.customer.name : ''}" required />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Contact Mobile Number *</label>
+              <input type="tel" id="editCustPhone" class="form-control" value="${order.customer ? order.customer.phone : ''}" required />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Email Address</label>
+              <input type="email" id="editCustEmail" class="form-control" value="${order.customer && order.customer.email ? order.customer.email : ''}" />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Buyer GSTIN (Optional)</label>
+              <input type="text" id="editBuyerGSTIN" class="form-control" value="${order.customer && order.customer.gstin ? order.customer.gstin : ''}" placeholder="33AAAAA0000A1Z5" />
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Full Shipping Address *</label>
+              <textarea id="editCustAddress" class="form-control" rows="2" required>${order.customer ? order.customer.address : ''}</textarea>
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Invoice Date</label>
+              <input type="text" id="editOrderDate" class="form-control" value="${order.date}" />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Courier Partner</label>
+              <select id="editCourier" class="form-control">
+                <option value="BlueDart Express" ${order.courier === "BlueDart Express" ? "selected" : ""}>BlueDart Express</option>
+                <option value="Delhivery Express Air" ${order.courier === "Delhivery Express Air" ? "selected" : ""}>Delhivery Express Air</option>
+                <option value="DTDC Express" ${order.courier === "DTDC Express" ? "selected" : ""}>DTDC Express</option>
+                <option value="DHL Express" ${order.courier === "DHL Express" ? "selected" : ""}>DHL Express</option>
+                <option value="India Post Speed Post" ${order.courier === "India Post Speed Post" ? "selected" : ""}>India Post Speed Post</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">AWB / Tracking Number</label>
+              <input type="text" id="editTrackingNumber" class="form-control" value="${order.trackingNumber || ''}" />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.3rem;">Discount Amount (₹)</label>
+              <input type="number" id="editDiscountINR" class="form-control" value="${order.discountINR || 0}" min="0" />
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <button type="button" class="btn btn-outline" id="cancelEditInvoiceBtn"><span data-icon="close"></span> Cancel</button>
+            <button type="submit" class="btn btn-gold" style="font-weight: 700;"><span data-icon="save"></span> Save &amp; Recalculate Invoice</button>
+          </div>
+        </form>
+      `;
+
+      document.getElementById("cancelEditInvoiceBtn")?.addEventListener("click", () => this.openGSTInvoiceModal(orderId, false));
+
+      document.getElementById("adminEditInvoiceForm")?.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const updatedCustomer = {
+          name: document.getElementById("editCustName").value.trim(),
+          phone: document.getElementById("editCustPhone").value.trim(),
+          email: document.getElementById("editCustEmail").value.trim(),
+          gstin: document.getElementById("editBuyerGSTIN").value.trim(),
+          address: document.getElementById("editCustAddress").value.trim()
+        };
+
+        const updatedCourier = document.getElementById("editCourier").value;
+        const updatedTracking = document.getElementById("editTrackingNumber").value.trim();
+        const updatedDate = document.getElementById("editOrderDate").value.trim();
+        const updatedDiscount = parseFloat(document.getElementById("editDiscountINR").value) || 0;
+
+        const newTaxable = Math.max(0, subtotal - updatedDiscount);
+        const newCgst = Math.round(newTaxable * 0.025);
+        const newSgst = Math.round(newTaxable * 0.025);
+        const newTotal = newTaxable + newCgst + newSgst + (order.shippingINR || 0);
+
+        window.store.updateOrder(orderId, {
+          customer: updatedCustomer,
+          courier: updatedCourier,
+          trackingNumber: updatedTracking,
+          date: updatedDate,
+          discountINR: updatedDiscount,
+          gstINR: newCgst + newSgst,
+          totalAmountINR: newTotal
+        });
+
+        this.renderOrdersTable();
+        this.openGSTInvoiceModal(orderId, false);
+        if (window.storefront) window.storefront.showToast("GST Invoice details updated successfully!", "success");
+      });
+
+    } else {
+      // RENDER VIEW MODE
+      container.innerHTML = `
+        <button class="pdp-close-btn" id="invoiceCloseBtn" aria-label="Close Invoice" style="top: 1rem; right: 1rem;">✕</button>
+
+        <div class="invoice-header">
+          <div class="invoice-brand">
+            <h2>SRINIVASA TEXTILES</h2>
+            <p>Master Weavers &amp; Pure Silk Family Store Since 1978</p>
+            <p>108 Raja Veedhi, Kanchipuram, Tamil Nadu - 631501, India</p>
+            <p><strong>GSTIN:</strong> ${window.store.settings.gstin} | <strong>State Code:</strong> 33</p>
+          </div>
+
+          <div class="invoice-meta">
+            <h3>TAX INVOICE</h3>
+            <p><strong>Invoice No:</strong> INV-${order.orderId.replace("ST-ORD-", "")}</p>
+            <p><strong>Invoice Date:</strong> ${order.date}</p>
+            <p><strong>Payment:</strong> ${order.paymentMethod}</p>
+          </div>
+        </div>
+
+        <div class="invoice-billing-grid">
+          <div>
+            <strong style="color: var(--color-primary-dark); text-transform: uppercase;">Billed To / Consignee:</strong>
+            <p style="font-weight: 700; margin-top: 0.25rem;">${order.customer ? order.customer.name : "Customer"}</p>
+            <p>${order.customer ? order.customer.address : "N/A"}</p>
+            <p><strong>Phone:</strong> ${order.customer ? order.customer.phone : "N/A"} | <strong>Email:</strong> ${(order.customer && order.customer.email) || "N/A"}</p>
+            ${(order.customer && order.customer.gstin) ? `<p><strong>Buyer GSTIN:</strong> ${order.customer.gstin}</p>` : ""}
+            ${order.giftWrap ? `<p style="color: var(--color-success); font-weight:700; margin-top:0.25rem;"><span data-icon="gift"></span> Festive Gift Wrap with Handwritten Message Included</p>` : ""}
+          </div>
+          <div>
+            <strong style="color: var(--color-primary-dark); text-transform: uppercase;">Shipping Partner:</strong>
+            <p><strong>Courier:</strong> ${order.courier || "BlueDart Express"}</p>
+            <p><strong>AWB Tracking:</strong> ${order.trackingNumber}</p>
+          </div>
+        </div>
+
+        <table class="invoice-items-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item Description</th>
+              <th>HSN / SAC</th>
+              <th>Qty</th>
+              <th>Unit Rate</th>
+              <th>CGST (2.5%)</th>
+              <th>SGST (2.5%)</th>
+              <th>Total (INR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(order.items || []).map((item, i) => {
+        const itemTaxable = item.totalINR;
+        const itemCgst = Math.round(itemTaxable * 0.025);
+        const itemSgst = Math.round(itemTaxable * 0.025);
+        const itemTotal = itemTaxable + itemCgst + itemSgst;
+        return `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td>
+                    <strong>${item.title}</strong>
+                    <span style="display: block; font-size: 0.7rem; color: var(--text-muted);">Size: ${item.size || "Standard"} • Color: ${item.color}</span>
+                  </td>
+                  <td>${item.hsnCode || "50072010"}</td>
+                  <td>${item.qty}</td>
+                  <td>₹${(item.unitPriceINR).toLocaleString("en-IN")}</td>
+                  <td>₹${itemCgst.toLocaleString("en-IN")}</td>
+                  <td>₹${itemSgst.toLocaleString("en-IN")}</td>
+                  <td><strong>₹${itemTotal.toLocaleString("en-IN")}</strong></td>
+                </tr>
+              `;
+      }).join("")}
+          </tbody>
+        </table>
+
+        <div class="invoice-summary-box">
+          <div class="invoice-summary-row"><span>Subtotal Taxable:</span> <span>₹${taxableAmount.toLocaleString("en-IN")}</span></div>
+          ${discount > 0 ? `<div class="invoice-summary-row" style="color: var(--color-success); font-weight: 700;"><span>Discount (${order.couponCode || 'Custom'}):</span> <span>-₹${discount.toLocaleString("en-IN")}</span></div>` : ""}
+          <div class="invoice-summary-row"><span>CGST (2.5%):</span> <span>₹${cgst.toLocaleString("en-IN")}</span></div>
+          <div class="invoice-summary-row"><span>SGST (2.5%):</span> <span>₹${sgst.toLocaleString("en-IN")}</span></div>
+          <div class="invoice-summary-row total"><span>Total Amount:</span> <span>₹${finalAmount.toLocaleString("en-IN")}</span></div>
+        </div>
+
+        <div class="invoice-actions" style="margin-top: 1.5rem; display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" id="editInvoiceBtn" style="color: var(--color-primary); font-weight: 700;"><span data-icon="edit"></span> Edit Invoice Details</button>
+          <button class="btn btn-outline-gold btn-sm" onclick="window.admin.openShippingLabelModal('${order.orderId}')"><span data-icon="box"></span> View Shipping Label</button>
+          <a href="${waLink}" target="_blank" class="btn btn-sm" style="background: #25D366; color: #fff; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none;"><span data-icon="whatsapp"></span> WhatsApp Invoice</a>
+          <button class="btn btn-primary btn-sm" onclick="window.print()"><span data-icon="printer"></span> Print / Save PDF</button>
+        </div>
+      `;
+
+      document.getElementById("editInvoiceBtn")?.addEventListener("click", () => this.openGSTInvoiceModal(orderId, true));
+    }
+
+    modal.classList.add("active");
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(container);
+    }
+    document.getElementById("invoiceCloseBtn")?.addEventListener("click", () => modal.classList.remove("active"));
+  }
+
+  openShippingLabelModal(orderId, isEditMode = false) {
+    const order = window.store.orders.find(o => o.orderId === orderId);
+    if (!order) return;
+
+    const modal = document.getElementById("invoiceModal");
+    const container = document.getElementById("invoiceModalContent");
+    if (!modal || !container) return;
+
+    if (isEditMode) {
+      // RENDER EDIT LABEL MODE
+      container.innerHTML = `
+        <button class="pdp-close-btn" id="labelCloseBtn" aria-label="Close Label" style="top: 1rem; right: 1rem;">✕</button>
+        <div style="border-bottom: 2px solid var(--color-gold); padding-bottom: 0.75rem; margin-bottom: 1.25rem;">
+          <h3 style="font-family: var(--font-serif-display); font-size: 1.3rem; color: var(--color-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <span data-icon="edit"></span> Edit Courier Shipping Label
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Update courier partner, AWB number, consignee name, and delivery address.</p>
+        </div>
+
+        <form id="adminEditLabelForm">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; display: block; margin-bottom: 0.3rem;">Courier Partner</label>
+              <select id="editLabelCourier" class="form-control">
+                <option value="BLUEDART EXPRESS" ${order.courier === "BLUEDART EXPRESS" || order.courier === "BlueDart Express" ? "selected" : ""}>BLUEDART EXPRESS</option>
+                <option value="DELHIVERY EXPRESS AIR" ${order.courier === "DELHIVERY EXPRESS AIR" || order.courier === "Delhivery Express Air" ? "selected" : ""}>DELHIVERY EXPRESS AIR</option>
+                <option value="DTDC EXPRESS" ${order.courier === "DTDC EXPRESS" || order.courier === "DTDC Express" ? "selected" : ""}>DTDC EXPRESS</option>
+                <option value="DHL EXPRESS" ${order.courier === "DHL EXPRESS" || order.courier === "DHL Express" ? "selected" : ""}>DHL EXPRESS</option>
+                <option value="INDIA POST SPEED POST" ${order.courier === "INDIA POST SPEED POST" || order.courier === "India Post Speed Post" ? "selected" : ""}>INDIA POST SPEED POST</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; display: block; margin-bottom: 0.3rem;">AWB / Tracking Number</label>
+              <input type="text" id="editLabelTracking" class="form-control" value="${order.trackingNumber || ''}" required />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; display: block; margin-bottom: 0.3rem;">Consignee Name</label>
+              <input type="text" id="editLabelCustName" class="form-control" value="${order.customer ? order.customer.name : ''}" required />
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 0.775rem; font-weight: 700; display: block; margin-bottom: 0.3rem;">Mobile Contact</label>
+              <input type="tel" id="editLabelCustPhone" class="form-control" value="${order.customer ? order.customer.phone : ''}" required />
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label style="font-size: 0.775rem; font-weight: 700; display: block; margin-bottom: 0.3rem;">Delivery Address</label>
+              <textarea id="editLabelCustAddress" class="form-control" rows="2" required>${order.customer ? order.customer.address : ''}</textarea>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <button type="button" class="btn btn-outline" id="cancelEditLabelBtn"><span data-icon="close"></span> Cancel</button>
+            <button type="submit" class="btn btn-gold" style="font-weight: 700;"><span data-icon="save"></span> Save &amp; Update Label</button>
+          </div>
+        </form>
+      `;
+
+      document.getElementById("cancelEditLabelBtn")?.addEventListener("click", () => this.openShippingLabelModal(orderId, false));
+
+      document.getElementById("adminEditLabelForm")?.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const updatedCourier = document.getElementById("editLabelCourier").value;
+        const updatedTracking = document.getElementById("editLabelTracking").value.trim();
+        const updatedName = document.getElementById("editLabelCustName").value.trim();
+        const updatedPhone = document.getElementById("editLabelCustPhone").value.trim();
+        const updatedAddress = document.getElementById("editLabelCustAddress").value.trim();
+
+        window.store.updateOrder(orderId, {
+          courier: updatedCourier,
+          trackingNumber: updatedTracking,
+          customer: {
+            name: updatedName,
+            phone: updatedPhone,
+            address: updatedAddress
+          }
+        });
+
+        this.renderOrdersTable();
+        this.openShippingLabelModal(orderId, false);
+        if (window.storefront) window.storefront.showToast("Shipping Label updated successfully!", "success");
+      });
+
+    } else {
+      // RENDER VIEW LABEL MODE
+      container.innerHTML = `
+        <button class="pdp-close-btn" id="labelCloseBtn" aria-label="Close Label" style="top: 1rem; right: 1rem;">✕</button>
+        <div class="shipping-label-card">
+          <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 0.75rem;">
+            <h2 style="font-size: 1.25rem; font-family: var(--font-sans); font-weight: 800;">${(order.courier || "BLUEDART EXPRESS").toUpperCase()}</h2>
+            <span style="font-weight: 800; font-size: 1rem; background: #000; color: #fff; padding: 0.2rem 0.5rem;">FAMILY EXPRESS</span>
+          </div>
+          <div class="label-barcode-mock"></div>
+          <p style="text-align: center; font-family: monospace; font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;">AWB: ${order.trackingNumber}</p>
+          <div style="border-top: 1px solid #000; padding-top: 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
+            <strong style="text-transform: uppercase;">Deliver To:</strong>
+            <h3 style="font-size: 1.1rem; margin-top: 0.25rem;">${order.customer ? order.customer.name : "Customer"}</h3>
+            <p>${order.customer ? order.customer.address : "N/A"}</p>
+            <p><strong>Mobile:</strong> ${order.customer ? order.customer.phone : "N/A"}</p>
+          </div>
+        </div>
+        <div class="invoice-actions" style="max-width: 500px; margin: 1.5rem auto 0; display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" id="editLabelBtn" style="color: var(--color-primary); font-weight: 700;"><span data-icon="edit"></span> Edit Label</button>
+          <button class="btn btn-outline-gold btn-sm" onclick="window.admin.openGSTInvoiceModal('${order.orderId}')"><span data-icon="receipt"></span> View GST Invoice</button>
+          <button class="btn btn-primary btn-sm" onclick="window.print()"><span data-icon="printer"></span> Print Label (4x6 format)</button>
+        </div>
+      `;
+
+      document.getElementById("editLabelBtn")?.addEventListener("click", () => this.openShippingLabelModal(orderId, true));
+    }
+
+    modal.classList.add("active");
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(container);
+    }
+    document.getElementById("labelCloseBtn")?.addEventListener("click", () => modal.classList.remove("active"));
+  }
+
+  renderSubscribersTable() {
+    const tbody = document.getElementById("adminSubscribersTableBody");
+    const countBadge = document.getElementById("waitlistCountBadge");
+    const sidebarBadge = document.querySelector('.admin-menu-item[data-tab="subscribers"] .admin-menu-badge');
+
+    const subscribers = window.store.subscribers || [];
+
+    if (countBadge) {
+      countBadge.textContent = `${subscribers.length} Requests`;
+    }
+    if (sidebarBadge) {
+      sidebarBadge.textContent = `${subscribers.length}`;
+    }
+
+    if (!tbody) return;
+
+    if (subscribers.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            <span data-icon="bell"></span> No pending restock waitlist requests. Customers clicking "Notify Me When Available" on the storefront will appear here in real time.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = subscribers.map(sub => {
+      const cleanPhone = (sub.phone || "").replace(/[^0-9]/g, "");
+      const waMsg = encodeURIComponent(`Namaste ${sub.customerName}! Good news from Srinivasa Textiles: Your requested pure handloom piece "${sub.productTitle}" (SKU: ${sub.productId}) is now back in stock! Visit our store or reply here to reserve your order.`);
+      const waLink = `https://wa.me/${cleanPhone}?text=${waMsg}`;
+      const isAlerted = (sub.status === "Alert Sent" || sub.status === "Customer Alerted" || sub.status === "Notified");
+
+      return `
+        <tr>
+          <td>
+            <strong>${sub.id}</strong>
+            <div style="font-size: 0.725rem; color: var(--text-muted); margin-top: 0.15rem;">${sub.requestedDate || "Recent"}</div>
+          </td>
+          <td>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <img src="${sub.productImage || 'assets/images/banarasi_blue.jpg'}" alt="${sub.productTitle}" style="width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);" />
+              <div>
+                <strong style="font-size: 0.85rem; color: var(--text-heading); display: block;">${sub.productTitle}</strong>
+                <span style="font-size: 0.725rem; color: var(--color-gold-dark); font-weight: 700;">SKU: ${sub.productId}</span>
+                ${sub.size ? `<span style="font-size: 0.7rem; color: var(--text-muted);"> • Size: ${sub.size}</span>` : ""}
+              </div>
+            </div>
+          </td>
+          <td>
+            <strong style="color: var(--text-heading);">${sub.customerName}</strong>
+          </td>
+          <td>
+            <div><strong><span data-icon="phone" data-icon-size="12"></span> ${sub.phone}</strong></div>
+            ${sub.email ? `<div style="font-size: 0.75rem; color: var(--text-muted);"><span data-icon="fileText" data-icon-size="12"></span> ${sub.email}</div>` : ""}
+          </td>
+          <td>
+            <button class="btn btn-sm" onclick="window.admin.handleSendWhatsAppRestock('${sub.id}', '${waLink}')" style="background: #25D366; color: #fff; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.75rem; border: none; cursor: pointer;">
+              <span data-icon="whatsapp" data-icon-size="14"></span> Send WhatsApp Alert
+            </button>
+          </td>
+          <td>
+            <button class="status-badge" onclick="window.admin.toggleSubscriberStatus('${sub.id}')" style="cursor: pointer; border: 1.5px solid ${isAlerted ? '#10B981' : '#F59E0B'}; background: ${isAlerted ? 'rgba(16, 185, 129, 0.18)' : 'rgba(245, 158, 11, 0.18)'}; color: ${isAlerted ? '#10B981' : '#F59E0B'}; font-weight: 800; padding: 0.3rem 0.75rem; border-radius: var(--radius-full); transition: all var(--transition-fast);" title="Click to toggle status between Pending Alert and Alert Sent">
+              ${isAlerted ? '<span data-icon="check" data-icon-size="12"></span> Alert Sent' : '<span data-icon="clock" data-icon-size="12"></span> Pending Alert'}
+            </button>
+          </td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="window.admin.deleteSubscriber('${sub.id}')" title="Remove Request" style="color: var(--color-danger); border-color: rgba(185, 28, 28, 0.3); padding: 0.25rem 0.6rem;">
+              <span data-icon="trash" data-icon-size="14"></span>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(tbody);
+    }
+  }
+
+  handleSendWhatsAppRestock(subId, waLink) {
+    window.open(waLink, "_blank");
+    const sub = (window.store.subscribers || []).find(s => s.id === subId);
+    if (sub && sub.status !== "Customer Alerted" && sub.status !== "Alert Sent") {
+      window.store.updateSubscriberStatus(subId, "Alert Sent");
+      this.renderSubscribersTable();
+      this.renderInventoryTable();
+      this.renderDashboardKPIs();
+      if (window.storefront) {
+        window.storefront.showToast(`Restock Alert Sent! SKU ${sub.productId} is now Available in store collections!`, "success");
+      }
+    }
+  }
+
+  toggleSubscriberStatus(subId) {
+    const sub = (window.store.subscribers || []).find(s => s.id === subId);
+    if (!sub) return;
+    const isNowAlerted = (sub.status === "Customer Alerted" || sub.status === "Alert Sent" || sub.status === "Notified");
+    const newStatus = isNowAlerted ? "Pending Alert" : "Alert Sent";
+
+    window.store.updateSubscriberStatus(subId, newStatus);
+    this.renderSubscribersTable();
+    this.renderInventoryTable();
+    this.renderDashboardKPIs();
+
+    if (window.storefront) {
+      if (newStatus === "Alert Sent") {
+        window.storefront.showToast(`Restock Alert Sent! SKU ${sub.productId} is now Available in store collections!`, "success");
+      } else {
+        window.storefront.showToast(`Request ${subId} marked as Pending Alert.`, "info");
+      }
+    }
+  }
+
+  deleteSubscriber(subId) {
+    if (confirm("Are you sure you want to remove this customer waitlist request?")) {
+      window.store.deleteSubscriber(subId);
+      this.renderSubscribersTable();
+      this.renderDashboardKPIs();
+      if (window.storefront) {
+        window.storefront.showToast(`Removed waitlist request ${subId}`, "info");
+      }
+    }
+  }
+
+  // ==========================================
+  // PATRON FEEDBACK & REVIEWS MANAGEMENT (OWNER CONSOLE)
+  // ==========================================
+  getFeedbackDept(fb) {
+    if (fb.dept) return fb.dept;
+    if (fb.productId && window.store) {
+      const p = window.store.getProductById(fb.productId);
+      if (p && p.dept) return p.dept;
+    }
+    if (fb.productId && fb.productId.includes("FAM")) return "Family Combos & Sets";
+    if (fb.productId && fb.productId.includes("KDG")) return "Kids Wear (Girls)";
+    if (fb.productId && fb.productId.includes("KDB")) return "Kids Wear (Boys)";
+    if (fb.productId && fb.productId.includes("MEN")) return "Men's Ethnic & Pattu";
+    if (fb.productId && fb.productId.includes("INF")) return "Infants & Baby Pure Silk";
+    if (fb.productId && (fb.productId.includes("SAR") || fb.productId.includes("SILK"))) return "Women's Pure Silk Sarees";
+    return "Pure Handloom Silk";
+  }
+
+  applyFeedbackFilters() {
+    const searchVal = document.getElementById("feedbackSearchInput")?.value.toLowerCase().trim() || "";
+    const deptVal = document.getElementById("feedbackDeptFilter")?.value || "";
+    this.renderFeedbacksTable(deptVal, searchVal);
+  }
+
+  renderFeedbacksTable(deptFilter = "", searchQuery = "") {
+    const tbody = document.getElementById("adminFeedbacksTableBody");
+    if (!tbody) return;
+
+    let feedbacks = window.store.getFeedbacks();
+
+    // Filter by department
+    if (deptFilter) {
+      feedbacks = feedbacks.filter(f => {
+        const itemDept = this.getFeedbackDept(f).toLowerCase();
+        const filterStr = deptFilter.toLowerCase();
+        return itemDept.includes(filterStr) || filterStr.includes(itemDept) || (f.title || "").toLowerCase().includes(filterStr);
+      });
+    }
+
+    // Filter by search query
+    if (searchQuery) {
+      feedbacks = feedbacks.filter(f => {
+        const itemDept = this.getFeedbackDept(f);
+        const fullText = `${f.id} ${f.author} ${f.location} ${f.title} ${f.comment} ${itemDept}`.toLowerCase();
+        return fullText.includes(searchQuery);
+      });
+    }
+
+    if (feedbacks.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            <div style="margin-bottom: 0.5rem;"><span data-icon="star" data-icon-size="32"></span></div>
+            <strong style="color: var(--text-heading); display: block; margin-bottom: 0.25rem;">No Customer Feedbacks Match Current Filters</strong>
+            <span>Clear filters or search criteria to view all submitted customer reviews.</span>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = feedbacks.map(fb => {
+      const ratingNum = parseInt(fb.rating, 10) || 5;
+      const starsDisplay = (window.Icons ? window.Icons.get("star", { size: 14 }) : "").repeat(ratingNum);
+      const cleanPhone = "918778503021"; // Store care line or patron reference
+      const waMsg = encodeURIComponent(`Namaste ${fb.author}! Thank you for your wonderful ${ratingNum}-star review with Srinivasa Textiles. We are honored to serve your family.`);
+      const waLink = `https://wa.me/?text=${waMsg}`;
+      const resolvedDept = this.getFeedbackDept(fb);
+
+      return `
+        <tr data-feedback-id="${fb.id}">
+          <td>
+            <strong style="color: var(--color-primary); font-family: monospace;">${fb.id}</strong>
+            <div style="font-size: 0.725rem; color: var(--text-muted); margin-top: 0.2rem;">${fb.date || "Recent"}</div>
+          </td>
+          <td>
+            <strong style="color: var(--text-heading); font-size: 0.9rem;">${fb.author || "Patron"}</strong>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;"><span data-icon="mapPin" data-icon-size="12"></span> ${fb.location || "India"}</div>
+          </td>
+          <td>
+            <span class="badge-dept" style="background: rgba(212, 175, 55, 0.12); color: var(--color-gold-dark); border: 1px solid rgba(212, 175, 55, 0.3); padding: 0.25rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600; display: inline-block;">
+              ${resolvedDept}
+            </span>
+          </td>
+          <td>
+            <span style="color: #F59E0B; font-size: 1.05rem; letter-spacing: 0.05em;" title="${ratingNum} Stars">${starsDisplay}</span>
+            <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">(${ratingNum}.0 / 5.0)</span>
+          </td>
+          <td>
+            <span class="badge-softness" style="background: rgba(34, 197, 94, 0.12); color: #059669; border: 1px solid rgba(34, 197, 94, 0.3); padding: 0.2rem 0.5rem; border-radius: var(--radius-full); font-size: 0.725rem; font-weight: 700; display: inline-block;">
+              <span data-icon="softness" data-icon-size="12"></span> ${fb.softnessScore || "10/10"}
+            </span>
+          </td>
+          <td style="max-width: 320px;">
+            ${fb.title ? `<div style="font-weight: 700; font-size: 0.8rem; color: var(--text-heading); margin-bottom: 0.2rem;">"${fb.title}"</div>` : ""}
+            <p style="font-size: 0.775rem; color: var(--text-main); margin: 0; line-height: 1.4; font-style: italic;">"${fb.comment || ''}"</p>
+          </td>
+          <td>
+            <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.7rem; padding: 0.25rem 0.6rem;">
+              <span data-icon="check" data-icon-size="12"></span> ${fb.status || "Verified Patron"}
+            </span>
+          </td>
+          <td>
+            <div style="display: flex; gap: 0.4rem; align-items: center;">
+              <button class="btn btn-outline-gold btn-sm" onclick="window.admin.copyFeedbackDetails('${fb.id}')" title="Copy Review Text" style="padding: 0.25rem 0.55rem; font-size: 0.75rem;">
+                <span data-icon="copy" data-icon-size="14"></span> Copy
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="window.admin.deleteFeedback('${fb.id}')" title="Delete Review" style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3); padding: 0.25rem 0.55rem; font-size: 0.75rem;">
+                <span data-icon="trash" data-icon-size="14"></span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(tbody);
+    }
+  }
+
+  deleteFeedback(fbId) {
+    if (confirm(`Remove customer feedback ${fbId}?`)) {
+      window.store.deleteFeedback(fbId);
+      if (window.storefront) {
+        window.storefront.showToast(`Feedback ${fbId} deleted from Owner Console.`, "warning");
+      }
+    }
+  }
+
+  copyFeedbackDetails(fbId) {
+    const feedbacks = window.store.getFeedbacks();
+    const fb = feedbacks.find(f => f.id === fbId);
+    if (!fb) return;
+
+    const textToCopy = `Patron: ${fb.author} (${fb.location})\nRating: ${fb.rating}/5.0\nDepartment: ${fb.dept || fb.title}\nSoftness: ${fb.softnessScore}\nReview: "${fb.comment}"`;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      if (window.storefront) {
+        window.storefront.showToast("Copied customer feedback details to clipboard!", "success");
+      } else {
+        alert("Copied feedback details to clipboard!");
+      }
+    }).catch(() => {
+      prompt("Copy review text:", textToCopy);
+    });
+  }
+
+  handleExportFeedbacksCSV() {
+    const csvData = window.store.exportFeedbacksToCSV();
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Srinivasa_Patron_Feedbacks_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (window.storefront) {
+      window.storefront.showToast("Exported confidential Customer Feedbacks CSV for Store Owner!", "success");
+    }
+  }
+
+  // =========================================================================
+  // DYNAMIC COUPONS & OFFERS CONTROLLER
+  // =========================================================================
+  renderCouponKPIs() {
+    if (!window.store) return;
+    const coupons = window.store.getCoupons() || [];
+    const total = coupons.length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activeCoupons = coupons.filter(c => {
+      if (!c.isActive) return false;
+      if (c.validUntil) {
+        return new Date(c.validUntil) >= today;
+      }
+      return true;
+    });
+
+    const activeCount = activeCoupons.length;
+    const inactiveCount = total - activeCount;
+
+    let maxBenefitStr = "0%";
+    let maxPct = 0;
+    coupons.forEach(c => {
+      if (c.isActive) {
+        if (c.discountType === "percent" && c.discountPercent > maxPct) {
+          maxPct = c.discountPercent;
+          maxBenefitStr = `${maxPct}% OFF`;
+        } else if (c.discountType === "flat" && maxPct === 0) {
+          maxBenefitStr = `₹${c.discountAmount} Flat`;
+        }
+      }
+    });
+
+    const elTotal = document.getElementById("kpiTotalCoupons");
+    const elActive = document.getElementById("kpiActiveCoupons");
+    const elInactive = document.getElementById("kpiInactiveCoupons");
+    const elMax = document.getElementById("kpiMaxCouponDiscount");
+
+    if (elTotal) elTotal.textContent = total;
+    if (elActive) elActive.textContent = activeCount;
+    if (elInactive) elInactive.textContent = inactiveCount;
+    if (elMax) elMax.textContent = maxBenefitStr;
+
+    // Badges in sidebars
+    const sideBadge = document.getElementById("sidebarCouponsBadge");
+    if (sideBadge) sideBadge.textContent = `${activeCount} Active`;
+
+    const mobBadge = document.getElementById("mobileSidebarCouponsBadge");
+    if (mobBadge) mobBadge.textContent = `${activeCount} Offers`;
+  }
+
+  renderCouponsTab() {
+    if (!window.store) return;
+    const tbody = document.getElementById("adminCouponsTableBody");
+    if (!tbody) return;
+
+    this.renderCouponKPIs();
+    this.updateCouponMasterBadges();
+
+    const searchVal = (document.getElementById("couponSearchInput")?.value || "").trim().toLowerCase();
+    const statusVal = document.getElementById("couponStatusFilter")?.value || "ALL";
+    const typeVal = document.getElementById("couponTypeFilter")?.value || "ALL";
+
+    const allCoupons = window.store.getCoupons() || [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const filtered = allCoupons.filter(c => {
+      if (searchVal) {
+        const matchesCode = (c.code || "").toLowerCase().includes(searchVal);
+        const matchesTitle = (c.title || "").toLowerCase().includes(searchVal);
+        const matchesDesc = (c.description || "").toLowerCase().includes(searchVal);
+        if (!matchesCode && !matchesTitle && !matchesDesc) return false;
+      }
+
+      const isExpired = c.validUntil ? new Date(c.validUntil) < today : false;
+      const isEffectivelyActive = c.isActive && !isExpired;
+
+      if (statusVal === "ACTIVE" && !isEffectivelyActive) return false;
+      if (statusVal === "INACTIVE" && isEffectivelyActive) return false;
+
+      if (typeVal === "percent" && c.discountType !== "percent") return false;
+      if (typeVal === "flat" && c.discountType !== "flat") return false;
+
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+            <div style="margin-bottom: 0.5rem;"><span data-icon="tag" data-icon-size="36"></span></div>
+            <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-heading); margin-bottom: 0.25rem;">No Promotional Coupons Found</div>
+            <p style="font-size: 0.85rem; margin: 0 0 1rem 0;">No coupons match your filter or none have been created yet.</p>
+            <button class="btn btn-gold btn-sm" onclick="window.admin.openCouponModal()"><span data-icon="plus"></span> Create New Coupon</button>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(c => {
+      const isExpired = c.validUntil ? new Date(c.validUntil) < today : false;
+      let statusBadge = "";
+      if (isExpired) {
+        statusBadge = `<span class="status-badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); border: 1px solid rgba(239, 68, 68, 0.3);"><span data-icon="warning"></span> Expired</span>`;
+      } else if (!c.isActive) {
+        statusBadge = `<span class="status-badge" style="background: rgba(107, 114, 128, 0.15); color: var(--text-muted); border: 1px solid rgba(107, 114, 128, 0.3);">⏸️ Inactive</span>`;
+      } else {
+        statusBadge = `<span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.35);"><span data-icon="statusLive"></span> Live Active</span>`;
+      }
+
+      const discountDisplay = c.discountType === "flat"
+        ? `<strong style="font-size: 0.95rem; color: var(--color-success);">₹${(c.discountAmount || 0).toLocaleString("en-IN")} Flat OFF</strong>`
+        : `<strong style="font-size: 0.95rem; color: var(--color-success);">${c.discountPercent}% OFF</strong>${c.maxDiscount ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Cap: ₹${c.maxDiscount.toLocaleString("en-IN")}</div>` : ""}`;
+
+      const minOrderDisplay = c.minOrderValue > 0
+        ? `₹${c.minOrderValue.toLocaleString("en-IN")}`
+        : `<span style="color: var(--text-muted);">No Minimum</span>`;
+
+      const validDisplay = c.validUntil
+        ? `${new Date(c.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+        : `<span style="color: var(--color-gold); font-weight: 600;">Never Expires ∞</span>`;
+
+      return `
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <span style="font-family: monospace; font-size: 0.92rem; font-weight: 800; background: rgba(212, 175, 55, 0.14); color: var(--color-gold); border: 1px solid rgba(212, 175, 55, 0.4); padding: 0.2rem 0.55rem; border-radius: 4px; letter-spacing: 0.04em;">
+                ${c.code}
+              </span>
+              <button type="button" class="btn btn-outline btn-xs" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" onclick="window.admin.copyCouponCode('${c.code}')" title="Copy coupon code">
+                <span data-icon="copy"></span> Copy
+              </button>
+            </div>
+            <div style="font-weight: 700; color: var(--text-heading); font-size: 0.85rem; margin-top: 0.3rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+              <span>${c.title}</span>
+              ${c.badge ? `<span style="font-size: 0.65rem; background: rgba(212, 175, 55, 0.2); color: var(--color-gold); border: 1px solid rgba(212, 175, 55, 0.5); padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;"><span data-icon="tag"></span> ${c.badge}</span>` : ""}
+            </div>
+            ${c.description ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; line-height: 1.3;">${c.description}</div>` : ""}
+          </td>
+          <td>${discountDisplay}</td>
+          <td>${minOrderDisplay}</td>
+          <td>
+            <div>${validDisplay}</div>
+            <div style="margin-top: 0.25rem;">${statusBadge}</div>
+          </td>
+          <td style="text-align: center;">
+            <span style="font-size: 0.85rem; font-weight: 700;">${c.usageCount || 0}</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">orders</span>
+          </td>
+          <td style="text-align: center;">
+            <button type="button" class="coupon-switch-btn ${c.isActive ? 'switch-on' : 'switch-off'}" onclick="window.admin.toggleCoupon('${c.id}')" title="Click to turn ${c.isActive ? 'OFF (Deactivate coupon)' : 'ON (Activate coupon)'}">
+              <span class="switch-knob"></span>
+              <span class="switch-label">${c.isActive ? 'ON' : 'OFF'}</span>
+            </button>
+          </td>
+          <td>
+            <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+              <button type="button" class="btn btn-outline btn-xs" style="display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.admin.openCouponModal('${c.id}')" title="Alter or edit coupon">
+                <span data-icon="edit">✏️</span> Alter
+              </button>
+              <button type="button" class="btn btn-outline btn-xs" style="color: #DC2626 !important; border-color: #FECDD3; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.5rem; background: #FFF;" onclick="window.admin.deleteCoupon('${c.id}')" title="Delete coupon">
+                <span data-icon="trash">🗑️</span> <span style="font-weight: 600;">Delete</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    if (window.Icons && window.Icons.init) {
+      window.Icons.init(tbody);
+    }
+  }
+
+  openCouponModal(couponId = null) {
+    const modal = document.getElementById("adminCouponModal");
+    if (!modal) return;
+
+    const form = document.getElementById("adminCouponForm");
+    if (form) form.reset();
+
+    const titleEl = document.getElementById("couponModalTitleText");
+    const valLabel = document.getElementById("couponValueLabel");
+    const valInput = document.getElementById("couponFormValue");
+    const codeInput = document.getElementById("couponFormCode");
+    const badgeInput = document.getElementById("couponFormBadge");
+
+    if (couponId) {
+      const coupon = window.store.getCouponById(couponId);
+      if (!coupon) return;
+
+      document.getElementById("couponFormId").value = coupon.id;
+      if (codeInput) codeInput.value = coupon.code;
+      if (badgeInput) badgeInput.value = coupon.badge || "";
+      document.getElementById("couponFormTitle").value = coupon.title || "";
+      const typeSelect = document.getElementById("couponFormDiscountType");
+      if (typeSelect) typeSelect.value = coupon.discountType || "percent";
+
+      if (coupon.discountType === "flat") {
+        if (valLabel) valLabel.textContent = "Flat Discount Amount (₹ INR) *";
+        if (valInput) {
+          valInput.removeAttribute("max");
+          valInput.placeholder = "e.g. 500";
+          valInput.value = coupon.discountAmount || 0;
+        }
+      } else {
+        if (valLabel) valLabel.textContent = "Discount Percentage (% OFF) *";
+        if (valInput) {
+          valInput.setAttribute("max", "100");
+          valInput.placeholder = "e.g. 15";
+          valInput.value = coupon.discountPercent || 0;
+        }
+      }
+
+      document.getElementById("couponFormMinOrder").value = coupon.minOrderValue || "";
+      document.getElementById("couponFormMaxDiscount").value = coupon.maxDiscount || "";
+      document.getElementById("couponFormValidUntil").value = coupon.validUntil || "";
+      document.getElementById("couponFormIsActive").checked = coupon.isActive !== false;
+      document.getElementById("couponFormDesc").value = coupon.description || "";
+
+      if (titleEl) titleEl.textContent = `Alter Coupon: ${coupon.code}`;
+    } else {
+      document.getElementById("couponFormId").value = "";
+      if (titleEl) titleEl.textContent = "Create Promotional Coupon";
+      if (valLabel) valLabel.textContent = "Discount Percentage (% OFF) *";
+      if (valInput) {
+        valInput.setAttribute("max", "100");
+        valInput.placeholder = "e.g. 15";
+        valInput.value = 15;
+      }
+      if (badgeInput) badgeInput.value = "";
+      document.getElementById("couponFormIsActive").checked = true;
+    }
+
+    modal.style.display = "flex";
+  }
+
+  closeCouponModal() {
+    const modal = document.getElementById("adminCouponModal");
+    if (modal) modal.style.display = "none";
+  }
+
+  handleSaveCoupon(e) {
+    e.preventDefault();
+    const id = document.getElementById("couponFormId")?.value;
+    const code = (document.getElementById("couponFormCode")?.value || "").trim().toUpperCase();
+    const badge = (document.getElementById("couponFormBadge")?.value || "").trim();
+    const title = (document.getElementById("couponFormTitle")?.value || "").trim();
+    const discountType = document.getElementById("couponFormDiscountType")?.value || "percent";
+    const rawVal = parseFloat(document.getElementById("couponFormValue")?.value) || 0;
+    const minOrderValue = parseFloat(document.getElementById("couponFormMinOrder")?.value) || 0;
+    const maxDiscount = parseFloat(document.getElementById("couponFormMaxDiscount")?.value) || null;
+    const validUntil = document.getElementById("couponFormValidUntil")?.value || "";
+    const isActive = document.getElementById("couponFormIsActive")?.checked;
+    const description = (document.getElementById("couponFormDesc")?.value || "").trim();
+
+    if (!code) {
+      this.showToast("Please provide a valid coupon code.", "warning");
+      return;
+    }
+
+    const payload = {
+      code,
+      badge,
+      title: title || `${code} Special Offer`,
+      discountType,
+      discountPercent: discountType === "percent" ? rawVal : 0,
+      discountAmount: discountType === "flat" ? rawVal : 0,
+      minOrderValue,
+      maxDiscount,
+      validUntil,
+      isActive,
+      description
+    };
+
+    let res;
+    if (id) {
+      res = window.store.updateCoupon(id, payload);
+    } else {
+      res = window.store.addCoupon(payload);
+    }
+
+    if (res.success) {
+      this.showToast(res.message, "success");
+      this.closeCouponModal();
+      this.renderCouponsTab();
+      this.renderCouponKPIs();
+    } else {
+      this.showToast(res.message, "warning");
+    }
+  }
+
+  toggleCoupon(id) {
+    if (!window.store) return;
+    const res = window.store.toggleCouponStatus(id);
+    if (res.success) {
+      this.showToast(res.message, res.isActive ? "success" : "info");
+      this.renderCouponsTab();
+      this.renderCouponKPIs();
+    } else {
+      this.showToast(res.message, "warning");
+    }
+  }
+
+  deleteCoupon(id) {
+    if (!window.store) return;
+    const coupon = window.store.getCouponById(id);
+    if (!coupon) return;
+    const confirmDelete = confirm(`Are you sure you want to permanently remove coupon "${coupon.code}"?\n\nCustomers will no longer be able to use this code.`);
+    if (!confirmDelete) return;
+
+    const res = window.store.deleteCoupon(id);
+    if (res.success) {
+      this.showToast(res.message, "success");
+      this.renderCouponsTab();
+      this.renderCouponKPIs();
+    } else {
+      this.showToast(res.message, "warning");
+    }
+  }
+
+  copyCouponCode(code) {
+    if (!code) return;
+    navigator.clipboard.writeText(code).then(() => {
+      this.showToast(`Code "${code}" copied to clipboard!`, "success");
+    }).catch(() => {
+      prompt("Copy coupon code:", code);
+    });
+  }
+
+  showToast(message, type = "info", duration = 3500) {
+    let container = document.getElementById("toastContainer");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toastContainer";
+      container.className = "toast-container admin-toast-container";
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = `toast-card toast-${type} admin-toast ${type}`;
+    toast.setAttribute("role", "alert");
+
+    const icon = window.Icons ? window.Icons.get(type === "success" ? "check" : type === "warning" ? "warning" : "bell", { size: 14 }) : "";
+
+    toast.innerHTML = `
+      <div class="toast-icon-wrap">${icon}</div>
+      <div class="toast-body">
+        <div class="toast-text">${message}</div>
+      </div>
+      <button type="button" class="toast-close-btn" aria-label="Dismiss notification" title="Dismiss">&times;</button>
+      <div class="toast-progress-bar" style="animation-duration: ${duration}ms;"></div>
+    `;
+
+    const closeBtn = toast.querySelector(".toast-close-btn");
+    const dismiss = () => {
+      if (toast.classList.contains("toast-closing")) return;
+      toast.classList.add("toast-closing");
+      setTimeout(() => toast.remove(), 240);
+    };
+
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        dismiss();
+      };
+    }
+    toast.onclick = (e) => {
+      if (e.target === closeBtn) return;
+      dismiss();
+    };
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      dismiss();
+    }, duration);
+  }
+
+  // ==========================================================================
+  // FESTIVE SPECIAL 2026 CAMPAIGN MANAGEMENT METHODS
+  // ==========================================================================
+  updateFestiveBadges() {
+    if (!window.store || typeof window.store.getFestiveCampaign !== "function") return;
+    const campaign = window.store.getFestiveCampaign();
+    const isLive = Boolean(campaign.enabled);
+
+    // Sidebar badge
+    const sbBadge = document.getElementById("sidebarFestiveBadge");
+    if (sbBadge) {
+      sbBadge.textContent = isLive ? "LIVE" : "OFF";
+      sbBadge.style.background = isLive
+        ? "linear-gradient(135deg, #10B981, #059669)"
+        : "linear-gradient(135deg, #EF4444, #B91C1C)";
+    }
+
+    // Mobile sidebar badge
+    const mbBadge = document.getElementById("mobileSidebarFestiveBadge");
+    if (mbBadge) {
+      mbBadge.textContent = isLive ? "LIVE" : "OFF";
+      mbBadge.style.background = isLive
+        ? "linear-gradient(135deg, #10B981, #059669)"
+        : "linear-gradient(135deg, #EF4444, #B91C1C)";
+    }
+
+    // Dashboard shortcut subtitle
+    const dashSub = document.getElementById("dashFestiveStatusSub");
+    if (dashSub) {
+      dashSub.textContent = isLive ? "Active & Visible on Site" : "Hidden from Storefront";
+      dashSub.style.color = isLive ? "var(--color-success)" : "#EF4444";
+    }
+
+    // Master switch & Status pill inside tab
+    const masterToggle = document.getElementById("festiveMasterToggle");
+    if (masterToggle) {
+      masterToggle.checked = isLive;
+    }
+
+    const stateLabel = document.getElementById("festiveToggleStateLabel");
+    if (stateLabel) {
+      stateLabel.textContent = isLive ? "SESSION ON" : "SESSION OFF";
+      stateLabel.style.color = isLive ? "var(--color-success)" : "#EF4444";
+    }
+
+    const statusPill = document.getElementById("festiveStatusPill");
+    if (statusPill) {
+      if (isLive) {
+        statusPill.className = "festive-status-pill live";
+        statusPill.innerHTML = '<span class="admin-pulse-dot"></span> <span data-icon="statusLive"></span> LIVE ON STOREFRONT'; if (window.Icons) window.Icons.init(statusPill);
+        statusPill.style.background = "rgba(16, 185, 129, 0.15)";
+        statusPill.style.color = "#10B981";
+        statusPill.style.border = "1px solid rgba(16, 185, 129, 0.4)";
+      } else {
+        statusPill.className = "festive-status-pill disabled";
+        statusPill.innerHTML = '<span data-icon="statusOff"></span> DISABLED &amp; HIDDEN FROM STOREFRONT'; if (window.Icons) window.Icons.init(statusPill);
+        statusPill.style.background = "rgba(239, 68, 68, 0.15)";
+        statusPill.style.color = "#EF4444";
+        statusPill.style.border = "1px solid rgba(239, 68, 68, 0.4)";
+      }
+    }
+
+    // Keep Master Coupon Switch in sync
+    this.updateCouponMasterBadges();
+  }
+
+  updateCouponMasterBadges() {
+    if (!window.store || typeof window.store.getFestiveCampaign !== "function") return;
+    const campaign = window.store.getFestiveCampaign();
+    const isLive = Boolean(campaign && campaign.enabled !== false);
+
+    const masterToggle = document.getElementById("couponMasterToggle");
+    if (masterToggle) {
+      masterToggle.checked = isLive;
+    }
+
+    const toggleLabel = document.getElementById("couponMasterToggleLabel");
+    if (toggleLabel) {
+      toggleLabel.textContent = isLive ? "SESSION ON" : "SESSION OFF";
+      toggleLabel.style.color = isLive ? "var(--color-success)" : "#EF4444";
+    }
+
+    const statusPill = document.getElementById("couponMasterStatusPill");
+    if (statusPill) {
+      if (isLive) {
+        statusPill.className = "festive-status-pill live";
+        statusPill.innerHTML = '<span class="admin-pulse-dot"></span> <span data-icon="statusLive"></span> LIVE ON STOREFRONT'; if (window.Icons) window.Icons.init(statusPill);
+        statusPill.style.background = "rgba(16, 185, 129, 0.15)";
+        statusPill.style.color = "#10B981";
+        statusPill.style.border = "1px solid rgba(16, 185, 129, 0.4)";
+      } else {
+        statusPill.className = "festive-status-pill disabled";
+        statusPill.innerHTML = '<span data-icon="statusOff"></span> DISABLED &amp; HIDDEN FROM STOREFRONT'; if (window.Icons) window.Icons.init(statusPill);
+        statusPill.style.background = "rgba(239, 68, 68, 0.15)";
+        statusPill.style.color = "#EF4444";
+        statusPill.style.border = "1px solid rgba(239, 68, 68, 0.4)";
+      }
+    }
+  }
+
+  handleMasterCouponToggle(checked) {
+    if (!window.store) return;
+    window.store.toggleFestiveCampaign(checked);
+    this.updateFestiveBadges();
+    this.updateCouponMasterBadges();
+    if (checked) {
+      this.showToast("Coupon session & Floating Popup are now LIVE on the website in real-time!", "success");
+    } else {
+      this.showToast("Coupon session & Floating Popup are now HIDDEN from the website in real-time.", "warning");
+    }
+  }
+
+  handleMasterFestiveToggle(checked) {
+    if (!window.store) return;
+    window.store.toggleFestiveCampaign(checked);
+    this.updateFestiveBadges();
+    this.updateCouponMasterBadges();
+    if (checked) {
+      this.showToast("Festive Special 2026 session is now LIVE in real-time on the storefront!", "success");
+    } else {
+      this.showToast("Festive Special 2026 session is now HIDDEN in real-time from the website.", "warning");
+    }
+  }
+
+  renderFestivePanel() {
+    if (!window.store || typeof window.store.getFestiveCampaign !== "function") return;
+    const campaign = window.store.getFestiveCampaign();
+
+    this.updateFestiveBadges();
+
+    // Populate Meta inputs
+    const titleInput = document.getElementById("festiveTitleInput");
+    if (titleInput) titleInput.value = campaign.title || "LIMITED TIME FESTIVE SPECIAL 2026";
+
+    const badgeInput = document.getElementById("festiveBadgeInput");
+    if (badgeInput) badgeInput.value = campaign.badge || "LIMITED TIME FESTIVE SPECIAL 2026";
+
+    const headlineInput = document.getElementById("festiveHeadlineInput");
+    if (headlineInput) headlineInput.value = campaign.headline || "Grand Festive & Wedding Handloom Offers";
+
+    const subtitleInput = document.getElementById("festiveSubtitleInput");
+    if (subtitleInput) subtitleInput.value = campaign.subtitle || "";
+
+    const tickerInput = document.getElementById("festiveTickerTextInput");
+    if (tickerInput) tickerInput.value = campaign.topBannerText || "";
+
+    const tickerEnabled = document.getElementById("festiveTickerEnabledInput");
+    if (tickerEnabled) tickerEnabled.checked = (campaign.topBannerEnabled !== false);
+
+    const countdownInput = document.getElementById("festiveCountdownEndInput");
+    if (countdownInput && campaign.countdownEnd) {
+      try {
+        const d = new Date(campaign.countdownEnd);
+        if (!isNaN(d.getTime())) {
+          countdownInput.value = d.toISOString().slice(0, 16);
+        }
+      } catch (e) { }
+    }
+
+    // Render Offers Grid
+    this.renderFestiveOffersGrid(campaign.offers || []);
+
+    // Render Deals Grid
+    this.renderFestiveDealsGrid(campaign.deals || []);
+
+    // Populate Perks
+    if (Array.isArray(campaign.perks)) {
+      campaign.perks.forEach((p, idx) => {
+        const iconEl = document.getElementById(`perkIcon${idx}`);
+        const titleEl = document.getElementById(`perkTitle${idx}`);
+        const descEl = document.getElementById(`perkDesc${idx}`);
+        if (iconEl && p.icon) iconEl.value = p.icon;
+        if (titleEl && p.title) titleEl.value = p.title;
+        if (descEl && p.desc) descEl.value = p.desc;
+      });
+    }
+  }
+
+  renderFestiveOffersGrid(offers) {
+    const grid = document.getElementById("adminFestiveOffersGrid");
+    const countBadge = document.getElementById("festiveOffersCount");
+    if (countBadge) countBadge.textContent = offers.length;
+    if (!grid) return;
+
+    if (offers.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; background: var(--bg-surface-alt); border-radius: var(--radius-sm); border: 1.5px dashed var(--border-color);">
+          <p style="color: var(--text-muted); margin-bottom: 0.75rem;">No festive discount vouchers added yet.</p>
+          <button type="button" class="btn btn-gold btn-sm" onclick="window.admin.openAddOfferModal()">+ Add Your First Voucher</button>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = offers.map(o => {
+      const isAct = o.isActive !== false;
+      return `
+        <div class="admin-festive-offer-card" style="background: var(--bg-surface-alt); border: 1.5px ${isAct ? 'solid var(--color-gold)' : 'dashed var(--border-color)'}; border-radius: var(--radius-sm); padding: 1.15rem; display: flex; flex-direction: column; justify-content: space-between; opacity: ${isAct ? '1' : '0.65'};">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <span style="background: rgba(212, 175, 55, 0.2); color: var(--color-gold); font-size: 0.68rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: var(--radius-full); text-transform: uppercase;">
+                ${this.escapeHtml(o.badge || "Festive Offer")}
+              </span>
+              <span style="font-size: 0.72rem; font-weight: 700; color: ${isAct ? 'var(--color-success)' : '#EF4444'};">
+                ${isAct ? "● Active" : "○ Paused"}
+              </span>
+            </div>
+
+            <h4 style="margin: 0 0 0.35rem 0; font-family: var(--font-serif-display); font-size: 1.05rem; color: var(--color-primary);">
+              ${this.escapeHtml(o.title || "Festive Discount")}
+            </h4>
+
+            <p style="font-size: 0.785rem; color: var(--text-muted); line-height: 1.4; margin: 0 0 0.85rem 0;">
+              ${this.escapeHtml(o.description || "")}
+            </p>
+
+            <div style="background: var(--bg-surface); padding: 0.5rem 0.75rem; border-radius: var(--radius-xs); border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+              <span style="font-family: monospace; font-weight: 800; letter-spacing: 0.08em; font-size: 0.95rem; color: var(--color-gold);">
+                ${this.escapeHtml(o.code || "")}
+              </span>
+              <span style="font-weight: 800; font-size: 0.75rem; color: var(--color-success);">
+                ${this.escapeHtml(o.discount || "")}
+              </span>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.4rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 0.65rem;">
+            <button type="button" class="btn btn-outline btn-xs" onclick="window.admin.toggleFestiveOffer('${o.id}')" title="Toggle active status">
+              ${isAct ? "Pause" : "Activate"}
+            </button>
+            <button type="button" class="btn btn-outline-gold btn-xs" onclick="window.admin.openEditOfferModal('${o.id}')">
+              <span data-icon="edit"></span> Edit
+            </button>
+            <button type="button" class="btn btn-outline btn-xs" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.4);" onclick="window.admin.deleteFestiveOffer('${o.id}')">
+              <span data-icon="trash"></span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  renderFestiveDealsGrid(deals) {
+    const grid = document.getElementById("adminFestiveDealsGrid");
+    const countBadge = document.getElementById("festiveDealsCount");
+    if (countBadge) countBadge.textContent = deals.length;
+    if (!grid) return;
+
+    if (deals.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; background: var(--bg-surface-alt); border-radius: var(--radius-sm); border: 1.5px dashed var(--border-color);">
+          <p style="color: var(--text-muted); margin-bottom: 0.75rem;">No featured festival collection deals added yet.</p>
+          <button type="button" class="btn btn-gold btn-sm" onclick="window.admin.openAddDealModal()">+ Add Your First Deal</button>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = deals.map(d => {
+      const isAct = d.isActive !== false;
+      const img = d.image || "assets/images/family_matching_combo.jpg";
+      const orig = Number(d.originalPrice || 0);
+      const fest = Number(d.festivePrice || 0);
+      return `
+        <div class="admin-festive-deal-card" style="background: var(--bg-surface-alt); border: 1.5px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; opacity: ${isAct ? '1' : '0.65'};">
+          <div>
+            <div style="position: relative; height: 160px; overflow: hidden; background: #000;">
+              <img src="${img}" alt="${this.escapeHtml(d.title || "")}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='assets/images/family_matching_combo.jpg'" />
+              <span style="position: absolute; top: 8px; left: 8px; background: rgba(122, 12, 46, 0.9); color: #FFF; font-size: 0.68rem; font-weight: 800; padding: 0.2rem 0.5rem; border-radius: var(--radius-xs); border: 1px solid var(--color-gold);">
+                ${this.escapeHtml(d.badge || "Festive Special")}
+              </span>
+              <span style="position: absolute; top: 8px; right: 8px; background: ${isAct ? '#10B981' : '#EF4444'}; color: #FFF; font-size: 0.65rem; font-weight: 800; padding: 0.15rem 0.45rem; border-radius: var(--radius-xs);">
+                ${isAct ? "LIVE" : "PAUSED"}
+              </span>
+            </div>
+
+            <div style="padding: 0.85rem;">
+              <span style="font-size: 0.72rem; color: var(--color-gold); font-weight: 700; text-transform: uppercase;">
+                ${this.escapeHtml(d.department || "Family Combos")} • SKU: ${this.escapeHtml(d.productId || "")}
+              </span>
+              <h4 style="margin: 0.25rem 0 0.4rem 0; font-family: var(--font-serif-display); font-size: 0.95rem; color: var(--color-primary); line-height: 1.3;">
+                ${this.escapeHtml(d.title || "Festive Item")}
+              </h4>
+              <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin: 0 0 0.65rem 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                ${this.escapeHtml(d.description || "")}
+              </p>
+              <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                <strong style="font-size: 1.05rem; color: var(--color-primary); font-weight: 800;">₹${fest.toLocaleString("en-IN")}</strong>
+                ${orig > fest ? `<span style="font-size: 0.8rem; text-decoration: line-through; color: var(--text-muted);">₹${orig.toLocaleString("en-IN")}</span>` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.4rem; justify-content: flex-end; padding: 0.65rem 0.85rem; border-top: 1px solid var(--border-color); background: var(--bg-surface);">
+            <button type="button" class="btn btn-outline btn-xs" onclick="window.admin.toggleFestiveDeal('${d.id}')">
+              ${isAct ? "Pause" : "Activate"}
+            </button>
+            <button type="button" class="btn btn-outline-gold btn-xs" onclick="window.admin.openEditDealModal('${d.id}')">
+              <span data-icon="edit"></span> Edit
+            </button>
+            <button type="button" class="btn btn-outline btn-xs" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.4);" onclick="window.admin.deleteFestiveDeal('${d.id}')">
+              <span data-icon="trash"></span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  handleSaveFestiveMeta(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.store) return;
+
+    const title = document.getElementById("festiveTitleInput")?.value.trim() || "LIMITED TIME FESTIVE SPECIAL 2026";
+    const badge = document.getElementById("festiveBadgeInput")?.value.trim() || "LIMITED TIME FESTIVE SPECIAL 2026";
+    const headline = document.getElementById("festiveHeadlineInput")?.value.trim() || "Grand Festive & Wedding Handloom Offers";
+    const subtitle = document.getElementById("festiveSubtitleInput")?.value.trim() || "";
+    const topBannerText = document.getElementById("festiveTickerTextInput")?.value.trim() || "";
+    const topBannerEnabled = Boolean(document.getElementById("festiveTickerEnabledInput")?.checked);
+
+    window.store.saveFestiveCampaign({
+      title,
+      badge,
+      headline,
+      subtitle,
+      topBannerText,
+      topBannerEnabled
+    });
+
+    this.showToast("Campaign headlines & announcement banner saved successfully!", "success");
+  }
+
+  handleSaveCountdown() {
+    if (!window.store) return;
+    const input = document.getElementById("festiveCountdownEndInput");
+    if (!input || !input.value) {
+      this.showToast("Please choose a valid date and time for the countdown.", "warning");
+      return;
+    }
+    const iso = new Date(input.value).toISOString();
+    window.store.saveFestiveCampaign({ countdownEnd: iso });
+    this.showToast("⏳ Festive countdown target date saved!", "success");
+  }
+
+  initFestiveCountdownPreview() {
+    const update = () => {
+      if (!window.store || typeof window.store.getFestiveCampaign !== "function") return;
+      const campaign = window.store.getFestiveCampaign();
+      const end = campaign.countdownEnd ? new Date(campaign.countdownEnd).getTime() : 0;
+      const now = Date.now();
+      const diff = Math.max(0, end - now);
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const dEl = document.getElementById("adminTimerDays");
+      const hEl = document.getElementById("adminTimerHours");
+      const mEl = document.getElementById("adminTimerMins");
+      const sEl = document.getElementById("adminTimerSecs");
+
+      if (dEl) dEl.textContent = String(days).padStart(2, "0");
+      if (hEl) hEl.textContent = String(hours).padStart(2, "0");
+      if (mEl) mEl.textContent = String(mins).padStart(2, "0");
+      if (sEl) sEl.textContent = String(secs).padStart(2, "0");
+    };
+
+    update();
+    setInterval(update, 1000);
+  }
+
+  // ==========================================
+  // FESTIVE VOUCHERS MODAL & CRUD
+  // ==========================================
+  openAddOfferModal() {
+    const modal = document.getElementById("festiveOfferModal");
+    const title = document.getElementById("festiveOfferModalTitle");
+    if (!modal) return;
+    if (title) title.innerHTML = '<span data-icon="tag"></span> Add Festive Voucher'; if (window.Icons) window.Icons.init(title);
+
+    document.getElementById("formOfferId").value = "";
+    document.getElementById("formOfferCode").value = "FESTIVE" + Math.floor(10 + Math.random() * 90);
+    document.getElementById("formOfferBadge").value = "Family Bundle Special";
+    document.getElementById("formOfferTitle").value = "Flat 20% Off Festive Ensembles";
+    document.getElementById("formOfferDiscount").value = "20% OFF";
+    document.getElementById("formOfferActive").checked = true;
+    document.getElementById("formOfferDesc").value = "Valid on all 4-piece and 2-piece synchronized color-matched festive handlooms.";
+
+    modal.style.display = "flex";
+  }
+
+  openEditOfferModal(id) {
+    if (!window.store) return;
+    const campaign = window.store.getFestiveCampaign();
+    const offer = (campaign.offers || []).find(o => o.id === id);
+    if (!offer) return;
+
+    const modal = document.getElementById("festiveOfferModal");
+    const title = document.getElementById("festiveOfferModalTitle");
+    if (!modal) return;
+    if (title) { title.innerHTML = '<span data-icon="tag"></span> Edit Festive Voucher: ' + offer.code; if (window.Icons) window.Icons.init(title); }
+
+    document.getElementById("formOfferId").value = offer.id;
+    document.getElementById("formOfferCode").value = offer.code || "";
+    document.getElementById("formOfferBadge").value = offer.badge || "";
+    document.getElementById("formOfferTitle").value = offer.title || "";
+    document.getElementById("formOfferDiscount").value = offer.discount || "";
+    document.getElementById("formOfferActive").checked = (offer.isActive !== false);
+    document.getElementById("formOfferDesc").value = offer.description || "";
+
+    modal.style.display = "flex";
+  }
+
+  closeFestiveOfferModal() {
+    const modal = document.getElementById("festiveOfferModal");
+    if (modal) modal.style.display = "none";
+  }
+
+  handleSaveFestiveOffer(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.store) return;
+
+    const id = document.getElementById("formOfferId")?.value;
+    const code = document.getElementById("formOfferCode")?.value.trim().toUpperCase();
+    const badge = document.getElementById("formOfferBadge")?.value.trim() || "Festive Special";
+    const title = document.getElementById("formOfferTitle")?.value.trim() || "Festive Discount";
+    const discount = document.getElementById("formOfferDiscount")?.value.trim() || "Special Offer";
+    const isActive = Boolean(document.getElementById("formOfferActive")?.checked);
+    const description = document.getElementById("formOfferDesc")?.value.trim() || "";
+
+    if (!code) {
+      this.showToast("Please provide a voucher code.", "warning");
+      return;
+    }
+
+    if (id) {
+      window.store.updateFestiveOffer(id, { code, badge, title, discount, isActive, description });
+      this.showToast(`Voucher ${code} updated successfully!`, "success");
+    } else {
+      window.store.addFestiveOffer({ code, badge, title, discount, isActive, description });
+      this.showToast(`New Voucher ${code} added to festive session!`, "success");
+    }
+
+    this.closeFestiveOfferModal();
+    this.renderFestivePanel();
+  }
+
+  toggleFestiveOffer(id) {
+    if (!window.store) return;
+    const campaign = window.store.getFestiveCampaign();
+    const offer = (campaign.offers || []).find(o => o.id === id);
+    if (!offer) return;
+    window.store.updateFestiveOffer(id, { isActive: !offer.isActive });
+    this.renderFestivePanel();
+  }
+
+  deleteFestiveOffer(id) {
+    if (!confirm("Are you sure you want to delete this festive voucher from the campaign?")) return;
+    window.store.deleteFestiveOffer(id);
+    this.showToast("Voucher removed from festive session.", "info");
+    this.renderFestivePanel();
+  }
+
+  // ==========================================
+  // FESTIVE COLLECTION DEALS MODAL & CRUD
+  // ==========================================
+  populateDealProductDropdown() {
+    const select = document.getElementById("formDealProductSelect");
+    if (!select || !window.store) return;
+
+    const catalog = window.store.getCatalog ? window.store.getCatalog() : [];
+    select.innerHTML = '<option value="">-- Or enter custom festive item below --</option>';
+    catalog.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `[${p.id}] ${p.title} (${p.department} - ₹${Number(p.priceINR || 0).toLocaleString("en-IN")})`;
+      select.appendChild(opt);
+    });
+  }
+
+  handleDealProductSelect(sku) {
+    if (!sku || !window.store) return;
+    const catalog = window.store.getCatalog ? window.store.getCatalog() : [];
+    const p = catalog.find(item => item.id === sku);
+    if (!p) return;
+
+    const skuInput = document.getElementById("formDealSku");
+    const titleInput = document.getElementById("formDealTitle");
+    const deptSelect = document.getElementById("formDealDept");
+    const origInput = document.getElementById("formDealOrigPrice");
+    const festInput = document.getElementById("formDealFestivePrice");
+    const imageInput = document.getElementById("formDealImage");
+    const descInput = document.getElementById("formDealDesc");
+
+    if (skuInput) skuInput.value = p.id;
+    if (titleInput) titleInput.value = p.title;
+    if (deptSelect && p.department) {
+      for (let i = 0; i < deptSelect.options.length; i++) {
+        if (deptSelect.options[i].value === p.department || p.department.includes(deptSelect.options[i].value)) {
+          deptSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+    const price = Number(p.priceINR || 0);
+    const origPrice = Number(p.originalPriceINR || (price * 1.25));
+    if (origInput) origInput.value = Math.round(origPrice);
+    if (festInput) festInput.value = Math.round(price);
+    if (imageInput) imageInput.value = p.mainImage || (Array.isArray(p.images) ? p.images[0] : "");
+    if (descInput) descInput.value = p.description || "";
+
+    this.calculateDealDiscount();
+  }
+
+  calculateDealDiscount() {
+    const orig = Number(document.getElementById("formDealOrigPrice")?.value || 0);
+    const fest = Number(document.getElementById("formDealFestivePrice")?.value || 0);
+    const badgeInput = document.getElementById("formDealBadge");
+    if (!badgeInput) return;
+
+    if (orig > fest && orig > 0) {
+      const savings = orig - fest;
+      const pct = Math.round((savings / orig) * 100);
+      badgeInput.value = `Save ₹${savings.toLocaleString("en-IN")} (${pct}% OFF)`;
+    } else {
+      badgeInput.value = "Festive Exclusive";
+    }
+  }
+
+  openAddDealModal() {
+    this.populateDealProductDropdown();
+    const modal = document.getElementById("festiveDealModal");
+    const title = document.getElementById("festiveDealModalTitle");
+    if (!modal) return;
+    if (title) { title.innerHTML = '<span data-icon="thread"></span> Add Festival Collection Deal'; if (window.Icons) window.Icons.init(title); }
+
+    document.getElementById("formDealId").value = "";
+    document.getElementById("formDealSku").value = "ST-FEST-" + Math.floor(100 + Math.random() * 900);
+    document.getElementById("formDealTitle").value = "";
+    document.getElementById("formDealOrigPrice").value = "50000";
+    document.getElementById("formDealFestivePrice").value = "42000";
+    document.getElementById("formDealBadge").value = "Save ₹8,000 (16% OFF)";
+    document.getElementById("formDealImage").value = "assets/images/family_matching_combo.jpg";
+    document.getElementById("formDealDesc").value = "";
+    document.getElementById("formDealActive").checked = true;
+
+    modal.style.display = "flex";
+  }
+
+  openEditDealModal(id) {
+    this.populateDealProductDropdown();
+    if (!window.store) return;
+    const campaign = window.store.getFestiveCampaign();
+    const deal = (campaign.deals || []).find(d => d.id === id);
+    if (!deal) return;
+
+    const modal = document.getElementById("festiveDealModal");
+    const title = document.getElementById("festiveDealModalTitle");
+    if (!modal) return;
+    if (title) { title.innerHTML = '<span data-icon="thread"></span> Edit Festival Deal: ' + deal.title; if (window.Icons) window.Icons.init(title); }
+
+    document.getElementById("formDealId").value = deal.id;
+    document.getElementById("formDealSku").value = deal.productId || "";
+    document.getElementById("formDealTitle").value = deal.title || "";
+    document.getElementById("formDealOrigPrice").value = deal.originalPrice || "";
+    document.getElementById("formDealFestivePrice").value = deal.festivePrice || "";
+    document.getElementById("formDealBadge").value = deal.badge || "";
+    document.getElementById("formDealImage").value = deal.image || "";
+    document.getElementById("formDealDesc").value = deal.description || "";
+    document.getElementById("formDealActive").checked = (deal.isActive !== false);
+
+    const deptSelect = document.getElementById("formDealDept");
+    if (deptSelect && deal.department) {
+      for (let i = 0; i < deptSelect.options.length; i++) {
+        if (deptSelect.options[i].value === deal.department) {
+          deptSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+
+    modal.style.display = "flex";
+  }
+
+  closeFestiveDealModal() {
+    const modal = document.getElementById("festiveDealModal");
+    if (modal) modal.style.display = "none";
+  }
+
+  handleSaveFestiveDeal(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.store) return;
+
+    const id = document.getElementById("formDealId")?.value;
+    const productId = document.getElementById("formDealSku")?.value.trim() || "ST-FEST";
+    const title = document.getElementById("formDealTitle")?.value.trim();
+    const department = document.getElementById("formDealDept")?.value || "Family Combos";
+    const originalPrice = Number(document.getElementById("formDealOrigPrice")?.value || 0);
+    const festivePrice = Number(document.getElementById("formDealFestivePrice")?.value || 0);
+    const badge = document.getElementById("formDealBadge")?.value.trim() || "Festive Deal";
+    const image = document.getElementById("formDealImage")?.value.trim() || "assets/images/family_matching_combo.jpg";
+    const description = document.getElementById("formDealDesc")?.value.trim() || "";
+    const isActive = Boolean(document.getElementById("formDealActive")?.checked);
+
+    if (!title) {
+      this.showToast("Please provide a deal title.", "warning");
+      return;
+    }
+
+    if (id) {
+      window.store.updateFestiveDeal(id, {
+        productId,
+        title,
+        department,
+        originalPrice,
+        festivePrice,
+        badge,
+        image,
+        description,
+        isActive
+      });
+      this.showToast(`Festival deal "${title}" updated!`, "success");
+    } else {
+      window.store.addFestiveDeal({
+        productId,
+        title,
+        department,
+        originalPrice,
+        festivePrice,
+        badge,
+        image,
+        description,
+        isActive
+      });
+      this.showToast(`New Festival Deal "${title}" added to collection!`, "success");
+    }
+
+    this.closeFestiveDealModal();
+    this.renderFestivePanel();
+  }
+
+  toggleFestiveDeal(id) {
+    if (!window.store) return;
+    const campaign = window.store.getFestiveCampaign();
+    const deal = (campaign.deals || []).find(d => d.id === id);
+    if (!deal) return;
+    window.store.updateFestiveDeal(id, { isActive: !deal.isActive });
+    this.renderFestivePanel();
+  }
+
+  deleteFestiveDeal(id) {
+    if (!confirm("Are you sure you want to remove this deal from the festive campaign?")) return;
+    window.store.deleteFestiveDeal(id);
+    this.showToast("Festival deal removed.", "info");
+    this.renderFestivePanel();
+  }
+
+  // ==========================================
+  // FESTIVE PERKS BAR & RESETS
+  // ==========================================
+  handleSavePerks(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.store) return;
+
+    const perks = [];
+    for (let i = 0; i < 4; i++) {
+      const icon = document.getElementById(`perkIcon${i}`)?.value.trim() || "sparkle";
+      const title = document.getElementById(`perkTitle${i}`)?.value.trim() || "Trust Badge";
+      const desc = document.getElementById(`perkDesc${i}`)?.value.trim() || "";
+      perks.push({ icon, title, desc });
+    }
+
+    window.store.saveFestiveCampaign({ perks });
+    this.showToast("Festive perks strip saved successfully!", "success");
+  }
+
+  handleResetFestiveDefaults() {
+    if (!confirm("Restore Festive Special 2026 campaign to default festive vouchers and deals?")) return;
+    window.store.resetFestiveCampaign();
+    this.renderFestivePanel();
+    this.showToast("Festive Special 2026 restored to default template!", "success");
+  }
+}
+
+// Global instantiation
+window.admin = new AdminController();
